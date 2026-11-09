@@ -1,74 +1,100 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encodePcmBase64, startRecording } from '../src/client/dictation.ts'
+import { stubAudioCapture } from './audio-fixture.client.ts'
 
-function fakeStream(): MediaStream {
-  const track = { stop: vi.fn() }
-  return { getTracks: () => [track] } as unknown as MediaStream
-}
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
-describe('startRecording', () => {
-  it('captures PCM samples via ScriptProcessorNode and resolves resampled float32 on stop', async () => {
-    const samples1 = new Float32Array([0.1, 0.2, 0.3, 0.4])
-    const samples2 = new Float32Array([0.5, 0.6])
-    const fakeBuffer = { getChannelData: () => samples1 }
-    const fakeEvent = { inputBuffer: fakeBuffer }
-    const fakeProcessor = {
-      onaudioprocess: null as ((event: typeof fakeEvent) => void) | null,
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    }
-    const fakeSource = { connect: vi.fn(), disconnect: vi.fn() }
-    const fakeGain = { gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() }
-    const fakeDestination = {}
-    const nativeRate = 48000
-    class FakeAudioContext {
-      sampleRate = nativeRate
-      createMediaStreamSource() { return fakeSource }
-      createScriptProcessor() { return fakeProcessor }
-      createGain() { return fakeGain }
-      get destination() { return fakeDestination }
-      close() { return Promise.resolve() }
-    }
-    const recording = startRecording(fakeStream(), FakeAudioContext as unknown as typeof AudioContext)
-    // Simulate two onaudioprocess callbacks
-    fakeProcessor.onaudioprocess!(fakeEvent)
-    fakeBuffer.getChannelData = () => samples2
-    fakeProcessor.onaudioprocess!(fakeEvent)
-    const result = await recording.stop()
-    // 6 samples at 48kHz → 2 samples at 16kHz
-    expect(result.length).toBe(2)
-    expect(fakeSource.connect).toHaveBeenCalledWith(fakeProcessor)
-    expect(fakeProcessor.connect).toHaveBeenCalledWith(fakeGain)
-    expect(fakeGain.connect).toHaveBeenCalledWith(fakeDestination)
+const stream = { getTracks: () => [] } as never as MediaStream
+
+describe('AudioWorklet capture', () => {
+  it('resamples transferred PCM and closes the graph, port and URL exactly once', async () => {
+    const audio = stubAudioCapture()
+    audio.processor.connect.mockImplementation(() => {})
+    const recording = await startRecording(stream)
+    audio.capture(new Float32Array([0.25, 0.75, 1, -0.5, -0.25, 0]))
+    const first = recording.stop()
+    expect(recording.stop()).toBe(first)
+    expect(Array.from(await first)).toEqual([0.25, -0.5])
+    expect(audio.source.connect).toHaveBeenCalledWith(audio.processor)
+    expect(audio.processor.connect).toHaveBeenCalledWith(audio.gain)
+    expect(audio.gain.gain.value).toBe(0)
+    expect(audio.resume).toHaveBeenCalledOnce()
+    expect(audio.addModule).toHaveBeenCalledExactlyOnceWith('blob:clh-dictation-fixture')
+    expect(audio.revokeObjectURL).toHaveBeenCalledExactlyOnceWith('blob:clh-dictation-fixture')
+    expect(audio.disconnect).toHaveBeenCalledTimes(3)
+    expect(audio.close).toHaveBeenCalledOnce()
+    expect(audio.processor.port.onmessage).toBeNull()
+    expect(audio.processor.port.close).toHaveBeenCalledOnce()
   })
-})
 
-describe('capture cleanup failures', () => {
-  it('rejects stop when AudioContext closure rejects, after disconnecting its nodes', async () => {
-    const disconnect = vi.fn()
-    const processor = { onaudioprocess: null, connect: vi.fn(), disconnect }
-    class FailingAudioContext {
-      sampleRate = 16_000
-      destination = {}
-      createMediaStreamSource() { return { connect: vi.fn(), disconnect } }
-      createScriptProcessor() { return processor }
-      createGain() { return { gain: { value: 1 }, connect: vi.fn(), disconnect } }
-      close() { return Promise.reject(new Error('audio context cleanup failed')) }
+  it('resamples consecutive worklet frames without retaining a whole streaming recording', async () => {
+    const audio = stubAudioCapture()
+    audio.processor.connect.mockImplementation(() => {})
+    const streamed: Float32Array[] = []
+    const recording = await startRecording(stream, AudioContext, { onPcmChunk: chunk => streamed.push(chunk) })
+    audio.capture(new Float32Array([0, 1, 2, 3, 4, 5]))
+    audio.capture(new Float32Array([6, 7, 8, 9, 10, 11]))
+    expect(Array.from((await recording.stop()))).toEqual([])
+    expect(streamed.flatMap(chunk => Array.from(chunk))).toEqual([0, 3, 6, 9])
+    expect(audio.close).toHaveBeenCalledOnce()
+  })
+
+  it('closes a context when the bundled processor cannot load', async () => {
+    const audio = stubAudioCapture()
+    audio.addModule.mockRejectedValue(new Error('worklet blocked'))
+    await expect(startRecording(stream)).rejects.toThrow('worklet blocked')
+    expect(audio.close).toHaveBeenCalledOnce()
+    expect(audio.revokeObjectURL).toHaveBeenCalledOnce()
+    expect(audio.constructNode).not.toHaveBeenCalled()
+  })
+
+  it('cancels a pending module load without waiting for its result or creating nodes', async () => {
+    const audio = stubAudioCapture()
+    const moduleLoad = Promise.withResolvers<undefined>() as {
+      promise: Promise<void>
+      resolve: () => void
+      reject: (error: unknown) => void
     }
-    const recording = startRecording(fakeStream(), FailingAudioContext as unknown as typeof AudioContext)
-    await expect(recording.stop()).rejects.toThrow('audio context cleanup failed')
-    expect(disconnect).toHaveBeenCalledTimes(3)
-    expect(processor.onaudioprocess).toBeNull()
+    audio.addModule.mockReturnValue(moduleLoad.promise)
+    const cancel = new AbortController()
+    const starting = startRecording(stream, AudioContext, undefined, cancel.signal)
+    cancel.abort(new DOMException('gesture released', 'AbortError'))
+    await expect(starting).rejects.toMatchObject({ name: 'AbortError' })
+    expect(audio.close).toHaveBeenCalledOnce()
+    expect(audio.revokeObjectURL).toHaveBeenCalledOnce()
+    moduleLoad.resolve()
+    await Promise.resolve()
+    expect(audio.constructNode).not.toHaveBeenCalled()
+  })
+
+  it('does not acquire a context for an already cancelled capture', async () => {
+    const audio = stubAudioCapture()
+    await expect(startRecording(stream, AudioContext, undefined, AbortSignal.abort())).rejects.toMatchObject({ name: 'AbortError' })
+    expect(audio.addModule).not.toHaveBeenCalled()
+    expect(audio.createObjectURL).not.toHaveBeenCalled()
+  })
+
+  it.each(['resume', 'close', 'processor'] as const)('rejects %s failure after releasing resources', async (failure) => {
+    const audio = stubAudioCapture()
+    if (failure === 'resume') audio.resume.mockRejectedValue(new Error('resume failed'))
+    if (failure === 'close') audio.close.mockRejectedValue(new Error('close failed'))
+    if (failure === 'resume') await expect(startRecording(stream)).rejects.toThrow('resume failed')
+    else {
+      const recording = await startRecording(stream)
+      if (failure === 'processor') audio.processor.onprocessorerror?.()
+      await expect(recording.stop()).rejects.toThrow(failure === 'processor' ? 'Voice audio capture failed' : 'close failed')
+    }
+    expect(audio.disconnect).toHaveBeenCalledTimes(3)
+    expect(audio.processor.port.close).toHaveBeenCalledOnce()
+    expect(audio.close).toHaveBeenCalledOnce()
   })
 })
 
 describe('encodePcmBase64', () => {
   it('round-trips float32 samples through canonical base64', () => {
     const samples = new Float32Array([0, 0.5, -0.5, 1])
-    const encoded = encodePcmBase64(samples)
-    const decodedBytes = Buffer.from(encoded, 'base64')
-    const decoded = new Float32Array(decodedBytes.buffer, decodedBytes.byteOffset, decodedBytes.byteLength / 4)
-    expect(Array.from(decoded)).toEqual(Array.from(samples))
+    const bytes = Buffer.from(encodePcmBase64(samples), 'base64')
+    expect(Array.from(new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4))).toEqual(Array.from(samples))
   })
 })

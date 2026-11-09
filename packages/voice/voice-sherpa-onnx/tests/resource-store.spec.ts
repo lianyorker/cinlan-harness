@@ -6,7 +6,7 @@ import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as atomic from '@deepseek-ai/dsh-atomic-write'
-import type { VoiceModelDefinition, VoiceModelId } from '@deepseek-ai/dsh-voice'
+import type { VoiceModelDefinition, VoiceModelId } from '@cinlan/voice'
 import { VoiceResourceNotReadyError, VoiceResourceStore } from '../src/resource-store.ts'
 
 const signal = new AbortController().signal
@@ -93,6 +93,29 @@ afterEach(async () => {
 })
 
 describe('VoiceResourceStore', () => {
+  it.each(['missing', 'traversal', 'hardlink', 'symlink', 'invalid-architecture', 'invalid-mode'])('rejects an invalid imported model: %s', async (failure) => {
+    const { root, store } = await setup()
+    const source = join(root, 'source')
+    await mkdir(source)
+    await writeFile(join(source, 'tokens.txt'), 'tokens')
+    if (failure !== 'missing') await writeFile(join(source, 'model.onnx'), 'model')
+    if (failure === 'hardlink' || failure === 'symlink') {
+      await rm(join(source, 'model.onnx'))
+      if (failure === 'hardlink') await link(join(source, 'tokens.txt'), join(source, 'model.onnx'))
+      else {
+        // Directory junctions also exercise link rejection on Windows without symlink privileges.
+        await symlink(source, join(source, 'model.onnx'), process.platform === 'win32' ? 'junction' : 'dir')
+      }
+    }
+    await writeFile(join(source, 'clh-voice-model.json'), JSON.stringify({
+      name: 'Import fixture', kind: failure === 'invalid-mode' ? 'streaming' : 'non-streaming',
+      architecture: { type: failure === 'invalid-architecture' ? 'unrecognized' : 'sense-voice', model: failure === 'traversal' ? '../outside.onnx' : 'model.onnx', tokens: 'tokens.txt', language: 'auto' },
+    }))
+    await expect(store.importDirectory(source, signal)).rejects.toThrow()
+    expect(await store.importedDefinitions(signal)).toEqual([])
+    expect(await readFile(join(source, 'tokens.txt'), 'utf8')).toBe('tokens')
+  })
+
   it('installs and reads a model whose Orca identifier contains a decimal', async () => {
     const { root, store } = await setup()
     const entry = { ...definition(), id: 'parakeet-tdt-0.6b-v3-int8' as VoiceModelId }

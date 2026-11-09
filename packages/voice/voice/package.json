@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-voice",
+  "name": "@cinlan/voice",
   "description": "Provider-neutral local voice-dictation capability for the DeepSeek Harness",
   "version": "0.1.7-rc.2",
   "publishConfig": { "access": "public" },
@@ -29,6 +29,7 @@
   "devDependencies": {
     "@deepseek-ai/dsh-brand": "workspace:^",
     "@deepseek-ai/dsh-llm": "workspace:^",
+    "@deepseek-ai/dsh-util-crypto": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

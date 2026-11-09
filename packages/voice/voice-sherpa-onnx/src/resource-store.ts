@@ -6,7 +6,8 @@ import { hostname } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
-import type { VoiceModelDefinition, VoiceModelResource } from '@deepseek-ai/dsh-voice'
+import type { VoiceModelArchitecture, VoiceModelDefinition, VoiceModelResource } from '@cinlan/voice'
+import { VoiceError, VoiceModelId } from '@cinlan/voice'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const versionPattern = /^sha256:[0-9a-f]{64}$/
@@ -40,6 +41,7 @@ function safePath(path: string): string {
   return path
 }
 function requiredPaths(definition: VoiceModelDefinition): string[] {
+  if (definition.architecture.type === 'openai') return []
   return Object.entries(definition.architecture)
     .filter(([key]) => key !== 'type' && key !== 'language')
     .map(([, path]) => {
@@ -48,6 +50,7 @@ function requiredPaths(definition: VoiceModelDefinition): string[] {
     }).sort()
 }
 function sources(definition: VoiceModelDefinition): string[] {
+  if (definition.download.type === 'cloud') return []
   const urls = definition.download.type === 'archive' ? [definition.download.url] : definition.download.entries.map(entry => entry.url)
   return urls.map((value) => {
     const url = new URL(value)
@@ -94,12 +97,9 @@ async function hashFile(root: string, path: string, signal: AbortSignal): Promis
   if (bytes === 0) throw new Error('Empty voice resource file: ' + path)
   return { path, bytes, sha256: hash.digest('hex') }
 }
-function parseDefinition(value: unknown): VoiceModelDefinition {
-  if (!record(value) || typeof value.id !== 'string' || !modelIdPattern.test(value.id)
-    || typeof value.name !== 'string' || typeof value.description !== 'string' || typeof value.recommended !== 'boolean'
-    || typeof value.approximateBytes !== 'number' || !Number.isFinite(value.approximateBytes) || value.approximateBytes < 0
-    || (value.kind !== 'streaming' && value.kind !== 'non-streaming') || !record(value.architecture) || !record(value.download)) throw new Error('Invalid stored voice definition')
-  const architecture = value.architecture
+function parseArchitecture(value: unknown): Exclude<VoiceModelArchitecture, { type: 'openai' }> {
+  if (!record(value)) throw new Error('Invalid stored voice architecture')
+  const architecture = value
   const fields = architecture.type === 'transducer' ? ['encoder', 'decoder', 'joiner', 'tokens']
     : architecture.type === 'paraformer' ? ['encoder', 'decoder', 'tokens']
       : architecture.type === 'whisper' ? ['encoder', 'decoder', 'tokens', 'language']
@@ -107,10 +107,18 @@ function parseDefinition(value: unknown): VoiceModelDefinition {
           : architecture.type === 'nemo-ctc' ? ['model', 'tokens'] : undefined
   if (!fields || Object.keys(architecture).some(key => key !== 'type' && !fields.includes(key))
     || fields.some(key => typeof architecture[key] !== 'string')) throw new Error('Invalid stored voice architecture')
+  return architecture as Exclude<VoiceModelArchitecture, { type: 'openai' }>
+}
+function parseDefinition(value: unknown): VoiceModelDefinition {
+  if (!record(value) || typeof value.id !== 'string' || !modelIdPattern.test(value.id)
+    || typeof value.name !== 'string' || typeof value.description !== 'string' || typeof value.recommended !== 'boolean'
+    || typeof value.approximateBytes !== 'number' || !Number.isFinite(value.approximateBytes) || value.approximateBytes < 0
+    || (value.kind !== 'streaming' && value.kind !== 'non-streaming') || !record(value.download)) throw new Error('Invalid stored voice definition')
+  const architecture = parseArchitecture(value.architecture)
   const download = value.download
   if (download.type === 'archive') {
     if (typeof download.url !== 'string' || typeof download.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(download.sha256)) throw new Error('Invalid stored voice archive')
-  } else if (download.type === 'files') {
+  } else if (download.type === 'files' || download.type === 'imported') {
     if (!Array.isArray(download.entries) || !download.entries.length) throw new Error('Invalid stored voice files')
     const names = new Set<string>()
     for (const entry of download.entries) {
@@ -121,7 +129,11 @@ function parseDefinition(value: unknown): VoiceModelDefinition {
       names.add(entry.name)
     }
   } else throw new Error('Invalid stored voice download')
-  const definition = value as unknown as VoiceModelDefinition
+  const definition: VoiceModelDefinition = {
+    ...value, id: VoiceModelId(value.id), name: value.name, description: value.description,
+    recommended: value.recommended, approximateBytes: value.approximateBytes, kind: value.kind,
+    architecture, download: download as VoiceModelDefinition['download'],
+  }
   requiredPaths(definition)
   sources(definition)
   return definition
@@ -130,7 +142,7 @@ function validateInventory(manifest: Manifest): void {
   const definition = manifest.definition
   if (manifest.version !== fingerprint(definition) || canonical(manifest.source) !== canonical(sources(definition))) throw new Error('Voice inventory differs from its definition')
   const paths = new Set(requiredPaths(definition))
-  if (definition.download.type === 'files') {
+  if (definition.download.type === 'files' || definition.download.type === 'imported') {
     const entries = definition.download.entries
     for (const entry of entries) {
       paths.add(entry.name)
@@ -181,6 +193,94 @@ export class VoiceResourceStore {
    */
   manifestFingerprint(definition: VoiceModelDefinition): string { return fingerprint(definition) }
 
+  /** Copy files named by a small local manifest into a verified managed generation.
+   * @param sourcePath - Absolute directory containing clh-voice-model.json and regular model files.
+   * @param signal - Cancels reading, copying, or hashing before publication.
+   * @returns Published definition with a generated user model identifier.
+   */
+  async importDirectory(sourcePath: string, signal: AbortSignal): Promise<VoiceModelDefinition> {
+    if (!isAbsolute(sourcePath)) throw new VoiceError('Select an absolute model directory', 'VOICE_INVALID_REQUEST')
+    signal.throwIfAborted()
+    for (let path = resolve(sourcePath); ; path = dirname(path)) {
+      await realDirectory(path)
+      if (path === dirname(path)) break
+    }
+    const inputPath = await regularFile(sourcePath, 'clh-voice-model.json')
+    if ((await lstat(inputPath)).size > 64 * 1024) throw new VoiceError('Model manifest exceeds 64 KiB', 'VOICE_INVALID_REQUEST')
+    const input: unknown = JSON.parse(await readFile(inputPath, { encoding: 'utf8', signal }))
+    if (!record(input) || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 128
+      || (input.kind !== 'streaming' && input.kind !== 'non-streaming')
+      || (input.language !== undefined && (typeof input.language !== 'string' || input.language.length > 32))) {
+      throw new VoiceError('Invalid clh-voice-model.json metadata', 'VOICE_INVALID_REQUEST')
+    }
+    const architecture = parseArchitecture(input.architecture)
+    if (input.kind === 'streaming' && architecture.type !== 'transducer' && architecture.type !== 'paraformer'
+      || input.kind === 'non-streaming' && architecture.type === 'paraformer') {
+      throw new VoiceError('Model architecture does not support the selected recognition mode', 'VOICE_INVALID_REQUEST')
+    }
+    const files = Object.entries(architecture).filter(([key]) => key !== 'type' && key !== 'language')
+    for (const [, path] of files) safePath(path)
+    const id = VoiceModelId('user-' + randomUUID())
+    const normalized = Object.fromEntries(Object.entries(architecture).map(([key, value]) =>
+      [key, key === 'type' || key === 'language' ? value : 'model/' + value]))
+    const staging = join(this.root, '.imports', randomUUID())
+    await mkdir(this.root, { recursive: true })
+    await realDirectory(this.root)
+    await mkdir(join(this.root, '.imports'), { recursive: true })
+    await realDirectory(join(this.root, '.imports'))
+    await mkdir(staging)
+    await realDirectory(staging)
+    try {
+      const inventory: InventoryFile[] = []
+      for (const path of new Set(files.map(([, path]) => path))) {
+        signal.throwIfAborted()
+        const source = await regularFile(sourcePath, path)
+        const target = join(staging, ...path.split('/'))
+        await mkdir(dirname(target), { recursive: true })
+        await copyFile(source, target)
+        inventory.push(await hashFile(staging, path, signal))
+      }
+      const definition: VoiceModelDefinition = {
+        id, name: input.name.trim(), label: input.name.trim(), description: 'User-imported local model',
+        ...(input.language === undefined ? {} : { language: String(input.language) }),
+        recommended: false, userImported: true, provider: 'local', kind: input.kind, streaming: input.kind === 'streaming',
+        type: architecture.type === 'sense-voice' ? 'senseVoice' : architecture.type,
+        approximateBytes: inventory.reduce((total, file) => total + file.bytes, 0),
+        architecture: parseArchitecture(normalized),
+        download: { type: 'imported', entries: inventory.map(file => ({ name: file.path, bytes: file.bytes, sha256: file.sha256, url: 'file:///imported/' + id + '/' + file.path })) },
+      }
+      await this.prepare(definition, staging, signal)
+      const observed = await this.inspect(definition, signal)
+      if (!await this.commit(definition, staging, observed.revision, signal)) throw new VoiceError('Model changed during import', 'VOICE_RESOURCE_CONFLICT')
+      return definition
+    } finally {
+      try { await removeManagedTree(staging) } catch (error) { if (code(error) !== 'ENOENT') throw error }
+    }
+  }
+
+  /** Discover user models from current committed inventories, ignoring removal tombstones.
+   * @param signal - Cancels directory scans and lock acquisition.
+   * @returns Validated imported definitions; corrupt metadata rejects instead of silently hiding models.
+   */
+  async importedDefinitions(signal: AbortSignal): Promise<readonly VoiceModelDefinition[]> {
+    let names: string[]
+    try { names = await readdir(join(this.root, '.resources')) } catch (error) { if (code(error) === 'ENOENT') return []; throw error }
+    const definitions: VoiceModelDefinition[] = []
+    for (const name of names.filter(name => name.startsWith('user-') && uuid.test(name.slice(5)))) {
+      const definition = await this.lock({ id: VoiceModelId(name) }, signal, async (directory) => {
+        const pointer = await this.pointer(directory)
+        if (pointer.generation === null) return undefined
+        const manifest = await this.manifest(join(directory, 'generations', pointer.generation))
+        if (manifest.definition.id !== name || manifest.definition.userImported !== true || manifest.definition.download.type !== 'imported') {
+          throw new VoiceError('Imported model inventory is invalid; check local model storage', 'VOICE_OPERATION_FAILED')
+        }
+        return manifest.definition
+      })
+      if (definition !== undefined) definitions.push(definition)
+    }
+    return definitions
+  }
+
   /** Verify committed bytes; pinned legacy file models are copied into managed storage.
    * @param definition - Current model catalog entry.
    * @param signal - Cancellation before publication or while hashing.
@@ -199,7 +299,7 @@ export class VoiceResourceStore {
   async prepare(definition: VoiceModelDefinition, stagingDir: string, signal: AbortSignal): Promise<void> {
     this.assertStaging(definition, stagingDir)
     const paths = new Set(requiredPaths(definition))
-    if (definition.download.type === 'files') for (const entry of definition.download.entries) paths.add(safePath(entry.name))
+    if (definition.download.type === 'files' || definition.download.type === 'imported') for (const entry of definition.download.entries) paths.add(safePath(entry.name))
     const files: InventoryFile[] = []
     for (const path of [...paths].sort()) files.push(await hashFile(stagingDir, path, signal))
     const manifest: Manifest = { schemaVersion: 1, version: fingerprint(definition), source: sources(definition), definition, files }
@@ -284,7 +384,7 @@ export class VoiceResourceStore {
     })
   }
 
-  private directory(definition: VoiceModelDefinition): string {
+  private directory(definition: Pick<VoiceModelDefinition, 'id'>): string {
     if (!modelIdPattern.test(definition.id)) throw new Error('Unsafe voice model identifier')
     return join(this.root, '.resources', definition.id)
   }
@@ -302,7 +402,7 @@ export class VoiceResourceStore {
     }
   }
 
-  private async lock<T>(definition: VoiceModelDefinition, signal: AbortSignal, operation: (directory: string) => Promise<T>): Promise<T> {
+  private async lock<T>(definition: Pick<VoiceModelDefinition, 'id'>, signal: AbortSignal, operation: (directory: string) => Promise<T>): Promise<T> {
     signal.throwIfAborted()
     const directory = this.directory(definition)
     await mkdir(this.root, { recursive: true })
@@ -383,7 +483,7 @@ export class VoiceResourceStore {
       if (code(error) === 'ENOENT') return result
       return { ...result, integrity: 'unverified' }
     }
-    if (definition.download.type === 'archive') return { ...result, integrity: 'unverified' }
+    if (definition.download.type !== 'files' && definition.download.type !== 'imported') return { ...result, integrity: 'unverified' }
     const stage = join(directory, 'staging-' + randomUUID())
     await mkdir(stage)
     let prepared = false

@@ -40,10 +40,10 @@ export interface VoiceModelsCancelValue {
 export type VoiceModelKind = 'streaming' | 'non-streaming'
 
 /** Catalog type used by the settings model picker. */
-export type VoiceModelType = 'transducer' | 'paraformer' | 'whisper' | 'senseVoice' | 'nemo-ctc'
+export type VoiceModelType = 'transducer' | 'paraformer' | 'whisper' | 'senseVoice' | 'nemo-ctc' | 'openai'
 
-/** Model hosting location. The stable voice provider currently ships local models. */
-export type VoiceModelProvider = 'local'
+/** Local resource or cloud transcription hosting location. */
+export type VoiceModelProvider = 'local' | 'openai'
 
 /** Recognizer architecture and the model file paths each one expects in its cache directory. */
 export type VoiceModelArchitecture =
@@ -52,11 +52,13 @@ export type VoiceModelArchitecture =
   | { readonly type: 'whisper'; readonly encoder: string; readonly decoder: string; readonly tokens: string; readonly language: string }
   | { readonly type: 'sense-voice'; readonly model: string; readonly tokens: string; readonly language: string }
   | { readonly type: 'nemo-ctc'; readonly model: string; readonly tokens: string }
+  | { readonly type: 'openai'; readonly model: string }
 
-/** Download source: either a single tar.bz2 archive or individual files from a hosting provider. */
+/** Model source: cloud, pinned download, or verified files copied from a user directory. */
 export type VoiceModelDownload =
+  | { readonly type: 'cloud' }
   | { readonly type: 'archive'; readonly url: string; readonly sha256: string }
-  | { readonly type: 'files'; readonly entries: readonly { readonly name: string; readonly url: string; readonly sha256: string; readonly bytes: number }[] }
+  | { readonly type: 'files' | 'imported'; readonly entries: readonly { readonly name: string; readonly url: string; readonly sha256: string; readonly bytes: number }[] }
 
 /** One shipped model definition: display metadata plus its download source and recognizer architecture. */
 export interface VoiceModelDefinition {
@@ -73,6 +75,8 @@ export interface VoiceModelDefinition {
   readonly type?: VoiceModelType
   /** Catalog provider label shown in model pickers. */
   readonly provider?: VoiceModelProvider
+  /** User-owned local files copied into managed storage. */
+  readonly userImported?: boolean
   /** Whether the model accepts streaming recognition input. */
   readonly streaming?: boolean
   /** Whether this model is recommended for most users. */
@@ -103,7 +107,19 @@ export interface VoiceModelSummary {
 export interface VoiceTranscribeRequest {
   readonly modelId: VoiceModelId
   readonly samples: Float32Array
+  /** Optional ISO-639-1 language hint forwarded to providers that support it. */
+  readonly language?: string
 }
+
+/** One bounded base64 PCM chunk sent through a streaming Remote. */
+export interface VoiceAudioChunk {
+  readonly pcm16kMonoBase64: string
+}
+
+/** Transcript update emitted by one online recognition session. */
+export type VoiceTranscriptFrame =
+  | { readonly type: 'partial'; readonly text: string }
+  | { readonly type: 'final'; readonly text: string }
 
 /** Native engine availability and provider-owned repair guidance. */
 export type VoiceEngineStatus =
@@ -114,7 +130,7 @@ export type VoiceEngineStatus =
 export interface VoiceModelRow {
   readonly resource: VoiceModelResource
   readonly task: VoiceModelTask | null
-  readonly definition: Pick<VoiceModelDefinition, 'id' | 'name' | 'description' | 'label' | 'language' | 'type' | 'provider' | 'streaming' | 'recommended' | 'approximateBytes'>
+  readonly definition: Pick<VoiceModelDefinition, 'id' | 'name' | 'description' | 'label' | 'language' | 'type' | 'provider' | 'userImported' | 'streaming' | 'recommended' | 'approximateBytes'>
   readonly status: VoiceModelStatus
 }
 
@@ -123,11 +139,18 @@ export interface VoiceModelsListValue {
   readonly models: readonly VoiceModelRow[]
 }
 
+/** Request to import a user-owned model directory selected by the Host picker. */
+export interface VoiceModelsImportRequest {
+  readonly sourcePath: string
+}
+
 /** Admission receipt for a Host-owned installation; observe terminal state through modelsList. */
 export type VoiceModelsDownloadValue = VoiceModelTask
 
 /** Provider-owned operations; cancellation settles only after owned work is quiescent. */
 export interface VoiceOperations {
+  /** Return whether this provider owns the selected definition. */
+  supportsModel(definition: VoiceModelDefinition): boolean
   /** Read native engine availability. */
   engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus>
   /** List models with their current installation state. */
@@ -142,8 +165,12 @@ export interface VoiceOperations {
   modelsCancel(modelId: VoiceModelId, taskId: VoiceModelTaskId, signal: AbortSignal): Promise<VoiceModelsCancelValue>
   /** Cancel model work, await native resources, and remove the cache and resumable parts. */
   modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void>
+  /** Import a validated model manifest from a selected Host directory. */
+  modelsImport?(sourcePath: string, signal: AbortSignal): Promise<VoiceModelRow>
   /** Transcribe decoded samples and release the recognizer before settlement. */
   transcribe(request: VoiceTranscribeRequest, signal: AbortSignal): Promise<VoiceTranscribeResult>
+  /** Consume bounded PCM chunks and release the recognizer and model lease before iteration settles. */
+  transcribeStream(modelId: VoiceModelId, chunks: AsyncIterable<VoiceAudioChunk>, signal: AbortSignal): AsyncIterable<VoiceTranscriptFrame>
 }
 
 /** Transcription result. */
@@ -167,6 +194,16 @@ export interface VoiceEngine {
 export interface VoiceRecognizer {
   /** Run inference on 16kHz mono PCM float32 samples and return the final transcript. */
   transcribe(samples: Float32Array): Promise<string>
+  /** Open one incremental session when this recognizer supports online input. */
+  createStream?(): VoiceRecognizerStream
   /** Release native resources; safe to call more than once. */
   dispose(): void
+}
+
+/** One online model stream; each method runs synchronously inside its isolated recognizer process. */
+export interface VoiceRecognizerStream {
+  /** Accept the next 16kHz mono PCM chunk and return the current hypothesis. */
+  accept(samples: Float32Array): string
+  /** Flush pending model state and return the final hypothesis. */
+  finish(): string
 }

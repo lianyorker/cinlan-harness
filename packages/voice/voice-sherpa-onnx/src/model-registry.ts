@@ -1,6 +1,6 @@
 /** Orca's local sherpa-onnx speech catalog, with immutable file pins. */
-import { VoiceModelId } from '@deepseek-ai/dsh-voice'
-import type { VoiceModelDefinition, VoiceModelType } from '@deepseek-ai/dsh-voice'
+import { VoiceModelId } from '@cinlan/voice'
+import type { VoiceModelDefinition, VoiceModelType } from '@cinlan/voice'
 
 type FileSpec = readonly [name: string, bytes: number, sha256: string]
 

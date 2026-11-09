@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@deepseek-ai/dsh-api-voice-controller` exposes local engine status, model resources, and transcription to Web and Desktop clients. Both carriers call the same provider operations; Desktop does not need an HTTP server. Transcription returns text for an editable draft and does not submit a message.
+`@cinlan/api-voice-controller` exposes local engine status, model resources, and transcription to Web and Desktop clients. Both carriers call the same provider operations; Desktop does not need an HTTP server. Transcription returns text for an editable draft and does not submit a message.
 
 ## Table of Contents
 
@@ -23,10 +23,10 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this controller with `typert` and [`voice`](../../voice/voice/README.md). The [Sherpa provider](../../voice/voice-sherpa-onnx/README.md) supplies native recognition and model management. The application supplies the authenticated [Connection](../../client/connection/README.md) and [Gateway](../gateway/README.md) carrier. This controller has no configuration fields.
+Mount this controller with `typert` and [`voice`](../../voice/voice/README.md). The [Sherpa provider](../../voice/voice-sherpa-onnx/README.md) supplies native recognition and model management; the optional OpenAI provider supplies cloud transcription. The application supplies the authenticated [Connection](../../client/connection/README.md) and [Gateway](../gateway/README.md) carrier. This controller has no configuration fields.
 
 ```yaml
-- name: '@deepseek-ai/dsh-api-voice-controller'
+- name: '@cinlan/api-voice-controller'
 ```
 
 Generated `ctx.remote.voice` methods return a `RemoteResult` envelope. Pass the optional `AbortSignal` as the final argument; display success only when `ok` is true.
@@ -40,9 +40,12 @@ Generated `ctx.remote.voice` methods return a `RemoteResult` envelope. Pass the 
 | `modelsUpdate(request, signal?)` | `{ modelId }` | Pinned-manifest update task receipt |
 | `modelsCancel(request, signal?)` | `{ modelId, taskId }` | `{ cancelled }` after exact-task cleanup |
 | `modelsRemove(request, signal?)` | `{ modelId }` | `{}` after model work and removal settle |
+| `modelsImport(request, signal?)` | `{ sourcePath }` | Verified imported model row |
 | `transcribe(request, signal?)` | `{ modelId, pcm16kMonoBase64 }` | `{ text }` |
+| `transcribeStream(request, signal?)` | `{ modelId }` plus bounded PCM uplink | Partial and final transcript frames for a streaming model |
+| `openAiKeyStatus(signal?)` / `openAiKeySave(value, signal?)` / `openAiKeyClear(signal?)` | Key status or `{ apiKey }` | Credential status or `{}` |
 
-PCM is canonical base64 of little-endian, finite float32 samples at 16 kHz mono, limited to 16 MiB decoded. The controller and optional legacy HTTP adapter share validation. Model identifiers must come from the available roster. A model must be ready before transcription.
+Complete-clip PCM is canonical base64 of little-endian, finite float32 samples at 16 kHz mono, limited to 16 MiB decoded. Stream uplink items use the same encoding and are limited to 64 KiB decoded each. The controller validates stream items through the voice provider operation; the optional legacy HTTP adapter supports only complete-clip transcription. Model identifiers must come from the available roster. A model must be ready before transcription, and only streaming models accept `transcribeStream`.
 
 Malformed requests, unknown models, missing files, concurrent model removal, unavailable providers, and operation failures use `voice/invalid-request`, `voice/model-unknown`, `voice/model-not-ready`, `voice/model-busy`, `voice/unavailable`, and `voice/operation-failed`. List and transcription cancellation follows the carrier. Installation methods return task receipts; disconnection after admission does not cancel Host work. Poll `modelsList` for `task` progress and terminal state, and `resource` source, fingerprints, and integrity. Explicit cancellation requires this Host’s exact task ID; stale or terminal IDs return false without deleting models. Provider-specific `VoiceError` codes remain in error details; unexpected exceptions use a fixed public message.
 
@@ -83,5 +86,5 @@ No effect until the user submits the resulting draft through the ordinary conver
 ## Known Limitations and Deferred Work
 <a id="known-limitations-and-deferred-work"></a>
 
-- Native inference is cooperative: cancellation suppresses the result, and teardown waits for the recognizer call to settle before releasing it.
+- Complete-clip offline native inference is cooperative: cancellation suppresses the result, and teardown waits for the recognizer call to settle before releasing it. Streaming inference has a separate process lifetime owned by the provider.
 - Microphone permission and capture remain client responsibilities. Engine availability depends on the local native module and downloaded model files.

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { en, type VoiceSettingsKey } from '../src/client/locales.ts'
 import { VoiceSettingsSection, type VoiceSettingsSectionProps } from '../src/client/VoiceSettingsSection.tsx'
+import type { DirectoryFlowOwnerProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { VoiceSettings } from '../src/client/voice-settings.ts'
 import type { VoiceApi, VoiceModelRow } from '../src/client/api.ts'
 import { createVoiceCallbacks, modelRow, modelTask } from './voice-fixtures.client.ts'
@@ -12,17 +13,20 @@ afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); vi.res
 
 type SettingsCallbacks = VoiceApi
 
-const DEFAULT_SETTINGS: VoiceSettings = { enabled: true, dictationMode: 'toggle', sttModel: null, microphoneDeviceId: null }
+const DEFAULT_SETTINGS: VoiceSettings = { enabled: true, dictationMode: 'toggle', sttModel: null, microphoneDeviceId: null, language: 'auto', terminalConfirmBeforeInsert: false }
 
-function Harness({ callbacks, initialSettings = DEFAULT_SETTINGS, onSettingsChange = () => {}, target }: {
+function Harness({ callbacks, initialSettings = DEFAULT_SETTINGS, onSettingsChange = () => {}, target,
+  renderFactorySlot = (_name, _props, options) => options?.fallback }: {
   callbacks: SettingsCallbacks
   initialSettings?: VoiceSettings
   onSettingsChange?: (patch: Partial<VoiceSettings>) => void
   target?: VoiceSettingsSectionProps['target']
+  renderFactorySlot?: VoiceSettingsSectionProps['renderFactorySlot']
 }): ReactNode {
   const [settings, setSettings] = useState<VoiceSettings>(initialSettings)
   const injected = {
     ...callbacks,
+    renderFactorySlot,
     target,
     t: (key: VoiceSettingsKey, params?: Record<string, string | number>) =>
       en[key].replace(/\{(\w+)\}/g, (token, name: string) => String(params?.[name] ?? token)),
@@ -39,6 +43,52 @@ async function openModelPicker(): Promise<void> {
 }
 
 describe('VoiceSettingsSection', () => {
+  it('saves and clears the host key, clears the input, and refreshes the cloud roster', async () => {
+    const callbacks = createVoiceCallbacks()
+    callbacks.openAiKeyStatus.mockResolvedValueOnce({ configured: false, writable: true })
+      .mockResolvedValueOnce({ configured: true, writable: true }).mockResolvedValue({ configured: false, writable: true })
+    render(<Harness callbacks={callbacks} />)
+    await screen.findByText(en.openAiKeyMissing)
+    const field = screen.getByLabelText<HTMLInputElement>(en.openAiSave)
+    fireEvent.change(field, { target: { value: 'test-key' } })
+    fireEvent.click(screen.getByRole('button', { name: en.openAiSave }))
+    await screen.findByText(en.openAiKeyConfigured)
+    expect(callbacks.openAiKeySave).toHaveBeenCalledWith('test-key', expect.any(AbortSignal))
+    expect(field.value).toBe('')
+    expect(callbacks.modelsList.mock.calls.length).toBeGreaterThan(1)
+    fireEvent.click(screen.getByRole('button', { name: en.openAiClear }))
+    await screen.findByText(en.openAiKeyMissing)
+    expect(callbacks.openAiKeyClear).toHaveBeenCalledWith(expect.any(AbortSignal))
+  })
+
+  it('reports a key storage failure and retains the editable value for retry', async () => {
+    const callbacks = createVoiceCallbacks()
+    callbacks.openAiKeySave.mockRejectedValue(new Error('storage unavailable'))
+    render(<Harness callbacks={callbacks} />)
+    await screen.findByText(en.openAiKeyMissing)
+    const field = screen.getByLabelText<HTMLInputElement>(en.openAiSave)
+    fireEvent.change(field, { target: { value: 'test-key' } })
+    fireEvent.click(screen.getByRole('button', { name: en.openAiSave }))
+    await screen.findByRole('alert')
+    expect(field.value).toBe('test-key')
+    expect(screen.getByText(en.openAiSaveFailed)).not.toBeNull()
+  })
+
+  it('changes the language preference and imports the selected host directory', async () => {
+    const callbacks = createVoiceCallbacks()
+    const changed = vi.fn()
+    render(<Harness callbacks={callbacks} onSettingsChange={changed}
+      renderFactorySlot={(name, props) => name === 'directory.picker'
+        ? <button onClick={() => { (props as DirectoryFlowOwnerProps).onPicked('/host/model') }}>Choose fixture directory</button> : null} />)
+    await screen.findByText(en.engineOk)
+    fireEvent.change(screen.getByRole('combobox', { name: en.languageTitle }), { target: { value: 'ja' } })
+    expect(changed).toHaveBeenCalledWith({ language: 'ja' })
+    fireEvent.click(screen.getByRole('button', { name: en.modelImport }))
+    fireEvent.click(screen.getByRole('button', { name: 'Choose fixture directory' }))
+    await waitFor(() => { expect(callbacks.modelsImport).toHaveBeenCalledExactlyOnceWith('/host/model') })
+    expect(screen.queryByRole('button', { name: 'Choose fixture directory' })).toBeNull()
+  })
+
   it('renders the shipped model roster with download controls and status', async () => {
     const callbacks = createVoiceCallbacks()
     callbacks.modelsList.mockResolvedValue({ models: [
@@ -162,6 +212,25 @@ describe('VoiceSettingsSection', () => {
     await screen.findByText(en.engineOk)
   })
 
+  it('shows the dictation shortcut beside the mode selector', async () => {
+    render(<Harness callbacks={createVoiceCallbacks()} />)
+    expect(await screen.findByText(en.dictationModeDescription)).not.toBeNull()
+    expect(screen.getByText(en.dictationModeDescription).textContent).toContain('Ctrl+Shift+E')
+  })
+
+  it('persists terminal insertion confirmation and disables it with dictation', async () => {
+    const onSettingsChange = vi.fn()
+    const view = render(<Harness callbacks={createVoiceCallbacks()} onSettingsChange={onSettingsChange} />)
+    const confirmation = await screen.findByRole<HTMLInputElement>('switch', { name: en.terminalConfirmBeforeInsert })
+    expect(confirmation.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(confirmation)
+    expect(onSettingsChange).toHaveBeenCalledWith({ terminalConfirmBeforeInsert: true })
+
+    view.unmount()
+    render(<Harness callbacks={createVoiceCallbacks()} initialSettings={{ ...DEFAULT_SETTINGS, enabled: false }} />)
+    expect(screen.getByRole<HTMLInputElement>('switch', { name: en.terminalConfirmBeforeInsert }).disabled).toBe(true)
+  })
+
   it('shows a copyable repair command when the engine is degraded', async () => {
     const callbacks = createVoiceCallbacks()
     callbacks.engineStatus.mockResolvedValue({
@@ -187,10 +256,11 @@ describe('VoiceSettingsSection', () => {
       onSettingsChange={onSettingsChange} target={{ itemId: 'device', anchorId: 'voice-device' }} />)
     await screen.findByText(en.engineOk)
     expect([...container.querySelectorAll('[data-settings-anchor]')].map(row => row.getAttribute('data-settings-anchor'))).toEqual([
-      'voice-enabled', 'voice-mode', 'voice-permission', 'voice-device', 'voice-engine', 'voice-model', 'voice-test',
+      'voice-enabled', 'voice-mode', 'voice-terminal-confirm', 'voice-permission', 'voice-device', 'voice-language', 'voice-openai', 'voice-engine', 'voice-model', 'voice-test',
     ])
     expect((screen.getByRole<HTMLSelectElement>('combobox', { name: en.microphoneDevice })).disabled).toBe(true)
     expect((screen.getByRole<HTMLInputElement>('radio', { name: en.modeHold })).disabled).toBe(true)
+    expect((screen.getByRole<HTMLInputElement>('switch', { name: en.terminalConfirmBeforeInsert })).disabled).toBe(true)
     expect(screen.getByRole<HTMLButtonElement>('button', { name: en.selectModel }).disabled).toBe(true)
     expect(onSettingsChange).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('switch', { name: en.enableDictation }))

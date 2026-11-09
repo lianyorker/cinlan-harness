@@ -8,10 +8,11 @@ import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/cli
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DictationController } from './dictation-controller.ts'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-api-voice-controller/remote'
+import type {} from '@cinlan/api-voice-controller/remote'
 import { createVoiceApi } from './api.ts'
 import { en, zh, type VoiceSettingsKey } from './locales.ts'
 import { VoiceButton, type VoiceButtonInjected } from './VoiceButton.tsx'
+import { DictationIndicator, type DictationIndicatorInjected } from './DictationIndicator.tsx'
 import { VoiceSettingsSection, type VoiceSettingsInjected } from './VoiceSettingsSection.tsx'
 import { createVoiceSettingsStore, type VoiceSettings } from './voice-settings.ts'
 
@@ -96,7 +97,9 @@ export function apply(ctx: ClientContext): void {
   const updateSettings = (patch: Partial<VoiceSettings>): void => {
     settingsStore.update((draft) => { Object.assign(draft, patch) })
   }
-  const controller = new DictationController(ctx, settingsStore, { modelsList: voiceApi.modelsList, transcribe: voiceApi.transcribe })
+  const controller = new DictationController(ctx, settingsStore, {
+    modelsList: voiceApi.modelsList, transcribe: voiceApi.transcribe, transcribeStream: voiceApi.transcribeStream,
+  })
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-voice-dictation: dictionaries')
   const t = ctx.locale.bind(NS)
 
@@ -110,20 +113,27 @@ export function apply(ctx: ClientContext): void {
     modelsReinstall: voiceApi.modelsReinstall,
     modelsUpdate: voiceApi.modelsUpdate,
     modelsCancel: voiceApi.modelsCancel,
+    modelsImport: voiceApi.modelsImport,
     transcribe: voiceApi.transcribe,
+    openAiKeyStatus: voiceApi.openAiKeyStatus,
+    openAiKeySave: voiceApi.openAiKeySave,
+    openAiKeyClear: voiceApi.openAiKeyClear,
   })
   ctx.slots.inject('settings.section', function* () {
     yield ctx.settingsMetadata.registerSection({
-      sectionId: 'voice', groupId: 'personal',
+      sectionId: 'voice', groupId: 'ai',
       title: () => t('title'), description: () => t('description'),
     })
     yield ctx.settingsMetadata.registerItems('voice', [
       { id: 'enabled', anchorId: 'voice-enabled', title: () => t('enableDictation'), description: () => t('enableDictationDescription'), keywords: () => [t('keywordDictation')] },
       { id: 'mode', anchorId: 'voice-mode', title: () => t('dictationModeTitle'), description: () => t('dictationModeDescription'), keywords: () => [t('modeToggle'), t('modeHold'), 'Ctrl+Shift+E'] },
+      { id: 'terminal-confirm', anchorId: 'voice-terminal-confirm', title: () => t('terminalConfirmBeforeInsert'), description: () => t('terminalConfirmBeforeInsertDescription'), keywords: () => [t('terminalConfirmBeforeInsert')] },
       { id: 'permission', anchorId: 'voice-permission', title: () => t('microphoneTitle'), description: () => t('microphoneDescription'), keywords: () => [t('keywordPermission')] },
       { id: 'device', anchorId: 'voice-device', title: () => t('microphoneDevice'), description: () => t('microphoneDeviceDescription'), keywords: () => [t('keywordMicrophone')] },
+      { id: 'language', anchorId: 'voice-language', title: () => t('languageTitle'), description: () => t('languageDescription'), keywords: () => [t('languageAuto'), t('languageZhShort'), t('languageEnShort')] },
       { id: 'engine', anchorId: 'voice-engine', title: () => t('engineSectionTitle'), description: () => t('engineDescription'), keywords: () => [t('keywordLocal'), t('keywordRepair')] },
       { id: 'model', anchorId: 'voice-model', title: () => t('selectModel'), description: () => t('selectModelDescription'), keywords: () => [t('modelDownload'), t('modelRemove'), t('keywordOffline')] },
+      { id: 'openai', anchorId: 'voice-openai', title: () => t('openAiTitle'), description: () => t('openAiDescription'), keywords: () => [t('openAiTitle')] },
       { id: 'test', anchorId: 'voice-test', title: () => t('testTitle'), description: () => t('testNeedsModel'), keywords: () => [t('keywordMicrophone'), t('keywordDictation')] },
     ])
     yield ctx.slots.register({
@@ -148,6 +158,17 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: buttonInjected,
   }, VoiceButton))
+
+  const indicatorInjected = (): DictationIndicatorInjected => ({
+    hooks: { dictation: controller.store },
+    stop: (sessionId) => { controller.stop(sessionId) },
+  })
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'voice-dictation.indicator',
+    locale: NS,
+    inject: indicatorInjected,
+  }, DictationIndicator))
 
   ctx.effect(() => registerDictationShortcut(ctx, controller, settingsStore), 'ui-voice-dictation: Ctrl+Shift+E trigger')
   ctx.effect(() => async () => { await controller.dispose() }, 'ui-voice-dictation: controller teardown')

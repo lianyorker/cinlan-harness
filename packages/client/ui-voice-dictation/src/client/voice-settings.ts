@@ -3,6 +3,8 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 
 /** Dictation activation mode. */
 export type DictationMode = 'toggle' | 'hold'
+/** Optional recognition language for cloud, Whisper, and SenseVoice models. */
+export type VoiceLanguage = 'auto' | 'zh' | 'en' | 'ja' | 'ko'
 
 /** Voice settings persisted to localStorage. */
 export interface VoiceSettings {
@@ -14,6 +16,10 @@ export interface VoiceSettings {
   readonly sttModel: string | null
   /** Microphone device id; null = system default. */
   readonly microphoneDeviceId: string | null
+  /** Language hint for cloud, Whisper, and SenseVoice; other models use their own language. */
+  readonly language: VoiceLanguage
+  /** Ask before inserting a completed transcript into a terminal. */
+  readonly terminalConfirmBeforeInsert: boolean
 }
 
 const STORAGE_KEY = 'dsh.voice.settings'
@@ -23,6 +29,8 @@ const DEFAULTS: VoiceSettings = {
   dictationMode: 'toggle',
   sttModel: null,
   microphoneDeviceId: null,
+  language: 'auto',
+  terminalConfirmBeforeInsert: false,
 }
 
 const LEGACY_MODEL_IDS = new Map([
@@ -40,10 +48,16 @@ function rehydrate(raw: unknown): VoiceSettings {
     dictationMode: obj.dictationMode === 'hold' ? 'hold' : 'toggle',
     sttModel: typeof obj.sttModel === 'string' ? LEGACY_MODEL_IDS.get(obj.sttModel) ?? obj.sttModel : null,
     microphoneDeviceId: typeof obj.microphoneDeviceId === 'string' ? obj.microphoneDeviceId : null,
+    language: obj.language === 'zh' || obj.language === 'en' || obj.language === 'ja' || obj.language === 'ko' ? obj.language : 'auto',
+    terminalConfirmBeforeInsert: typeof obj.terminalConfirmBeforeInsert === 'boolean'
+      ? obj.terminalConfirmBeforeInsert
+      : DEFAULTS.terminalConfirmBeforeInsert,
   }
 }
 
-/** Create the persisted voice settings store. */
+/** Create the persisted voice settings store.
+ * @returns A validated store backed by localStorage.
+ */
 export function createVoiceSettingsStore(): SnapshotStore<VoiceSettings> {
   const store = createSnapshotStore<VoiceSettings>(DEFAULTS, { persist: { name: STORAGE_KEY } })
   // Rehydrate with validation in case localStorage has stale/invalid data.

@@ -6,38 +6,29 @@ import { en } from '../src/client/locales.ts'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { createVoiceCallbacks } from './voice-fixtures.client.ts'
+import { stubAudioCapture } from './audio-fixture.client.ts'
 
-const settings = { enabled: true, dictationMode: 'toggle' as const, sttModel: null, microphoneDeviceId: 'chosen-mic' }
+const settings = {
+  enabled: true,
+  dictationMode: 'toggle' as const,
+  sttModel: null,
+  microphoneDeviceId: 'chosen-mic',
+  language: 'auto' as const,
+  terminalConfirmBeforeInsert: false,
+}
 const t = makeTranslate(en, commonEn)
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers() })
 
 function media(failSetup = false) {
   const stop = vi.fn()
-  const stream = { getTracks: () => [{ stop }] } as unknown as MediaStream
+  const stream = { getTracks: () => [{ stop }] } as never as MediaStream
   const getUserMedia = vi.fn(async () => stream)
-  const close = vi.fn(async () => {})
-  const disconnect = vi.fn()
-  const processor = {
-    onaudioprocess: null as ((event: { inputBuffer: { getChannelData: () => Float32Array } }) => void) | null,
-    connect: vi.fn(), disconnect,
-  }
-  class AudioContextMock {
-    sampleRate = 48_000
-    destination = {}
-    createMediaStreamSource() { return { connect: vi.fn(), disconnect } }
-    createScriptProcessor() {
-      if (failSetup) throw new Error('audio setup failed')
-      return processor
-    }
-    createGain() { return { gain: { value: 1 }, connect: vi.fn(), disconnect } }
-    close = close
-  }
-  vi.stubGlobal('AudioContext', AudioContextMock)
+  const audio = stubAudioCapture()
+  audio.processor.connect.mockImplementation(() => {})
+  if (failSetup) audio.constructNode.mockImplementation(() => { throw new Error('audio setup failed') })
   vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } })
-  return { stop, stream, getUserMedia, close, processor, disconnect,
-    capture: (samples: Float32Array) => processor.onaudioprocess?.({ inputBuffer: { getChannelData: () => samples } }),
-  }
+  return { stop, stream, getUserMedia, ...audio }
 }
 
 async function start() {
@@ -64,7 +55,8 @@ describe('settings microphone test', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.testStop })) })
     expect(screen.getByLabelText(en.testTranscript).textContent).toBe('A captured voice sample.')
     expect(callbacks.transcribe.mock.calls[0]?.[0]).toBe('ready-model')
-    expect(mic.processor.onaudioprocess).toBeNull()
+    expect(mic.processor.port.onmessage).toBeNull()
+    expect(mic.processor.port.close).toHaveBeenCalledOnce()
   })
 
   it.each(['cancel', 'unmount'] as const)('releases a permission result arriving after %s without recording', async (action) => {

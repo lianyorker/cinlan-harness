@@ -7,8 +7,9 @@
  */
 
 import { join } from 'node:path'
-import type { VoiceEngine, VoiceModelDefinition, VoiceRecognizer } from '@deepseek-ai/dsh-voice'
-import { VoiceError } from '@deepseek-ai/dsh-voice'
+import { createRequire } from 'node:module'
+import type { VoiceEngine, VoiceModelDefinition, VoiceRecognizer, VoiceRecognizerStream } from '@cinlan/voice'
+import { VoiceError } from '@cinlan/voice'
 import {
   describeSherpaOnnxCause,
   loadSherpaOnnx,
@@ -36,16 +37,32 @@ class SherpaOnlineOnnxRecognizer implements VoiceRecognizer {
   constructor(private readonly recognizer: SherpaOnlineRecognizer) {}
 
   transcribe(samples: Float32Array): Promise<string> {
+    const session = this.createStream()
+    session.accept(samples)
+    return Promise.resolve(session.finish())
+  }
+
+  createStream(): VoiceRecognizerStream {
     const stream = this.recognizer.createStream()
-    stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples })
-    const tailPadding = new Float32Array(Math.round(SAMPLE_RATE * TAIL_PADDING_SECONDS))
-    stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples: tailPadding })
-    stream.inputFinished()
-    while (this.recognizer.isReady(stream)) {
-      this.recognizer.decode(stream)
+    let finished = false
+    const decode = (): string => {
+      while (this.recognizer.isReady(stream)) this.recognizer.decode(stream)
+      return this.recognizer.getResult(stream).text
     }
-    const result = this.recognizer.getResult(stream)
-    return Promise.resolve(result.text)
+    return {
+      accept: (samples) => {
+        if (finished) throw new VoiceError('voice recognition stream has finished', 'VOICE_STREAM_FINISHED')
+        stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples })
+        return decode()
+      },
+      finish: () => {
+        if (finished) throw new VoiceError('voice recognition stream has finished', 'VOICE_STREAM_FINISHED')
+        finished = true
+        stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples: new Float32Array(Math.round(SAMPLE_RATE * TAIL_PADDING_SECONDS)) })
+        stream.inputFinished()
+        return decode()
+      },
+    }
   }
 
   dispose(): void {
@@ -76,7 +93,7 @@ export const sherpaOnnxEngine: VoiceEngine = {
   id: 'sherpa-onnx',
 
   loadModel(definition: VoiceModelDefinition, cacheDir: string): Promise<VoiceRecognizer> {
-    const sherpaOnnx = loadSherpaOnnx()
+    const sherpaOnnx = loadSherpaOnnx(createRequire(import.meta.url))
     if (sherpaOnnx === null) {
       return Promise.reject(new VoiceError(
         `sherpa-onnx-node failed to load: ${describeSherpaOnnxCause(sherpaOnnxLoadCause())} — reinstall the voice-sherpa-onnx plugin's native dependency`,
@@ -84,6 +101,7 @@ export const sherpaOnnxEngine: VoiceEngine = {
       ))
     }
     const { architecture } = definition
+    if (architecture.type === 'openai') return Promise.reject(new VoiceError('OpenAI models are handled by the cloud provider', 'VOICE_UNAVAILABLE'))
     const resolve = (p: string): string => resolveModelPath(cacheDir, p)
     const featConfig = { sampleRate: SAMPLE_RATE, featureDim: FEATURE_DIM }
     const baseModelConfig = { tokens: resolve(architecture.tokens), numThreads: 1, provider: 'cpu' as const, debug: 0 as const }

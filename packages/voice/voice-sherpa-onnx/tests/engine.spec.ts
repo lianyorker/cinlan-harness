@@ -1,8 +1,8 @@
 /* oxlint-disable typescript/no-unsafe-assignment -- native module test double. */
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { VoiceModelId } from '@deepseek-ai/dsh-voice'
-import type { VoiceModelDefinition } from '@deepseek-ai/dsh-voice'
+import { VoiceModelId } from '@cinlan/voice'
+import type { VoiceModelDefinition } from '@cinlan/voice'
 import * as sherpaDeps from '../src/sherpa-deps.ts'
 import { sherpaOnnxEngine } from '../src/engine.ts'
 import { SHIPPED_MODELS } from '../src/model-registry.ts'
@@ -101,6 +101,7 @@ describe('sherpaOnnxEngine.loadModel', () => {
     expect(acceptWaveform).toHaveBeenCalledExactlyOnceWith({ sampleRate: 16_000, samples })
     const expectedKey = model.architecture.type === 'nemo-ctc' ? 'nemoCtc'
       : model.architecture.type === 'sense-voice' ? 'senseVoice' : model.architecture.type
+    if (model.architecture.type === 'openai') throw new Error('OpenAI models do not use the local Sherpa recognizer')
     expect(configurations[0]?.modelConfig).toHaveProperty(expectedKey)
     expect(configurations[0]?.modelConfig.tokens).toBe(join('/cache/model', model.architecture.tokens))
     recognizer.dispose()

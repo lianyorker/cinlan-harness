@@ -8,7 +8,7 @@ import type { DictationState } from '../src/client/dictation-controller.ts'
 import type { VoiceSettings } from '../src/client/voice-settings.ts'
 import { createVoiceCallbacks, modelRow } from './voice-fixtures.client.ts'
 
-const DEFAULT_SETTINGS: VoiceSettings = { enabled: true, dictationMode: 'toggle', sttModel: null, microphoneDeviceId: null }
+const DEFAULT_SETTINGS: VoiceSettings = { enabled: true, dictationMode: 'toggle', sttModel: null, microphoneDeviceId: null, language: 'auto', terminalConfirmBeforeInsert: false }
 
 function props(
   state: DictationState,

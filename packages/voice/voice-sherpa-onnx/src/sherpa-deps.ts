@@ -1,12 +1,11 @@
 /**
  * sherpa-onnx-node dependency loading, mirroring the node-pty lazy-load
- * pattern in @deepseek-ai/dsh-client-ui-better-sidebar's pty-deps.ts. The
+ * pattern in @cinlan/client-ui-better-sidebar's pty-deps.ts. The
  * native addon (and its per-platform optionalDependency binary) is NEVER
  * imported statically: a missing or broken install must degrade this
  * plugin's transcription route instead of aborting the whole Host boot.
  */
 
-import { createRequire } from 'node:module'
 
 /** The minimal sherpa-onnx-node surface this Provider consumes. */
 export interface SherpaOnnxModule {
@@ -71,8 +70,6 @@ export interface SherpaOfflineRecognizer {
 /** A require-compatible loader, injectable for tests. */
 export type SherpaOnnxRequire = (id: string) => unknown
 
-const defaultRequire: SherpaOnnxRequire = createRequire(import.meta.url)
-
 type LoadResult = { ok: true; module: SherpaOnnxModule } | { ok: false; cause: unknown }
 
 let cached: LoadResult | undefined
@@ -81,10 +78,10 @@ let cached: LoadResult | undefined
  * Load sherpa-onnx-node once (synchronously) and cache the outcome. Returns
  * null when the package or its native binding cannot be loaded; the cause
  * stays queryable through {@link sherpaOnnxLoadCause}. Never throws.
- * @param requireImpl - injectable require, defaulting to createRequire on this module.
+ * @param requireImpl - require resolver anchored to the active ESM module or recognition worker entry.
  * @returns the loaded module, or null in degraded mode.
  */
-export function loadSherpaOnnx(requireImpl: SherpaOnnxRequire = defaultRequire): SherpaOnnxModule | null {
+export function loadSherpaOnnx(requireImpl: SherpaOnnxRequire): SherpaOnnxModule | null {
   if (cached === undefined) {
     try {
       cached = { ok: true, module: requireImpl('sherpa-onnx-node') as SherpaOnnxModule }

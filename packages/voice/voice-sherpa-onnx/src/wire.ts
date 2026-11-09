@@ -6,8 +6,8 @@
  * these helpers).
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { VoiceError } from '@deepseek-ai/dsh-voice'
-import { MAX_VOICE_BODY_BYTES } from '@deepseek-ai/dsh-voice/transport'
+import { VoiceError } from '@cinlan/voice'
+import { MAX_VOICE_BODY_BYTES } from '@cinlan/voice/transport'
 
 /** Machine-readable error codes of the /voice/api route. */
 export type VoiceApiErrorCode = 'bad-request' | 'not-found' | 'forbidden' | 'method-error' | 'internal'
@@ -71,7 +71,7 @@ export function writeOk(res: ServerResponse, value: unknown): void {
  * Write the failure envelope for any thrown value (unknown to internal 500).
  * A VoiceApiError carries its own wire code and status. Any other Error
  * carrying a stable machine-routable `code` string (e.g. this package's
- * VoiceError from @deepseek-ai/dsh-voice) surfaces that code at a 500 status
+ * VoiceError from @cinlan/voice) surfaces that code at a 500 status
  * instead of collapsing to the generic 'internal' code — the settings page
  * and Ctrl+Shift+E client distinguish, for example, VOICE_ENGINE_DEGRADED from an
  * ordinary internal failure.

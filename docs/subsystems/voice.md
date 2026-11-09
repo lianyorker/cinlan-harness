@@ -2,7 +2,7 @@
 
 English | [中文](voice.zh.md)
 
-Voice dictation transcribes a decoded audio clip with a locally installed model. The [voice service](../../packages/voice/voice/README.md) owns model identity and provider registration; the [local provider](../../packages/voice/voice-sherpa-onnx/README.md) owns native resources, downloads, and inference. Consumers own microphone capture and inserting the transcript into the composer.
+Voice dictation transcribes audio with a locally installed model. Offline models receive one decoded clip; online models accept bounded PCM chunks and emit partial hypotheses followed by one final transcript. The [voice service](../../packages/voice/voice/README.md) owns model identity and provider registration; the [local provider](../../packages/voice/voice-sherpa-onnx/README.md) owns native resources, downloads, and inference. Consumers own microphone capture and inserting the final transcript into the composer.
 
 Source: [`packages/voice/voice/src/types.ts`](../../packages/voice/voice/src/types.ts). The types below belong to the voice group, including types re-exported by transport controllers.
 
@@ -13,9 +13,9 @@ Definitions describe registered models; cache status describes whether a particu
 | Type | Fields and meaning |
 |---|---|
 | `VoiceModelId` | Branded exact model selector. Duplicate registration rejects; resolving an unknown id raises `VOICE_MODEL_UNKNOWN`. |
-| `VoiceModelKind` | `streaming` or `non-streaming` recognizer family. Both use the final-transcript API described below. |
+| `VoiceModelKind` | `streaming` models accept chunked online recognition; `non-streaming` models accept one complete clip. |
 | `VoiceModelDefinition` | `id`, display `name`, `description`, `recommended`, `kind`, size hint `approximateBytes`, `download`, and `architecture`; optional picker metadata `label`, `language`, `type`, `provider`, and `streaming`. |
-| `VoiceModelDownload` | `type: archive` carries a tar.bz2 `url` and `sha256`. `type: files` carries `entries`, each with `name`, `url`, `sha256`, and expected `bytes`. |
+| `VoiceModelDownload` | `type: cloud` has no local files. `type: archive` carries a tar.bz2 `url` and `sha256`. `type: files` and `type: imported` carry `entries`, each with `name`, `url`, `sha256`, and expected `bytes`. |
 
 `VoiceModelArchitecture` selects the file layout inside the model’s cache directory. Paths identify the files required by that recognizer; language fields configure the corresponding architecture.
 
@@ -51,18 +51,22 @@ Engine availability is independent of model cache state. A missing provider reje
 
 ## Transcription and provider lifetime
 
-The provider receives decoded samples, and the caller supplies cancellation separately. The result settles after the recognizer releases its native resources.
+The provider receives decoded samples, an optional language hint, and cancellation. The selected provider settles after its owned recognizer or request releases its resources.
 
 | Type | Fields and meaning |
 |---|---|
-| `VoiceTranscribeRequest` | `modelId: VoiceModelId` and `samples: Float32Array` containing one 16 kHz mono clip. |
-| `VoiceTranscribeResult` | Final transcript in `text`; no partial-result stream. |
+| `VoiceModelProvider` | `local` or `openai`; selects the provider that owns model operations. |
+| `VoiceTranscribeRequest` | `modelId: VoiceModelId`, `samples: Float32Array` containing one 16 kHz mono clip, and an optional ISO language hint. |
+| `VoiceTranscribeResult` | Final transcript in `text` for the complete-clip API. |
+| `VoiceAudioChunk` | Bounded canonical base64 of little-endian float32 16 kHz mono PCM for a Remote uplink. |
+| `VoiceTranscriptFrame` | A `partial` hypothesis or the one terminal `final` transcript from online recognition. |
 | `VoiceEngine` | Stable `id` and `loadModel(definition, cacheDir)`, which returns a ready `VoiceRecognizer` or rejects for an unavailable native binding or missing/corrupt model files. |
-| `VoiceRecognizer` | `transcribe(samples)` returns the final transcript for 16 kHz mono float32 PCM; `dispose()` releases native resources and is safe to repeat. |
+| `VoiceRecognizer` | `transcribe(samples)` handles complete clips; optional `createStream()` opens an online recognizer session. `dispose()` releases native resources and is safe to repeat. |
+| `VoiceRecognizerStream` | Synchronously accepts one PCM chunk at a time and flushes the final hypothesis on `finish()`. |
 
-The same-named [API controller `VoiceTranscribeRequest`](typert.md) is a JSON request with `pcm16kMonoBase64`. The [shared transport parser](../../packages/voice/voice/src/transport.ts) validates canonical little-endian float32 PCM, a 16 MiB decoded bound, and finite samples before producing the voice-owned request above.
+The same-named [API controller `VoiceTranscribeRequest`](typert.md) is a JSON request with `pcm16kMonoBase64`. The [shared transport parser](../../packages/voice/voice/src/transport.ts) validates canonical little-endian float32 PCM, a 16 MiB decoded bound for a complete clip, 64 KiB per online chunk, and finite samples before producing provider input.
 
-`VoiceOperations` supplies the provider-owned callbacks behind `ctx.voice`. Every callback receives an `AbortSignal`; cancellation settles only after its owned work becomes quiescent.
+`VoiceOperations` declares model ownership through `supportsModel` and supplies provider-owned callbacks behind `ctx.voice`. Every callback receives an `AbortSignal`; cancellation settles only after its owned work becomes quiescent.
 
 | Operation | Obligation |
 |---|---|
@@ -70,6 +74,7 @@ The same-named [API controller `VoiceTranscribeRequest`](typert.md) is a JSON re
 | `modelsDownload` | Install or await one model’s shared installation; cancelling any waiter cancels that installation. |
 | `modelsRemove` | Cancel model work, wait for native resources, then remove the cache and resumable parts. |
 | `transcribe` | Transcribe an installed model’s decoded samples and dispose the recognizer before settlement. |
+| `transcribeStream` | Accept bounded chunks only for streaming models; emit hypotheses and final text, then release the worker process and model lease before settlement. |
 
 The [runtime](../../packages/voice/voice/src/index.ts) admits one engine and one operations registration. Each registration returns a disposer; withdrawing operations prevents new dispatches immediately. Calls without registered operations reject with `VOICE_UNAVAILABLE`. `VoiceError` carries an open-string error code; it is not a closed error-code union.
 

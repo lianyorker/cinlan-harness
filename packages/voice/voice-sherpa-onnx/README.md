@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@deepseek-ai/dsh-voice-sherpa-onnx` mounts local `sherpa-onnx-node` recognition and model management on `ctx.voice`. It requires `voice` and managed `subprocess`; a Web server is optional. The [pinned catalog](src/model-registry.ts) contains Orca's ten local models with exact per-file sizes and SHA-256 checksums. Streaming models use OnlineRecognizer; Parakeet, Whisper, and SenseVoice use OfflineRecognizer, including Japanese NeMo CTC.
+`@cinlan/voice-sherpa-onnx` mounts local `sherpa-onnx-node` recognition and model management on `ctx.voice`. It requires `voice` and managed `subprocess`; a Web server is optional. The [pinned catalog](src/model-registry.ts) contains Orca's ten local models with exact per-file sizes and SHA-256 checksums. The provider also imports user-owned directories through `clh-voice-model.json` and restores verified imports after reload. Streaming models use OnlineRecognizer; Parakeet, Whisper, and SenseVoice use OfflineRecognizer, including Japanese NeMo CTC.
 
 ## Table of Contents
 
@@ -49,14 +49,14 @@ The store records a required-file hash inventory and an immutable generation und
 
 Recognizers acquire persistent generation leases under the same lock as publication and collection. Replacement and removal collect only inactive generations without live or unknown owners; a recognizer releases its lease after native disposal. Definite dead-process leases may be reclaimed. Unknown owners, foreign-machine leases, and potentially reused process IDs retain bytes conservatively. Cleanup failure does not reverse a successful publication.
 
-Legacy `<cacheRoot>/<modelId>` directories are preserved. File-source caches may be copied into managed storage only after exact pinned size and checksum verification. A marker or nonempty archive extraction cannot prove provenance and remains `unverified`; explicit download or reinstall obtains verified replacement bytes without deleting the legacy directory. A removal tombstone prevents later automatic re-adoption.
+Legacy `<cacheRoot>/<modelId>` directories are preserved. File-source caches may be copied into managed storage only after exact pinned size and checksum verification. A marker or nonempty archive extraction cannot prove provenance and remains `unverified`; explicit download or reinstall obtains verified replacement bytes without deleting the legacy directory. A removal tombstone prevents later automatic re-adoption. User imports require regular unlinked files named by `clh-voice-model.json`; the source directory remains unchanged and only the managed generation is removed.
 
 <a id="transports-and-native-recognition"></a>
 ## Transports and native recognition
 
-The [authenticated controller](../../api/voice-controller/README.md) is the Web and Desktop API. Optional loopback POST methods are `engine.status`, `models.list`, `models.download`, `models.reinstall`, `models.update`, `models.cancel`, `models.remove`, and `transcribe`. Both adapters validate requests and dispatch the same operations. The legacy route checks loopback and browser origin metadata; it is not an authentication mechanism.
+The [authenticated controller](../../api/voice-controller/README.md) is the Web and Desktop API. Its `transcribeStream` Remote accepts bounded PCM uplink for online models and emits partial and final frames. Optional loopback POST methods are `engine.status`, `models.list`, `models.download`, `models.reinstall`, `models.update`, `models.cancel`, `models.remove`, and complete-clip `transcribe`. The legacy route checks loopback and browser origin metadata; it is not an authentication mechanism.
 
-Native addon loading is lazy. A missing addon leaves model management available and supplies engine repair guidance. Transcription requires verified files and uses the installed generation’s recognizer configuration, even when the catalog fingerprint differs. Native inference is synchronous and cannot be interrupted mid-call; cancellation suppresses the result and teardown waits for settlement.
+Native addon loading is lazy. A missing addon leaves model management available and supplies engine repair guidance. Recognition requires verified files and uses the installed generation’s recognizer configuration, even when the catalog fingerprint differs. Online decode runs in an isolated child process; cancellation terminates and joins it before releasing the generation lease. Complete-clip offline recognition remains synchronous in the Host and cannot be interrupted mid-call; cancellation suppresses its result and teardown waits for settlement.
 
 <a id="model-experience"></a>
 ## Model Experience

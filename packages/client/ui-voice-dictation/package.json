@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-voice-dictation",
+  "name": "@cinlan/client-ui-voice-dictation",
   "description": "Local voice-dictation settings page and Ctrl+Shift+E dictation trigger for Cinlan Web",
   "version": "0.1.7-rc.2",
   "publishConfig": {
@@ -7,7 +7,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/lianyorker/cinlan-harness.git",
     "directory": "packages/client/ui-voice-dictation"
   },
   "type": "module",
@@ -56,10 +56,11 @@
     "@deepseek-ai/dsh-client-ui-conversation": "workspace:^",
     "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-workspace": "workspace:*",
     "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
-    "@deepseek-ai/dsh-voice": "workspace:^",
+    "@cinlan/voice": "workspace:^",
     "@deepseek-ai/dsh-api-remotes": "workspace:^",
-    "@deepseek-ai/dsh-api-voice-controller": "workspace:^",
+    "@cinlan/api-voice-controller": "workspace:^",
     "@types/react": "~18.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

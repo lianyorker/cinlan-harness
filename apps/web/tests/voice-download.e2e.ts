@@ -1,15 +1,15 @@
-/** Failed built-in model transfers retain resources and can be retried from the model menu. */
+/** The real local provider publishes actionable download failures through the speech Remote to bundle details. */
+import { once } from 'node:events'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
 import { expect, it, onTestFinished } from 'vitest'
-import { modelFixture } from '../../../packages/api/voice-controller/tests/harness.ts'
-import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
-import { newEnglishPage, waitForApplicationFrame } from './support.ts'
+import { captureStableAria, compareOrRefreshGolden, launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold } from './scaffold.ts'
+import { newEnglishPage } from './support.ts'
 
-it('reports a failed Host download and retries to a verified installation without selecting it', async () => {
 const bundle = fileURLToPath(new URL('../../../packages/experimental/voice-input-bundle', import.meta.url))
 const expected = fileURLToPath(new URL('./expected/voice-download.expected.md', import.meta.url))
 // The input-device picker on the same page shows its own alert when headless Chromium offers no microphone.
@@ -18,30 +18,31 @@ const DOWNLOAD_ALERT = '[role="alert"]:has-text("Download source")'
 it('shows the failed asset, actual download source and recovery advice, then retries on request', async () => {
   const resources: { scaffold?: WebScaffold; browser?: Browser } = {}
   const root = await mkdtemp(join(tmpdir(), 'dsh-voice-download-'))
-  const resources: { scaffold?: WebScaffold; browser?: Browser } = {}
+  onTestFinished(async () => { await rm(root, { recursive: true, force: true }) })
+  let status = 503
+  const requests: string[] = []
+  const server = createServer((request, response) => {
+    requests.push(request.url!)
+    response.writeHead(status); response.end()
+  })
   onTestFinished(async () => {
     try { await resources.browser?.close() } finally {
-      try { await resources.scaffold?.close() } finally { await rm(root, { recursive: true, force: true }) }
+      try { await resources.scaffold?.close() } finally {
+        const closed = new Promise<void>((resolve, reject) => { server.close((error) => { if (error) reject(error); else resolve() }) })
+        server.closeAllConnections(); await closed
+      }
     }
   })
-  const fixture = await modelFixture()
-  fixture.fail(503)
-  const overlay = join(root, 'voice.patch.yml')
-  await writeFile(overlay, JSON.stringify([{ id: 'voice-sherpa-onnx', config: {
-    cacheRoot: join(root, 'cache'), downloadConcurrency: 1, downloadMaxAttempts: 1,
-  } }]))
-  const scaffold = await launchWebScaffold({ extraOverlayPath: overlay, harnessHome: join(root, 'home') })
+  server.listen(0, '127.0.0.1'); await once(server, 'listening')
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('Expected a loopback listener')
+  const origin = `http://127.0.0.1:${address.port}`, overlay = join(root, 'voice.patch.yml')
+  await writeFile(overlay, `- id: speech-to-text-sensevoice\n  config:\n    dataRoot: ${JSON.stringify(join(root, 'models'))}\n    modelOrigin: ${origin}\n`)
+  const scaffold = await launchWebScaffold({ profile: { packages: [{ dir: bundle, enabled: true }] }, extraOverlayPath: overlay })
   resources.scaffold = scaffold
-  const plugin = join(root, 'voice-fixture.mjs')
-  await writeFile(plugin, "export const inject = ['voice']; export function apply(ctx, config) { ctx.effect(() => ctx.voice.registerModel(config.definition)); }\n")
-  await scaffold.ctx.loader.create({ name: pathToFileURL(plugin).href, config: { definition: fixture.definition } })
-  await scaffold.ctx.loader.await()
-  const status = async () => (await scaffold.ctx.voice.modelsList(new AbortController().signal)).models
-    .find(row => row.definition.id === fixture.definition.id)
   const browser = await chromium.launch()
   resources.browser = browser
-  const page = await newEnglishPage(browser)
-  const tripwire = watchConsole(page)
+  const page = await newEnglishPage(browser), tripwire = watchConsole(page)
   await page.goto(scaffold.authenticatedUrl)
   await page.getByRole('button', { name: 'Plugins', exact: true }).click()
   await page.locator('[data-plugin-package="@deepseek-ai/dsh-experimental-voice-input-bundle"]').getByRole('button').click()

@@ -10,11 +10,13 @@ import { expect, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
-import Voice, { VoiceModelId } from '@deepseek-ai/dsh-voice'
-import type { VoiceModelDefinition, VoiceModelsListValue, VoiceModelTask } from '@deepseek-ai/dsh-voice'
-import * as SherpaProvider from '@deepseek-ai/dsh-voice-sherpa-onnx'
-import * as sherpaDeps from '@deepseek-ai/dsh-voice-sherpa-onnx/src/sherpa-deps.ts'
-import type { SherpaOfflineRecognizerConfig, SherpaOnlineRecognizerConfig } from '@deepseek-ai/dsh-voice-sherpa-onnx/src/sherpa-deps.ts'
+import Voice, { VoiceModelId } from '@cinlan/voice'
+import RemoteAccess from '@deepseek-ai/dsh-api-remote-access'
+import type { VoiceModelDefinition, VoiceModelsListValue, VoiceModelTask } from '@cinlan/voice'
+import * as SherpaProvider from '@cinlan/voice-sherpa-onnx'
+import * as OpenAiProvider from '@cinlan/voice-openai'
+import * as sherpaDeps from '@cinlan/voice-sherpa-onnx/src/sherpa-deps.ts'
+import type { SherpaOfflineRecognizerConfig, SherpaOnlineRecognizerConfig } from '@cinlan/voice-sherpa-onnx/src/sherpa-deps.ts'
 import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
 import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
@@ -121,7 +123,13 @@ export async function modelFixture() {
  * @param options - Optional shared cache and model server for multiple Hosts.
  * @returns context, private home, real carrier clients, and Loader lifecycle controls.
  */
-export async function createHarness(web = false, options: { cacheRoot?: string; fixture?: Awaited<ReturnType<typeof modelFixture>> } = {}) {
+interface HarnessOptions {
+  cacheRoot?: string
+  fixture?: Awaited<ReturnType<typeof modelFixture>>
+  openAi?: OpenAiProvider.Config
+}
+
+export async function createHarness(web = false, options: HarnessOptions = {}) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-voice-controller-'))
   const ctx = new Context()
   onTestFinished(async () => {
@@ -139,30 +147,34 @@ export async function createHarness(web = false, options: { cacheRoot?: string; 
   const configPath = join(root, 'cordis.yml')
   const rows = [
     ...(web ? [{ name: '@deepseek-ai/dsh-host-webserver', config: { host: '127.0.0.1', port: 0 } }] : []),
-    { name: '@deepseek-ai/dsh-voice' },
+    { name: '@cinlan/voice' },
     { name: '@deepseek-ai/dsh-subprocess-local' },
-    { name: '@deepseek-ai/dsh-voice-sherpa-onnx', config: { cacheRoot, downloadConcurrency: 1, downloadMaxAttempts: 1 } },
+    { name: '@cinlan/voice-sherpa-onnx', config: { cacheRoot, downloadConcurrency: 1, downloadMaxAttempts: 1 } },
     { name: FIXTURE_PLUGIN },
     { name: '@deepseek-ai/dsh-credentials-local', config: { path: join(root, 'credentials.yaml'), watch: false } },
+    ...(options.openAi === undefined ? [] : [{ name: '@cinlan/voice-openai', config: options.openAi }]),
     { name: '@deepseek-ai/dsh-client-connection' },
+    { name: '@deepseek-ai/dsh-api-remote-access' },
     { name: '@deepseek-ai/dsh-typert-registry' },
     { name: '@deepseek-ai/dsh-api-gateway' },
-    { name: '@deepseek-ai/dsh-api-voice-controller' },
+    { name: '@cinlan/api-voice-controller' },
   ]
   await writeFile(configPath, rows.map(row => '- ' + JSON.stringify(row)).join('\n') + '\n')
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
     ['@deepseek-ai/dsh-host-webserver', WebServer],
-    ['@deepseek-ai/dsh-voice', Voice],
+    ['@cinlan/voice', Voice],
     ['@deepseek-ai/dsh-subprocess-local', LocalSubprocess],
-    ['@deepseek-ai/dsh-voice-sherpa-onnx', SherpaProvider],
+    ['@cinlan/voice-sherpa-onnx', SherpaProvider],
+    ['@cinlan/voice-openai', OpenAiProvider],
     [FIXTURE_PLUGIN, { name: FIXTURE_PLUGIN, inject: ['voice'], apply(context: Context) { context.effect(() => context.voice.registerModel(fixture.definition)) } }],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials],
     ['@deepseek-ai/dsh-client-connection', Connection],
+    ['@deepseek-ai/dsh-api-remote-access', RemoteAccess],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry],
     ['@deepseek-ai/dsh-api-gateway', TypertGateway],
-    ['@deepseek-ai/dsh-api-voice-controller', VoiceController],
+    ['@cinlan/api-voice-controller', VoiceController],
   ])
   ctx.loader.internal = {
     version: 'v2',
@@ -186,7 +198,7 @@ export async function createHarness(web = false, options: { cacheRoot?: string; 
   return {
     ctx, root, origin, cacheRoot, fixture,
     remote(method: string, args: unknown = {}, signal?: AbortSignal) {
-      return shared.fetch(new Request(`dsh-app://app/api/voice/${method}`, rpcRequest(method, args, signal)))
+      return shared.fetch(new Request(`dsh-app://app/api/voice/${method}`, rpcRequest(method, args, signal)), ctx.connection.browserPeer)
     },
     http(method: string, args: unknown = {}, cookie?: string) {
       if (origin === undefined) throw new Error('voice fixture has no WebServer')

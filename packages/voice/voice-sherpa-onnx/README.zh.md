@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 摘要
 
-`@deepseek-ai/dsh-voice-sherpa-onnx` 在 `ctx.voice` 上挂载本地 `sherpa-onnx-node` 识别与模型管理。它需要 `voice` 和托管 `subprocess`；Web 服务器可选。[固定目录](src/model-registry.ts) 包含 Orca 的十个本地模型，固定逐文件大小和 SHA-256 校验和。流式模型使用 OnlineRecognizer；Parakeet、Whisper 与 SenseVoice 使用 OfflineRecognizer，包括日语 NeMo CTC。
+`@cinlan/voice-sherpa-onnx` 在 `ctx.voice` 上挂载本地 `sherpa-onnx-node` 识别与模型管理。它需要 `voice` 和托管 `subprocess`；Web 服务器可选。[固定目录](src/model-registry.ts) 包含 Orca 的十个本地模型，固定逐文件大小和 SHA-256 校验和。提供方也能通过 `clh-voice-model.json` 导入用户目录，并在重载后恢复已验证的导入模型。流式模型使用 OnlineRecognizer；Parakeet、Whisper 与 SenseVoice 使用 OfflineRecognizer，包括日语 NeMo CTC。
 
 ## 目录
 
@@ -49,14 +49,14 @@ kind: "package-reference"
 
 识别器在与发布和回收相同的锁下获取持久代租约。替换与删除仅回收没有活跃或未知所有者的非活跃代；识别器在原生释放后解除租约。明确属于已死亡进程的租约可回收。未知所有者、其他机器租约及可能复用的进程 ID 均保守保留字节。清理失败不会撤销成功发布。
 
-保留旧 `<cacheRoot>/<modelId>` 目录。文件源缓存只有经过固定大小和校验和的精确验证，才能复制到受管存储。标记或非空归档解包结果无法证明来源，因此保持 `unverified`；显式下载或重新安装获取已验证的替代字节，但不删除旧目录。删除墓碑阻止后续自动重新收养。
+保留旧 `<cacheRoot>/<modelId>` 目录。文件源缓存只有经过固定大小和校验和的精确验证，才能复制到受管存储。标记或非空归档解包结果无法证明来源，因此保持 `unverified`；显式下载或重新安装获取已验证的替代字节，但不删除旧目录。删除墓碑阻止后续自动重新收养。用户导入要求 `clh-voice-model.json` 指定的文件均为普通文件且没有链接；源目录保持不变，删除操作只删除受管模型代。
 
 <a id="transports-and-native-recognition"></a>
 ## 传输与原生识别
 
-[身份验证控制器](../../api/voice-controller/README.zh.md) 是 Web 与 Desktop API。可选回环 POST 方法包括 `engine.status`、`models.list`、`models.download`、`models.reinstall`、`models.update`、`models.cancel`、`models.remove` 和 `transcribe`。两个适配器都校验请求并调度相同操作。旧路由检查回环与浏览器来源元数据；它不是身份验证机制。
+[身份验证控制器](../../api/voice-controller/README.zh.md) 是 Web 与 Desktop API。其 `transcribeStream` Remote 为在线模型接收有界 PCM uplink，并发出 partial 与 final 帧。可选回环 POST 方法包括 `engine.status`、`models.list`、`models.download`、`models.reinstall`、`models.update`、`models.cancel`、`models.remove` 和完整片段 `transcribe`。旧路由检查回环与浏览器来源元数据；它不是身份验证机制。
 
-原生插件按需加载。缺少插件不影响模型管理，并会提供引擎修复指引。转写要求已验证文件，并使用已安装代的识别器配置，即使目录指纹不同。原生推理是同步调用，无法中途打断；取消阻止结果返回，拆除等待其结算。
+原生插件按需加载。缺少插件不影响模型管理，并会提供引擎修复指引。识别要求已验证文件，并使用已安装代的识别器配置，即使目录指纹不同。在线解码在隔离子进程执行；取消会终止并等待该进程后释放模型代租约。完整片段离线识别仍在 Host 同步执行，调用期间无法中断；取消会抑制结果，拆除等待其结算。
 
 <a id="model-experience"></a>
 ## 模型体验

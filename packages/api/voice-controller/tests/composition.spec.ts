@@ -2,12 +2,12 @@ import { access, readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { createHash, randomUUID } from 'node:crypto'
-import type { VoiceModelTask } from '@deepseek-ai/dsh-voice'
-import * as sherpaDeps from '@deepseek-ai/dsh-voice-sherpa-onnx/src/sherpa-deps.ts'
+import type { VoiceModelTask } from '@cinlan/voice'
+import * as sherpaDeps from '@cinlan/voice-sherpa-onnx/src/sherpa-deps.ts'
 import { authenticatedCookie, createHarness, FIXTURE_PLUGIN, installModel, models, MODEL_ID, nativeRecognizer, remoteResult, terminalTask } from './harness.ts'
 
-const PROVIDER = '@deepseek-ai/dsh-voice-sherpa-onnx'
-const CONTROLLER = '@deepseek-ai/dsh-api-voice-controller'
+const PROVIDER = '@cinlan/voice-sherpa-onnx'
+const CONTROLLER = '@cinlan/api-voice-controller'
 const ROSTER = [
   'parakeet-tdt-0.6b-v3-int8', 'parakeet-tdt-0.6b-v2-int8', 'zipformer-bilingual-zh-en',
   'paraformer-bilingual-zh-en', 'zipformer-streaming-en-20m', 'zipformer-streaming-zh-14m',
@@ -52,7 +52,7 @@ describe('voice real Loader and carriers', () => {
     vi.spyOn(sherpaDeps, 'sherpaOnnxLoadCause').mockReturnValue(new Error('native module missing'))
     const harness = await createHarness()
     expect(await remoteResult(await harness.remote('engineStatus'))).toMatchObject({ ok: true, value: {
-      ok: false, cause: 'native module missing', command: expect.stringContaining('dsh plugin --profile') as unknown,
+      ok: false, cause: 'native module missing', command: expect.stringContaining('clh plugin --profile') as unknown,
       note: expect.stringContaining('allowBuilds: sherpa-onnx-node: true') as unknown,
     } })
     const roster = await models(harness)
@@ -110,7 +110,7 @@ describe('voice real Loader and carriers', () => {
       .toEqual({ ok: true, value: { text: 'recognized locally' } })
     expect(native.construct).toHaveBeenCalledOnce()
     expect(native.acceptWaveform.mock.calls[0]?.[0]).toEqual({ sampleRate: 16_000, samples: new Float32Array([0, 0.25, -0.5]) })
-    expect(native.getResult).toHaveBeenCalledOnce()
+    expect(native.getResult).toHaveBeenCalledTimes(2)
     expect(await remoteResult(await harness.remote('modelsRemove', { request: { modelId: MODEL_ID } }))).toEqual({ ok: true, value: {} })
     await expect(access(cacheDir)).rejects.toMatchObject({ code: 'ENOENT' })
     expect((await fixtureRow(harness)).status).toEqual({ state: 'not-downloaded' })

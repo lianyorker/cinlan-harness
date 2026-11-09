@@ -10,7 +10,9 @@ Status: implemented
 
 ## Decision
 
-现有 Voice 运行时、Sherpa 提供方和身份验证 Remote 拥有资源生命周期。安装请求返回带品牌的 Host 任务 ID。客户端显式取消精确任务；传输断开不影响已接纳工作。已挂载提供方为每个模型保留最近任务，并在释放时等待自身任务与识别器。任务状态属于 Host；安装身份持久保存。
+Voice runtime 将模型路由给本地或云端 Provider。Sherpa Provider 负责已验证模型代与 Host 任务 ID；可选 OpenAI Provider 从 Host 凭据读取 `OPENAI_API_KEY`，并向转写 endpoint 发送有界 WAV 请求。经过认证的 Remote 保存、轮换与清除密钥，不会返回密钥值。用户模型导入要求 `clh-voice-model.json`，将普通文件复制到已验证模型代，在 Provider 重载后恢复，并且只删除受管字节。浏览器偏好保存语言选择，并将支持的语言提示传给 OpenAI、Whisper 和 SenseVoice。
+
+安装请求返回带品牌的 Host 任务 ID。客户端显式取消精确任务；传输断开不影响已接纳工作。已挂载提供方为每个模型保留最近任务，并在释放时等待自身任务与识别器。任务状态属于 Host；安装身份持久保存。
 
 版本是固定下载清单与识别器配置的 SHA-256 指纹。目录不声称上游发布版本，也不发现发布版本。文件模型使用固定提交的 `hf-mirror.com` URL，因为操作者网络无法直接访问 HuggingFace；GitHub 归档模型保留固定发布 URL。客户端来源移除 URL 凭据、查询和片段。稳定任务错误码伴随安全诊断，避免原始网络详情泄露源凭据。
 
@@ -22,7 +24,7 @@ Status: implemented
 
 ## Capture ownership
 
-客户端通过 `ScriptProcessorNode` 按设备采样率采集 PCM，再线性重采样至 16 kHz。它禁用回声消除、噪声抑制和自动增益控制，避免压制听写输入。选择该采集方式源于 MediaRecorder/解码路径出现近零采样的观察；操作者浏览器的 ScriptProcessorNode 也曾产生近零采样，因此仅切换 API 不能证明麦克风正确。AudioWorklet 迁移仍属于客户端。模型选择器向上展开，避免移动设置内容。这些客户端选择不改变 Host 资源所有权。
+客户端通过内嵌 `AudioWorkletNode` 处理器按设备采样率采集 PCM，再线性重采样至 16 kHz。它禁用回声消除、噪声抑制和自动增益控制，避免压制听写输入。处理器从临时 Blob URL 加载，并通过 `MessagePort` 传输复制后的 `Float32Array` 音频帧；取消采集会撤销 URL，并关闭 context、port、节点和麦克风音轨。听写期间麦克风音轨结束时，客户端会关闭采集、丢弃不完整音频、通知发起会话，且不切换设备。Chromium 浏览器测试已验证模块加载以及其 fake microphone 提供非零音频帧。这不能证明物理设备输入振幅或模型准确度；近零采样仍是物理设备风险。模型选择器向上展开，避免移动设置内容。这些客户端选择不改变 Host 资源所有权。
 
 ## Alternatives considered
 
@@ -38,4 +40,4 @@ Status: implemented
 
 替换需要同时容纳两代的临时磁盘空间。未知读取方和保留的旧数据可能占用额外空间。被终止的写入方可能留下需确认后手动恢复的锁；被终止的任务可能留下暂存目录。完成和取消的任务清理传输分段，后续任务从头开始。提供方重载重置任务回执，但重新读取持久资源状态，不会困在永久拒绝的刷新链中。
 
-所有者本地测试使用真实 Loader 组合、Remote 通道、受控 HTTP 小模型，以及真实进程验证发布和租约生命周期。组合测试仅替代原生识别。真实模型准确度、麦克风采集与已安装 Desktop 打包需要各自所有者提供独立冒烟证据。
+所有者本地测试使用真实 Loader 组合、经过认证的 HTTP 和 WebSocket Gateway 通道、受控 OpenAI 与模型 HTTP 服务，以及真实进程验证发布和租约生命周期。Native 验收使用已安装的 sherpa 缓存代与仓库模型 WAV 样本；测试验证非空结果、unary/stream 结果一致和租约清理。物理麦克风输入仍需单独验收；OpenAI Provider 测试使用受控 HTTP 服务，不需要生产 API Key。

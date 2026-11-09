@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 摘要
 
-`@deepseek-ai/dsh-api-voice-controller` 向 Web 与 Desktop 客户端提供本地引擎状态、模型资源与转写。两种通道调用相同的 Provider 操作；Desktop 不需要 HTTP 服务器。转写返回可编辑草稿的文本，不会提交消息。
+`@cinlan/api-voice-controller` 向 Web 与 Desktop 客户端提供本地引擎状态、模型资源与转写。两种通道调用相同的 Provider 操作；Desktop 不需要 HTTP 服务器。转写返回可编辑草稿的文本，不会提交消息。
 
 ## 目录
 
@@ -23,10 +23,10 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-将此 Controller 与 `typert`、[`voice`](../../voice/voice/README.zh.md) 一起挂载。[Sherpa Provider](../../voice/voice-sherpa-onnx/README.zh.md) 提供原生识别与模型管理。应用提供经过身份验证的 [Connection](../../client/connection/README.zh.md) 与 [Gateway](../gateway/README.zh.md) 通道。此 Controller 没有配置字段。
+将此 Controller 与 `typert`、[`voice`](../../voice/voice/README.zh.md) 一起挂载。[Sherpa Provider](../../voice/voice-sherpa-onnx/README.zh.md) 提供原生识别与模型管理；可选的 OpenAI Provider 提供云端转写。应用提供经过身份验证的 [Connection](../../client/connection/README.zh.md) 与 [Gateway](../gateway/README.zh.md) 通道。此 Controller 没有配置字段。
 
 ```yaml
-- name: '@deepseek-ai/dsh-api-voice-controller'
+- name: '@cinlan/api-voice-controller'
 ```
 
 生成的 `ctx.remote.voice` 方法返回 `RemoteResult` 信封。可选的 `AbortSignal` 作为最后一个参数传入；仅在 `ok` 为 true 时显示成功。
@@ -40,9 +40,12 @@ kind: "package-reference"
 | `modelsUpdate(request, signal?)` | `{ modelId }` | 固定清单更新任务回执 |
 | `modelsCancel(request, signal?)` | `{ modelId, taskId }` | 精确任务清理后的 `{ cancelled }` |
 | `modelsRemove(request, signal?)` | `{ modelId }` | 模型工作与删除结算后的 `{}` |
+| `modelsImport(request, signal?)` | `{ sourcePath }` | 已验证的导入模型行 |
 | `transcribe(request, signal?)` | `{ modelId, pcm16kMonoBase64 }` | `{ text }` |
+| `transcribeStream(request, signal?)` | `{ modelId }` 加有界 PCM uplink | streaming 模型的 partial 与 final 文本帧 |
+| `openAiKeyStatus(signal?)` / `openAiKeySave(value, signal?)` / `openAiKeyClear(signal?)` | Key 状态或 `{ apiKey }` | 凭据状态或 `{}` |
 
-PCM 为 16 kHz 单声道、有限 float32 采样的小端字节，使用规范 base64 编码，解码后最多 16 MiB。Controller 与可选旧 HTTP 适配器共用校验。模型标识必须来自可用清单，转写前模型必须就绪。
+完整片段 PCM 为 16 kHz 单声道、有限 float32 采样的小端字节，使用规范 base64 编码，解码后最多 16 MiB。流式 uplink 条目使用相同编码，每项解码后最多 64 KiB。Controller 通过 Voice Provider 操作校验流式条目；可选旧 HTTP 适配器只支持完整片段转写。模型标识必须来自可用清单，转写前模型必须就绪；只有 streaming 模型接受 `transcribeStream`。
 
 无效请求、未知模型、缺少文件、模型正在删除、Provider 不可用及操作失败分别使用 `voice/invalid-request`、`voice/model-unknown`、`voice/model-not-ready`、`voice/model-busy`、`voice/unavailable` 和 `voice/operation-failed`。列表与转写取消沿通道传播。安装类方法返回任务回执；接纳后断开不会取消 Host 工作。轮询 `modelsList` 读取 `task` 进度和终态，并通过 `resource` 获取源、指纹与完整性。显式取消必须携带该 Host 的精确任务 ID；过期或终态 ID 返回 false，不删除模型。Provider 的 `VoiceError` 代码保留在错误详情中；非预期异常使用固定公开消息。
 
@@ -83,5 +86,5 @@ Host 服务为 `voiceController`，Remote 命名空间为 `voice`。Controller �
 ## 已知限制与暂缓事项
 <a id="known-limitations-and-deferred-work"></a>
 
-- 原生推理采用协作取消：取消会阻止结果返回，拆除会等待识别器调用结算后再释放它。
+- 完整片段离线原生推理采用协作取消：取消会阻止结果返回，拆除会等待识别器调用结算后再释放它。流式推理由 Provider 独立拥有子进程生命周期。
 - 麦克风权限与采集仍由客户端负责。引擎可用性取决于本地原生模块和已下载的模型文件。

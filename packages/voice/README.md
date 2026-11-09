@@ -1,5 +1,5 @@
 ---
-description: "Local voice transcription Service Definition and sherpa-onnx Provider packages."
+description: "Voice transcription Service Definition, local sherpa-onnx provider, and OpenAI cloud provider."
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `voice/` group owns the engine, model, and shared operation interfaces for local speech transcription and the sherpa-onnx Provider. Microphone capture and authenticated Remote projection belong to their consuming packages.
+The `voice/` group owns model routing and shared transcription interfaces, the local sherpa-onnx Provider, and an optional OpenAI cloud Provider. Microphone capture and authenticated Remote projection belong to their consuming packages.
 
 ## Table of Contents
 
@@ -23,6 +23,7 @@ The `voice/` group owns the engine, model, and shared operation interfaces for l
 |---|---|
 | [`voice/`](voice/README.md) | Service Definition for engine/model registration and cancellable model/transcription operations |
 | [`voice-sherpa-onnx/`](voice-sherpa-onnx/README.md) | Local engine Provider, model cache/download lifecycle, and recognition |
+| [`voice-openai/`](voice-openai/README.md) | Optional cloud transcription using Host-managed credentials |
 
 <a id="related-documentation"></a>
 ## Related documentation

@@ -3,7 +3,7 @@ description: "Cinlan Harness fork 的 Cinlan 私有 Web 组合层：把通知、
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-cinlan-web
+# @cinlan/cinlan-web
 
 [English](README.md) | 中文
 
@@ -20,6 +20,8 @@ upstream `deepseek-ai/deepseek-harness`。
 
 `web` profile 模板已将该 bundle 列在 `@deepseek-ai/dsh-web-app` 之后；profile
 选中它时，`dsh` 会自动解析其 `cordis.patch.yml`。
+
+Web 浏览器测试 scaffold 在 `dsh-web-app` 之后加载本层，并提供启动 profile 标识，使 Cinlan 设置页与 MCP 管理使用和 Web profile 相同的组合。它将 `CLH_HOME` 和 `CINLAN_HARNESS_HOME` 隔离到临时 home，销毁时恢复原值；语音模型检查不会读取开发者缓存。
 
 ### 包含内容
 

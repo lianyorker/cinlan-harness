@@ -1,7 +1,7 @@
 /** Legacy loopback HTTP adapter over the same validated operations used by Remote. */
 import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
-import type { VoiceRuntime } from '@deepseek-ai/dsh-voice'
-import { parseVoiceCancelRequest, parseVoiceModelRequest, parseVoiceTranscribeRequest } from '@deepseek-ai/dsh-voice/transport'
+import type { VoiceRuntime } from '@cinlan/voice'
+import { parseVoiceCancelRequest, parseVoiceModelRequest, parseVoiceTranscribeRequest } from '@cinlan/voice/transport'
 import { isTrustedVoiceApiRequest } from './trust-fence.ts'
 import { readJsonBody, VoiceApiError, writeError, writeJson, writeOk } from './wire.ts'
 

@@ -16,6 +16,9 @@
     },
     {
       "path": "../../voice/voice"
+    },
+    {
+      "path": "../../credentials/credentials"
     }
   ]
 }

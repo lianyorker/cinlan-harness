@@ -5,45 +5,45 @@
 /:
   en: 14b23dc11b2453f0
   zh: 5329225439ed5f18
-/deepseek-ai-dsh-client-ui-voice-dictation:
-  en: e50197c9e7271f6b
-  zh: b730a17a9ddee287
-/deepseek-ai-dsh-client-ui-voice-dictation/summary:
-  en: f33ad6559bcd9208
-  zh: e063987e4870b3db
-/deepseek-ai-dsh-client-ui-voice-dictation/table-of-contents:
+/cinlan-client-ui-voice-dictation:
+  en: a076a932142d32de
+  zh: 0b4e1a191c3437a7
+/cinlan-client-ui-voice-dictation/summary:
+  en: 1f4d4c4acf9def1c
+  zh: bc24e43863a4ec88
+/cinlan-client-ui-voice-dictation/table-of-contents:
   en: 257701b6850ffbfd
   zh: 6c52f2bba9251fe7
-/deepseek-ai-dsh-client-ui-voice-dictation/use-this-package:
-  en: f9176ad9aee0e761
-  zh: fbd3f5348c15d5d5
-/deepseek-ai-dsh-client-ui-voice-dictation/use-this-package/preferences-and-resources:
-  en: a277f20a9b3d74c3
-  zh: 620bbc85df04ce58
-/deepseek-ai-dsh-client-ui-voice-dictation/use-this-package/dictation-and-drafts:
-  en: 308952b65847143c
-  zh: 949f19bf5e94c279
-/deepseek-ai-dsh-client-ui-voice-dictation/understand-the-implementation:
-  en: b0a52f450b10ebb1
-  zh: fa24826df3ea9484
-/deepseek-ai-dsh-client-ui-voice-dictation/dev-note:
+/cinlan-client-ui-voice-dictation/use-this-package:
+  en: 9be77a4f47493dc2
+  zh: cfccd45a5954c9a9
+/cinlan-client-ui-voice-dictation/use-this-package/preferences-and-resources:
+  en: 18b5eb31e389c606
+  zh: 5bd8f4a7f64c980d
+/cinlan-client-ui-voice-dictation/use-this-package/dictation-and-drafts:
+  en: 8b1c3738eafc2355
+  zh: a15ce91ea6ea809a
+/cinlan-client-ui-voice-dictation/understand-the-implementation:
+  en: 8230f0a5c190c5b5
+  zh: d941e58e065e26e9
+/cinlan-client-ui-voice-dictation/dev-note:
   en: 57bc572027bf4939
   zh: 06507a2d0f5a25b5
-/deepseek-ai-dsh-client-ui-voice-dictation/model-experience:
+/cinlan-client-ui-voice-dictation/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
-/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation:
+/cinlan-client-ui-voice-dictation/model-experience/draft-only-dictation:
   en: b7da974919c20cb6
   zh: ee47f67677fbd6be
-/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation/what-the-model-sees:
+/cinlan-client-ui-voice-dictation/model-experience/draft-only-dictation/what-the-model-sees:
   en: 60843e1833e611cf
   zh: a5e5ba40ca5b523b
-/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation/token-effect:
+/cinlan-client-ui-voice-dictation/model-experience/draft-only-dictation/token-effect:
   en: c11ef67aea09d670
   zh: 3752f1c41d9f2d56
-/deepseek-ai-dsh-client-ui-voice-dictation/model-experience/draft-only-dictation/kv-cache-effect:
+/cinlan-client-ui-voice-dictation/model-experience/draft-only-dictation/kv-cache-effect:
   en: 76f9eceeee08a214
   zh: d6b41c93b3cb9207
-/deepseek-ai-dsh-client-ui-voice-dictation/known-limitations-and-deferred-work:
-  en: 85935e3fb2e966e5
-  zh: 8090568e39b3d23d
+/cinlan-client-ui-voice-dictation/known-limitations-and-deferred-work:
+  en: e5e474bf59ad7735
+  zh: 459d89856619ffea

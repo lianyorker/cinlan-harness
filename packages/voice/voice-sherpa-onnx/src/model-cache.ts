@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import unbzip2 from 'unbzip2-stream'
 import * as tar from 'tar'
-import type { VoiceModelDefinition, VoiceModelTask } from '@deepseek-ai/dsh-voice'
+import type { VoiceModelDefinition, VoiceModelTask } from '@cinlan/voice'
 
 /** Fetch implementation for one transfer. */
 export type FetchLike = typeof fetch
@@ -388,6 +388,7 @@ export async function downloadModelToStaging(
   extractArchive: ExtractArchive, options: DownloadOptions, signal: AbortSignal,
   changed: (value: Progress) => void,
 ): Promise<void> {
+  if (definition.download.type === 'cloud' || definition.download.type === 'imported') throw new Error('Model has no downloadable source')
   const progress = new DownloadProgress(definition.approximateBytes, changed)
   const archivePath = cacheDir + '.tar.bz2'
   await mkdir(cacheDir, { recursive: true })

@@ -1,4 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import { describe, expect, it, vi } from 'vitest'
 import VoiceRuntime, { VoiceError, VoiceModelId } from '../src/index.ts'
 import type { VoiceEngine, VoiceModelDefinition, VoiceOperations, VoiceRecognizer } from '../src/index.ts'
@@ -89,6 +90,7 @@ describe('VoiceRuntime', () => {
     const aborted = new AbortController()
     aborted.abort()
     const operations: VoiceOperations = {
+      supportsModel: () => true,
       engineStatus: vi.fn(async () => ({ ok: true as const })),
       modelsList: vi.fn(async () => ({ models: [] })),
       modelsDownload: vi.fn(),
@@ -97,6 +99,7 @@ describe('VoiceRuntime', () => {
       modelsCancel: vi.fn(),
       modelsRemove: vi.fn(async () => {}),
       transcribe: vi.fn(async () => ({ text: 'hello' })),
+      transcribeStream: vi.fn(async function* () {}),
     }
     const unregister = ctx.voice.registerOperations(operations)
     expect(() => ctx.voice.registerOperations(operations))
@@ -111,9 +114,38 @@ describe('VoiceRuntime', () => {
     await fiber.dispose()
   })
 
+  it('forwards incremental PCM streams to the provider operation', async () => {
+    const { ctx, fiber } = await mount()
+    const frames = [{ type: 'partial' as const, text: 'hello' }, { type: 'final' as const, text: 'hello world' }]
+    async function* recognize() { yield* frames }
+    const operations: VoiceOperations = {
+      supportsModel: () => true,
+      engineStatus: vi.fn(async () => ({ ok: true as const })),
+      modelsList: vi.fn(async () => ({ models: [] })),
+      modelsDownload: vi.fn(),
+      modelsReinstall: vi.fn(),
+      modelsUpdate: vi.fn(),
+      modelsCancel: vi.fn(),
+      modelsRemove: vi.fn(async () => {}),
+      transcribe: vi.fn(async () => ({ text: 'hello' })),
+      transcribeStream: vi.fn(() => recognize()),
+    }
+    ctx.voice.registerOperations(operations)
+    ctx.voice.registerModel(definition('zh'))
+    const signal = new AbortController().signal
+    const chunk = { pcm16kMonoBase64: Buffer.from(new Float32Array([0.25]).buffer).toString('base64') }
+    async function* chunks() { yield chunk }
+    const input = chunks()
+    const result: unknown[] = []
+    for await (const frame of ctx.voice.transcribeStream(VoiceModelId('zh'), input, signal)) result.push(frame)
+    expect(result).toEqual(frames)
+    expect(operations.transcribeStream).toHaveBeenCalledExactlyOnceWith('zh', input, signal)
+    await fiber.dispose()
+  })
+
   it('validates transport payloads and decodes canonical PCM', async () => {
-    const { parseVoiceModelRequest, parseVoiceCancelRequest, parseVoiceTranscribeRequest } = await import('../src/transport.ts')
-    const taskId = crypto.randomUUID()
+    const { parseVoiceModelRequest, parseVoiceCancelRequest, parseVoiceTranscribeRequest, parseVoiceAudioChunk } = await import('../src/transport.ts')
+    const taskId = randomUUID()
     expect(parseVoiceModelRequest({ modelId: 'zh-14m' })).toBe('zh-14m')
     for (const bad of [null, {}, { modelId: '' }, { modelId: 7 }, { modelId: 'x'.repeat(257) }]) {
       expect(() => parseVoiceModelRequest(bad)).toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
@@ -131,6 +163,8 @@ describe('VoiceRuntime', () => {
     })
     expect(decoded.modelId).toBe('zh-14m')
     expect(decoded.samples).toEqual(new Float32Array([0, 0]))
+    expect(parseVoiceAudioChunk({ pcm16kMonoBase64: Buffer.from(new Float32Array([0.25, -0.5]).buffer).toString('base64') }))
+      .toEqual(new Float32Array([0.25, -0.5]))
     for (const pcm of [
       Buffer.from('a'),
       Buffer.alloc(3),
@@ -142,6 +176,8 @@ describe('VoiceRuntime', () => {
     const nonFinite = Buffer.alloc(4)
     nonFinite.writeFloatLE(Number.POSITIVE_INFINITY)
     expect(() => parseVoiceTranscribeRequest({ modelId: 'm', pcm16kMonoBase64: nonFinite.toString('base64') }))
+      .toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
+    expect(() => parseVoiceAudioChunk({ pcm16kMonoBase64: nonFinite.toString('base64') }))
       .toThrow(expect.objectContaining({ code: 'VOICE_INVALID_REQUEST' }))
   })
 })

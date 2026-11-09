@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/voice/voice-openai/README.md
+/:
+  en: f6b82974a012ba34
+  zh: c0e01f824e5b1d7b
+/openai-voice-provider:
+  en: 561acc376ad237f8
+  zh: 4361cc488beeb876
+/openai-voice-provider/summary:
+  en: 0af6d70891bc436d
+  zh: eb9597ba691bf5db
+/openai-voice-provider/table-of-contents:
+  en: d7fbbba70852c433
+  zh: 1ef5905d70420063
+/openai-voice-provider/use-this-package:
+  en: 64ca90ecfcbf8c5e
+  zh: 21a7d04e9d958483
+/openai-voice-provider/model-experience:
+  en: 05941cb34a15633e
+  zh: 565da02475379e1e
+/openai-voice-provider/model-experience/kv-cache-effect:
+  en: 0140f8f3c2b7eb58
+  zh: 837a5eaae5285681
+/openai-voice-provider/known-limitations-and-deferred-work:
+  en: 98d90104fc395d4c
+  zh: 48f9ca505af8e631
+/openai-voice-provider/known-limitations-and-deferred-work/dev-note:
+  en: bd11c90568b8b04e
+  zh: c6ceaec3fd8b7220

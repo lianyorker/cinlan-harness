@@ -16,6 +16,7 @@ type TestState =
 interface TestOperation {
   abort: AbortController
   modelId: string
+  language: VoiceSettings['language']
   stream?: MediaStream
   recording?: DictationRecording
   timer?: ReturnType<typeof setTimeout>
@@ -69,7 +70,8 @@ export function VoiceTestSection({ settings, modelId, t, transcribe }: {
     try {
       const samples = await release(operation)
       if (active.current !== operation) return
-      const { text } = await transcribe(operation.modelId, encodePcmBase64(samples), operation.abort.signal)
+      const { text } = await transcribe(operation.modelId, encodePcmBase64(samples), operation.abort.signal,
+        operation.language === 'auto' ? undefined : operation.language)
       if (active.current !== operation) return
       active.current = null
       setState({ phase: 'done', text })
@@ -82,7 +84,7 @@ export function VoiceTestSection({ settings, modelId, t, transcribe }: {
 
   const start = async (): Promise<void> => {
     if (active.current !== null || modelId === null) return
-    const operation: TestOperation = { abort: new AbortController(), modelId }
+    const operation: TestOperation = { abort: new AbortController(), modelId, language: settings.language }
     active.current = operation
     setState({ phase: 'starting' })
     setLevel(0)
@@ -96,11 +98,16 @@ export function VoiceTestSection({ settings, modelId, t, transcribe }: {
         return
       }
       operation.stream = stream
-      operation.recording = startRecording(stream, AudioContext, {
+      const recording = await startRecording(stream, AudioContext, {
         maxSeconds: TEST_SECONDS,
         onLevel: (value) => { if (active.current === operation) setLevel(value) },
         onLimit: () => { void stop(operation) },
-      })
+      }, operation.abort.signal)
+      if (active.current !== operation) {
+        await recording.stop()
+        return
+      }
+      operation.recording = recording
       operation.timer = setTimeout(() => { void stop(operation) }, TEST_SECONDS * 1000)
       setState({ phase: 'recording' })
     } catch (error) {

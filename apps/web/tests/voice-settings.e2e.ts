@@ -26,7 +26,7 @@ it('manages real voice tasks across navigation and tests captured PCM without sa
     const nativeModule = new Module(nativePath)
     nativeModule.filename = nativePath
     nativeModule.loaded = true
-    nativeModule.exports = native.load()
+    nativeModule.exports = native.load(nativeRequire)
     nativeRequire.cache[nativePath] = nativeModule
     restoreNative = () => {
       if (previousNative === undefined) Reflect.deleteProperty(nativeRequire.cache, nativePath)

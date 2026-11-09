@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { Script } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 
-const PLUGIN_ID = '@deepseek-ai/dsh-client-ui-voice-dictation'
+const PLUGIN_ID = '@cinlan/client-ui-voice-dictation'
 
 interface ClientBundleRegistration {
   readonly id: string

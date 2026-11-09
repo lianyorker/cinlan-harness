@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
-import type {} from '@deepseek-ai/dsh-api-voice-controller'
+import type {} from '@cinlan/api-voice-controller'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { createVoiceApi, VoiceApiError, type VoiceApi, type VoiceEngineStatus } from '../src/client/api.ts'
 import { createVoiceRemote, modelRow, modelTask } from './voice-fixtures.client.ts'
 
-const operations: readonly { name: keyof VoiceApi; call: (api: VoiceApi) => Promise<unknown> }[] = [
+type UnaryVoiceOperation = 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsReinstall' | 'modelsUpdate'
+  | 'modelsCancel' | 'modelsRemove' | 'transcribe' | 'modelsImport' | 'openAiKeyStatus' | 'openAiKeySave' | 'openAiKeyClear'
+
+const operations: readonly { name: UnaryVoiceOperation; call: (api: VoiceApi) => Promise<unknown> }[] = [
   { name: 'engineStatus', call: api => api.engineStatus() },
   { name: 'modelsList', call: api => api.modelsList() },
   { name: 'modelsDownload', call: api => api.modelsDownload('zh') },
@@ -84,6 +87,14 @@ describe('createVoiceApi', () => {
       const requestSignal = signal()
       await expect(createVoiceApi(remote).transcribe('zh', 'YWJj', requestSignal)).resolves.toBe(value)
       expect(remote.transcribe).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh', pcm16kMonoBase64: 'YWJj' }, requestSignal)
+    })
+
+    it('opens an incremental transcription stream with the exact model and signal', () => {
+      const remote = createVoiceRemote()
+      const requestSignal = signal()
+      const handle = createVoiceApi(remote).transcribeStream('zh', requestSignal)
+      expect(handle).toBe(remote.transcribeStream.mock.results[0]?.value)
+      expect(remote.transcribeStream).toHaveBeenCalledExactlyOnceWith({ modelId: 'zh' }, requestSignal)
     })
   })
 

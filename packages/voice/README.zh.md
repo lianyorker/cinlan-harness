@@ -1,5 +1,5 @@
 ---
-description: "本地语音转写 Service Definition 与 sherpa-onnx Provider 包。"
+description: "语音转写 Service Definition、本地 sherpa-onnx Provider 与 OpenAI 云端 Provider。"
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`voice/` 包族负责本地语音转写的引擎、模型与共享操作接口，以及 sherpa-onnx Provider。麦克风采集和经过认证的 Remote 投影属于相应的消费包。
+`voice/` 包族负责语音模型路由与共享转写接口、本地 sherpa-onnx Provider 和可选的 OpenAI 云端 Provider。麦克风采集和经过认证的 Remote 投影属于相应的消费包。
 
 ## 目录
 
@@ -23,6 +23,7 @@ kind: "package-group"
 |---|---|
 | [`voice/`](voice/README.zh.md) | 引擎／模型注册与可取消的模型／转写操作 Service Definition |
 | [`voice-sherpa-onnx/`](voice-sherpa-onnx/README.zh.md) | 本地引擎 Provider、模型缓存／下载生命周期与识别 |
+| [`voice-openai/`](voice-openai/README.zh.md) | 使用 Host 管理凭据的可选云端转写 |
 
 <a id="related-documentation"></a>
 ## 相关文档

@@ -1,11 +1,11 @@
 {
-  "name": "@deepseek-ai/dsh-api-voice-controller",
+  "name": "@cinlan/api-voice-controller",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/lianyorker/cinlan-harness.git",
     "directory": "packages/api/voice-controller"
   },
   "main": "lib/index.js",
@@ -49,15 +49,20 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
-    "@deepseek-ai/dsh-voice": "workspace:^"
+    "@cinlan/voice": "workspace:^",
+    "@deepseek-ai/dsh-credentials": "workspace:^"
   },
   "devDependencies": {
+    "ws": "^8.21.3",
+    "@types/ws": "^8.18.1",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-typert-protocol": "workspace:^",
-    "@deepseek-ai/dsh-voice": "workspace:^",
+    "@cinlan/voice": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/dsh-voice-sherpa-onnx": "workspace:^",
+    "@cinlan/voice-sherpa-onnx": "workspace:^",
+    "@cinlan/voice-openai": "workspace:*",
+    "@deepseek-ai/dsh-credentials": "workspace:^",
     "@deepseek-ai/dsh-subprocess": "workspace:^",
     "@deepseek-ai/dsh-subprocess-local": "workspace:^",
     "@deepseek-ai/dsh-api-gateway": "workspace:^",

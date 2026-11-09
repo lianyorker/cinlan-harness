@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/voice.md
 /voice-dictation:
-  en: b04cf9c8d58651ee
-  zh: 9b62169d67f6f771
+  en: a53952c147b82ce8
+  zh: 4c410b61fc9b36c6
 /voice-dictation/model-identity-and-definitions:
-  en: bd9d992b570cb4b8
-  zh: 1392f759c6d7ff16
+  en: 55fb9a65f5fc9e76
+  zh: 31d7b86d4e74089a
 /voice-dictation/installation-and-availability:
   en: 304ca4744094d8b1
   zh: 626f648d91ff2946
 /voice-dictation/transcription-and-provider-lifetime:
-  en: e15aaa680b6927b2
-  zh: 53ac550ee287a2f8
+  en: 712a8feb9aded9c4
+  zh: ddf965ab11714289

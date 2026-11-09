@@ -119,7 +119,7 @@ export function nativeTarExtractor(ctx: Context, options: { graceMs: number; std
  * @param ctx - Plugin context owning operations and optional HTTP registration.
  * @param config - Segmented download, retry, and timeout settings.
  */
-export function apply(ctx: Context, config: Config = {}): void {
+export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const downloadOptions = resolveDownloadOptions(config)
   const cacheRoot = config.cacheRoot ?? dshHomePath('models', 'voice')
   if (!isAbsolute(cacheRoot)) throw new Error('voice-sherpa-onnx: cacheRoot must be absolute')
@@ -135,16 +135,12 @@ export function apply(ctx: Context, config: Config = {}): void {
   for (const definition of SHIPPED_MODELS) {
     ctx.effect(() => ctx.voice.registerModel(definition), 'voice-sherpa-onnx: model ' + definition.id)
   }
-  ctx.effect(() => {
-    const operations = new SherpaVoiceOperations(ctx.voice, extractArchive, downloadOptions, cacheRoot, {
-      lockTimeoutMs, lockRetryMs, onCleanupError: (error) => { ctx.logger.warn('Voice generation cleanup failed', error) },
-    })
-    const unregister = ctx.voice.registerOperations(operations)
-    return async () => {
-      unregister()
-      await operations.dispose()
-    }
-  }, 'voice-sherpa-onnx: operations')
+  const operations = new SherpaVoiceOperations(ctx.voice, extractArchive, downloadOptions, cacheRoot, {
+    lockTimeoutMs, lockRetryMs, onCleanupError: (error) => { ctx.logger.warn('Voice generation cleanup failed', error) },
+  })
+  ctx.effect(() => () => operations.dispose(), 'voice-sherpa-onnx: lifetime')
+  await operations.initialize()
+  ctx.effect(() => ctx.voice.registerOperations(operations), 'voice-sherpa-onnx: operations')
   ctx.inject(['webServer'], (scope) => {
     const webServer = scope.webServer
     scope.effect(() => mountHttpAdapter(webServer, ctx.voice), 'voice-sherpa-onnx: HTTP adapter')

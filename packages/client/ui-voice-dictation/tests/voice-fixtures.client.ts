@@ -1,6 +1,8 @@
 import { vi } from 'vitest'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-api-voice-controller/remote'
+import type { RemoteStreamHandle } from '@deepseek-ai/dsh-typert-protocol'
+import type { VoiceAudioChunk, VoiceTranscriptFrame } from '@cinlan/voice/types'
+import type {} from '@cinlan/api-voice-controller/remote'
 import type { VoiceApi, VoiceModelRow } from '../src/client/api.ts'
 
 type VoiceRemote = ClientRemote['voice']
@@ -28,7 +30,12 @@ export function createVoiceCallbacks() {
     modelsUpdate: vi.fn<VoiceApi['modelsUpdate']>().mockResolvedValue(modelTask('zh', 'update')),
     modelsCancel: vi.fn<VoiceApi['modelsCancel']>().mockResolvedValue({ cancelled: true }),
     modelsRemove: vi.fn<VoiceApi['modelsRemove']>().mockResolvedValue({}),
+    modelsImport: vi.fn<VoiceApi['modelsImport']>().mockResolvedValue(modelRow('user-fixture', { state: 'ready', cacheDir: '/cache/user-fixture' })),
+    openAiKeyStatus: vi.fn<VoiceApi['openAiKeyStatus']>().mockResolvedValue({ configured: false, writable: true }),
+    openAiKeySave: vi.fn<VoiceApi['openAiKeySave']>().mockResolvedValue({}),
+    openAiKeyClear: vi.fn<VoiceApi['openAiKeyClear']>().mockResolvedValue({}),
     transcribe: vi.fn<VoiceApi['transcribe']>().mockResolvedValue({ text: 'hello world' }),
+    transcribeStream: vi.fn<VoiceApi['transcribeStream']>().mockImplementation(() => streamHandle<VoiceTranscriptFrame, VoiceAudioChunk>()),
   }
 }
 
@@ -52,9 +59,19 @@ export function createVoiceRemote() {
       .mockResolvedValue({ ok: true, value: { cancelled: true } }),
     modelsRemove: vi.fn<VoiceRemote['modelsRemove']>()
       .mockResolvedValue({ ok: true, value: {} }),
+    modelsImport: vi.fn<VoiceRemote['modelsImport']>().mockResolvedValue({ ok: true, value: modelRow('user-fixture', { state: 'ready', cacheDir: '/cache/user-fixture' }) }),
+    openAiKeyStatus: vi.fn<VoiceRemote['openAiKeyStatus']>().mockResolvedValue({ ok: true, value: { configured: false, writable: true } }),
+    openAiKeySave: vi.fn<VoiceRemote['openAiKeySave']>().mockResolvedValue({ ok: true, value: {} }),
+    openAiKeyClear: vi.fn<VoiceRemote['openAiKeyClear']>().mockResolvedValue({ ok: true, value: {} }),
     transcribe: vi.fn<VoiceRemote['transcribe']>()
       .mockResolvedValue({ ok: true, value: { text: 'hello world' } }),
+    transcribeStream: vi.fn<VoiceRemote['transcribeStream']>().mockImplementation(() => streamHandle<VoiceTranscriptFrame, VoiceAudioChunk>()),
   }
+}
+
+function streamHandle<Out, In>(): RemoteStreamHandle<Out, In> {
+  const iterator = (async function* () {})()
+  return Object.assign(iterator, { send: vi.fn(), end: vi.fn(), dispose: vi.fn() })
 }
 
 /**

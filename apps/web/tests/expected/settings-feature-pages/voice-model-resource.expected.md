@@ -1,10 +1,11 @@
 - listitem:
-  - text: sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23
-  - paragraph: 中文识别 · 超轻量 14M 参数，适合低资源设备
-  - status: 71 MB · 未下载
-  - paragraph: "已安装版本: 未安装"
-  - paragraph: "可用版本: sha256:c0aa54e2373dba844bdd7ba85c525d4bff6524b6340f70bb820b776080435778"
-  - paragraph: 版本为所固定模型清单的 SHA-256 指纹，不代表上游最新发行版。
-  - paragraph: "下载来源: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23.tar.bz2"
-  - paragraph: 模型文件缺失。
-  - button "下载" [disabled]
+  - menuitem "Zipformer Streaming ZH" [disabled]: Zipformer Streaming ZH 流式 53 MB 仅中文。超轻量 14M 参数模型，适合低资源设备。 中文
+  - status: 未下载
+  - button "下载"
+  - group:
+    - text: 模型详情
+    - paragraph: "已安装版本: 未安装"
+    - paragraph: "可用版本: sha256:7490668641232687a2a6652b872ea7979471a12f322e5186c5f75c9d8d63f63c"
+    - paragraph: 版本为所固定模型清单的 SHA-256 指纹，不代表上游最新发行版。
+    - paragraph: "下载来源: https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/204ad334e2e683fd295359930cc16fc0432a23ac/encoder-epoch-99-avg-1.onnx, https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/204ad334e2e683fd295359930cc16fc0432a23ac/decoder-epoch-99-avg-1.onnx, https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/204ad334e2e683fd295359930cc16fc0432a23ac/joiner-epoch-99-avg-1.onnx, https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/resolve/204ad334e2e683fd295359930cc16fc0432a23ac/tokens.txt"
+    - paragraph: 模型文件缺失。

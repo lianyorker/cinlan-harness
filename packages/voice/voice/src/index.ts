@@ -3,7 +3,7 @@
  * The Provider owns native-engine loading, model download/cache, and
  * inference; Consumers (the settings page's model list, the Ctrl+Shift+E dictation
  * client route) own permission policy, presentation, and composer insertion.
- * @module @deepseek-ai/dsh-voice
+ * @module @cinlan/voice
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -15,12 +15,16 @@ import type {
   VoiceOperations,
   VoiceEngineStatus,
   VoiceModelsListValue,
+  VoiceModelRow,
   VoiceModelsDownloadValue,
   VoiceModelTask,
   VoiceModelTaskId,
   VoiceModelsCancelValue,
   VoiceTranscribeRequest,
   VoiceTranscribeResult,
+  VoiceModelId as VoiceModelIdType,
+  VoiceAudioChunk,
+  VoiceTranscriptFrame,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -47,14 +51,9 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/**
- * Registry and execution facade for the local voice-dictation engine. Exactly
- * one Provider may register (a swappable-multi-provider seam like
- * mobile-device's is not needed today: there is one embedded local engine,
- * not several competing backends a deployment chooses between at runtime).
- */
+/** Registry for one local engine and model-specific local or cloud operations. */
 export class VoiceRuntime extends Service {
-  private operations: VoiceOperations | undefined
+  private readonly operations: VoiceOperations[] = []
   private engine: VoiceEngine | undefined
   private readonly models = new Map<string, VoiceModelDefinition>()
 
@@ -69,15 +68,27 @@ export class VoiceRuntime extends Service {
    * @returns Disposer that immediately prevents new calls to this provider.
    */
   registerOperations(operations: VoiceOperations): () => void {
-    if (this.operations !== undefined) throw new VoiceError('voice operations are already registered', 'VOICE_OPERATIONS_DUPLICATE')
-    this.operations = operations
-    return () => { if (this.operations === operations) this.operations = undefined }
+    if (this.operations.includes(operations)) throw new VoiceError('voice operations are already registered', 'VOICE_OPERATIONS_DUPLICATE')
+    for (const definition of this.models.values()) {
+      if (operations.supportsModel(definition) && this.operations.some(candidate => candidate.supportsModel(definition))) {
+        throw new VoiceError(`multiple providers own voice model '${definition.id}'`, 'VOICE_OPERATIONS_DUPLICATE')
+      }
+    }
+    this.operations.push(operations)
+    return () => {
+      const index = this.operations.indexOf(operations)
+      if (index >= 0) this.operations.splice(index, 1)
+    }
   }
 
-  private requireOperations(signal: AbortSignal): VoiceOperations {
+  private requireOperations(signal: AbortSignal, modelId?: VoiceModelId): VoiceOperations {
     signal.throwIfAborted()
-    if (this.operations === undefined) throw new VoiceError('no voice provider is available', 'VOICE_UNAVAILABLE')
-    return this.operations
+    if (this.operations.length === 0) throw new VoiceError('no voice provider is available', 'VOICE_UNAVAILABLE')
+    if (modelId === undefined) return this.operations[0] as VoiceOperations
+    const definition = this.requireDefinition(modelId)
+    const provider = this.operations.find(candidate => candidate.supportsModel(definition))
+    if (provider === undefined) throw new VoiceError(`no provider owns voice model '${modelId}'`, 'VOICE_UNAVAILABLE')
+    return provider
   }
 
   /**
@@ -86,7 +97,8 @@ export class VoiceRuntime extends Service {
    * @returns Availability and repair guidance; rejects when no provider is mounted.
    */
   engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus> {
-    return this.requireOperations(signal).engineStatus(signal)
+    const local = this.listDefinitions().find(definition => definition.provider !== 'openai')
+    return this.requireOperations(signal, local?.id).engineStatus(signal)
   }
 
   /**
@@ -95,7 +107,9 @@ export class VoiceRuntime extends Service {
    * @returns The provider's model roster.
    */
   modelsList(signal: AbortSignal): Promise<VoiceModelsListValue> {
-    return this.requireOperations(signal).modelsList(signal)
+    this.requireOperations(signal)
+    return Promise.all(this.operations.map(provider => provider.modelsList(signal)))
+      .then(values => ({ models: values.flatMap(value => value.models) }))
   }
 
   /**
@@ -105,7 +119,7 @@ export class VoiceRuntime extends Service {
    * @returns Task receipt; poll modelsList for progress and terminal state.
    */
   modelsDownload(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelsDownloadValue> {
-    return this.requireOperations(signal).modelsDownload(modelId, signal)
+    return this.requireOperations(signal, modelId).modelsDownload(modelId, signal)
   }
 
   /**
@@ -115,7 +129,7 @@ export class VoiceRuntime extends Service {
    * @returns Host task receipt.
    */
   modelsReinstall(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask> {
-    return this.requireOperations(signal).modelsReinstall(modelId, signal)
+    return this.requireOperations(signal, modelId).modelsReinstall(modelId, signal)
   }
 
   /**
@@ -125,7 +139,7 @@ export class VoiceRuntime extends Service {
    * @returns Host task receipt, including immediate success when already current.
    */
   modelsUpdate(modelId: VoiceModelId, signal: AbortSignal): Promise<VoiceModelTask> {
-    return this.requireOperations(signal).modelsUpdate(modelId, signal)
+    return this.requireOperations(signal, modelId).modelsUpdate(modelId, signal)
   }
 
   /**
@@ -136,7 +150,7 @@ export class VoiceRuntime extends Service {
    * @returns Whether this call cancelled the matching running task.
    */
   modelsCancel(modelId: VoiceModelId, taskId: VoiceModelTaskId, signal: AbortSignal): Promise<VoiceModelsCancelValue> {
-    return this.requireOperations(signal).modelsCancel(modelId, taskId, signal)
+    return this.requireOperations(signal, modelId).modelsCancel(modelId, taskId, signal)
   }
 
   /**
@@ -145,7 +159,19 @@ export class VoiceRuntime extends Service {
    * @param signal - Caller cancellation before deletion begins.
    */
   modelsRemove(modelId: VoiceModelId, signal: AbortSignal): Promise<void> {
-    return this.requireOperations(signal).modelsRemove(modelId, signal)
+    return this.requireOperations(signal, modelId).modelsRemove(modelId, signal)
+  }
+
+  /** Import a user model through the provider that owns local resources.
+   * @param sourcePath - Absolute Host directory containing clh-voice-model.json.
+   * @param signal - Cancels copying and verification before publication.
+   * @returns Published model row; the provider retains the managed copy across reloads.
+   */
+  modelsImport(sourcePath: string, signal: AbortSignal): Promise<VoiceModelRow> {
+    signal.throwIfAborted()
+    const provider = this.operations.find(candidate => candidate.modelsImport !== undefined)
+    if (provider?.modelsImport === undefined) throw new VoiceError('voice model import is unavailable', 'VOICE_UNAVAILABLE')
+    return provider.modelsImport(sourcePath, signal)
   }
 
   /**
@@ -155,7 +181,22 @@ export class VoiceRuntime extends Service {
    * @returns Transcript after recognizer disposal.
    */
   transcribe(request: VoiceTranscribeRequest, signal: AbortSignal): Promise<VoiceTranscribeResult> {
-    return this.requireOperations(signal).transcribe(request, signal)
+    return this.requireOperations(signal, request.modelId).transcribe(request, signal)
+  }
+
+  /**
+   * Stream decoded 16kHz mono PCM through a ready online model.
+   * @param modelId - exact model identity from the registered catalog.
+   * @param chunks - bounded canonical base64 PCM chunks from the Client uplink.
+   * @param signal - cancels recognition and waits for provider cleanup when iteration returns.
+   * @returns partial hypotheses and one final transcript.
+   */
+  transcribeStream(
+    modelId: VoiceModelIdType,
+    chunks: AsyncIterable<VoiceAudioChunk>,
+    signal: AbortSignal,
+  ): AsyncIterable<VoiceTranscriptFrame> {
+    return this.requireOperations(signal, modelId).transcribeStream(modelId, chunks, signal)
   }
 
   /**
@@ -183,6 +224,9 @@ export class VoiceRuntime extends Service {
   registerModel(definition: VoiceModelDefinition): () => void {
     if (this.models.has(definition.id)) {
       throw new VoiceError(`voice model '${definition.id}' is already registered`, 'VOICE_MODEL_DUPLICATE')
+    }
+    if (this.operations.filter(candidate => candidate.supportsModel(definition)).length > 1) {
+      throw new VoiceError(`multiple providers own voice model '${definition.id}'`, 'VOICE_OPERATIONS_DUPLICATE')
     }
     this.models.set(definition.id, definition)
     return () => { this.models.delete(definition.id) }

@@ -1,0 +1,91 @@
+.indicator {
+  position: fixed;
+  inset-block-start: calc(var(--dsh-frame-top-clearance, 0px) + 12px);
+  inset-inline-end: 16px;
+  z-index: 72;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 32px);
+  min-height: 36px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-specific-input-major);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  pointer-events: auto;
+}
+
+.recordingMark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dsw-alias-state-error-primary);
+  animation: recording-pulse 1s ease-in-out infinite alternate;
+}
+
+.spinner {
+  flex: none;
+  animation: indicator-spin 900ms linear infinite;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stop {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .stop:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
+.stop:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+@media (max-width: 480px) {
+  .indicator {
+    inset-block-start: calc(var(--dsh-frame-top-clearance, 0px) + 8px);
+    inset-inline-end: 8px;
+    max-width: calc(100vw - 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recordingMark,
+  .spinner {
+    animation-duration: 2400ms;
+  }
+}
+
+@keyframes recording-pulse {
+  to { opacity: 0.35; }
+}
+
+@keyframes indicator-spin {
+  to { transform: rotate(360deg); }
+}

@@ -38,7 +38,7 @@ export function VoiceButton({ sessionId, useInput, useDictation, useSettings, to
     let current = true
     const refresh = (): void => {
       void modelsList().then(
-        ({ models }) => { if (current) setHasReadyModel(models.some(model => model.status.state === 'ready')) },
+        ({ models }) => { if (current) setHasReadyModel(models.some(model => model.status.state === 'ready' && (model.definition.provider !== 'openai' || model.definition.id === settings.sttModel))) },
         () => { if (current) setHasReadyModel(false) },
       )
     }
@@ -50,7 +50,7 @@ export function VoiceButton({ sessionId, useInput, useDictation, useSettings, to
       current = false
       if (timer !== undefined) clearInterval(timer)
     }
-  }, [settings.enabled, state.phase, modelsList])
+  }, [settings.enabled, settings.sttModel, state.phase, modelsList])
 
   if (!settings.enabled || !hasReadyModel) return null
 

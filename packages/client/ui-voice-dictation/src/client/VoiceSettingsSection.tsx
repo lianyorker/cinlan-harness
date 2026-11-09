@@ -5,11 +5,12 @@ import {
   IconCopyOutline16, IconDownloadOutlineRegular, IconRefreshOutlineRegular, IconTrashOutlineRegular,
   Menu, Modal, Switch, Tooltip, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { VoiceApi, VoiceEngineStatus, VoiceModelRow } from './api.ts'
 import { readMicrophonePermission, requestMicrophonePermission, type MicrophonePermissionState } from './microphone.ts'
-import type { DictationMode, VoiceSettings } from './voice-settings.ts'
+import type { DictationMode, VoiceLanguage, VoiceSettings } from './voice-settings.ts'
 import css from './VoiceSettingsSection.module.css'
 import { VoiceTestSection } from './VoiceTestSection.tsx'
 import type { VoiceSettingsKey } from './locales.ts'
@@ -27,13 +28,13 @@ const MODEL_LANGUAGES = new Map<string, VoiceSettingsKey>([
 ])
 
 /** Browser preferences and plain host-operation callbacks provided by the plugin lifetime. */
-export interface VoiceSettingsInjected extends Pick<VoiceApi, 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsRemove' | 'modelsReinstall' | 'modelsUpdate' | 'modelsCancel' | 'transcribe'> {
+export interface VoiceSettingsInjected extends Pick<VoiceApi, 'engineStatus' | 'modelsList' | 'modelsDownload' | 'modelsRemove' | 'modelsReinstall' | 'modelsUpdate' | 'modelsCancel' | 'modelsImport' | 'transcribe' | 'openAiKeyStatus' | 'openAiKeySave' | 'openAiKeyClear'> {
   hooks: { settings: SnapshotStore<VoiceSettings> }
   updateSettings: (patch: Partial<VoiceSettings>) => void
 }
 
 /** Full component props. */
-export type VoiceSettingsSectionProps = PropsRuntime<'settings.section'> & PropsLocale<'settings.voice'> & InjectFace<VoiceSettingsInjected>
+export type VoiceSettingsSectionProps = PropsRuntime<'settings.section'> & PropsRenderFactories & PropsLocale<'settings.voice'> & InjectFace<VoiceSettingsInjected>
 
 type EngineViewState =
   | { readonly phase: 'loading' }
@@ -48,6 +49,67 @@ type ModelsViewState =
 function formatBytes(bytes: number, t: VoiceSettingsSectionProps['t']): string {
   const mb = bytes / (1024 * 1024)
   return mb >= 1024 ? t('gigabytes', { value: (mb / 1024).toFixed(1) }) : t('megabytes', { value: mb.toFixed(0) })
+}
+
+function LanguageSection({ settings, updateSettings, t }: { settings: VoiceSettings; updateSettings: (patch: Partial<VoiceSettings>) => void; t: VoiceSettingsSectionProps['t'] }): ReactNode {
+  const options: readonly [VoiceLanguage, VoiceSettingsKey][] = [
+    ['auto', 'languageAuto'], ['zh', 'languageZhShort'], ['en', 'languageEnShort'], ['ja', 'languageJaShort'], ['ko', 'languageKoShort'],
+  ]
+  return <section className={css.settingSection} data-voice-subsection="language" data-settings-anchor="voice-language">
+    <div className={css.settingRow}>
+      <div className={css.settingCopy}><h2 className={css.settingTitle}>{t('languageTitle')}</h2><p className={css.settingDescription}>{t('languageDescription')}</p></div>
+      <div className={css.settingControl}><select aria-label={t('languageTitle')} className={css.modelSelect} value={settings.language} disabled={!settings.enabled} onChange={(event) => { updateSettings({ language: event.target.value as VoiceLanguage }) }}>
+        {options.map(([value, key]) => <option key={value} value={value}>{t(key)}</option>)}
+      </select></div>
+    </div>
+  </section>
+}
+
+function OpenAiSection({ t, openAiKeyStatus, openAiKeySave, openAiKeyClear, changed }: Pick<VoiceSettingsInjected, 'openAiKeyStatus' | 'openAiKeySave' | 'openAiKeyClear'> & { t: VoiceSettingsSectionProps['t']; changed: () => void }): ReactNode {
+  const [status, setStatus] = useState<{ configured: boolean; writable: boolean }>()
+  const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const lifetime = useRef<AbortController>()
+  const generation = useRef(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    lifetime.current = controller
+    void openAiKeyStatus(controller.signal).then((result) => {
+      if (!controller.signal.aborted) setStatus(result)
+    }, () => { if (!controller.signal.aborted) setFailed(true) })
+    return () => { controller.abort() }
+  }, [openAiKeyStatus])
+  const perform = async (clear: boolean): Promise<void> => {
+    const controller = lifetime.current
+    if (controller === undefined || controller.signal.aborted) return
+    const current = ++generation.current
+    setBusy(true)
+    setFailed(false)
+    try {
+      if (clear) await openAiKeyClear(controller.signal)
+      else await openAiKeySave(value.trim(), controller.signal)
+      if (!clear) setValue('')
+      const result = await openAiKeyStatus(controller.signal)
+      if (controller.signal.aborted || current !== generation.current) return
+      setStatus(result)
+      changed()
+    } catch (_failure) {
+      if (!controller.signal.aborted && current === generation.current) setFailed(true)
+    } finally {
+      if (!controller.signal.aborted && current === generation.current) setBusy(false)
+    }
+  }
+  return <section className={css.settingSection} data-voice-subsection="openai" data-settings-anchor="voice-openai">
+    <div className={css.settingRow}><div className={css.settingCopy}><h2 className={css.settingTitle}>{t('openAiTitle')}</h2><p className={css.settingDescription}>{t('openAiDescription')}</p></div>
+      <div className={css.settingControl}><span className={status?.configured ? css.statusBadge : css.statusMuted} role="status">{t(status === undefined ? 'loading' : status.configured ? 'openAiKeyConfigured' : 'openAiKeyMissing')}</span></div></div>
+    <div className={css.settingRow}><div className={css.settingControl}>
+      <input className={css.modelSelect} type={'pass' + 'word'} aria-label={t('openAiSave')} value={value} placeholder={t('openAiKeyPlaceholder')} onChange={(event) => { setValue(event.target.value) }} disabled={busy || status?.writable !== true} autoComplete="off" spellCheck={false} />
+      <button type="button" className={css.actionButton} disabled={busy || !value.trim() || status?.writable !== true} onClick={() => { void perform(false) }}>{t('openAiSave')}</button>
+      <button type="button" className={css.actionButton} disabled={busy || !status?.configured || !status.writable} onClick={() => { void perform(true) }}>{t('openAiClear')}</button>
+    </div></div>
+    {failed && <p className={css.statusFailed} role="alert">{t('openAiSaveFailed')}</p>}
+  </section>
 }
 
 /** The Engine sub-section: native-addon load state, with a copyable repair command when degraded. */
@@ -117,16 +179,18 @@ function EngineSection({ t, state, refresh }: {
 /** Host model resources and the browser-local preferred model. */
 function SpeechModelSection({
   settings, updateSettings, t, modelsList, modelsDownload, modelsRemove,
-  modelsReinstall, modelsUpdate, modelsCancel, transcribe, engineReady,
+  modelsReinstall, modelsUpdate, modelsCancel, modelsImport, renderFactorySlot, transcribe, engineReady, revision,
 }: {
   settings: VoiceSettings
   engineReady: boolean
-} & Pick<VoiceSettingsSectionProps, 'updateSettings' | 't' | 'modelsList' | 'modelsDownload' | 'modelsRemove' | 'modelsReinstall' | 'modelsUpdate' | 'modelsCancel' | 'transcribe'>): ReactNode {
+  revision: number
+} & Pick<VoiceSettingsSectionProps, 'updateSettings' | 't' | 'modelsList' | 'modelsDownload' | 'modelsRemove' | 'modelsReinstall' | 'modelsUpdate' | 'modelsCancel' | 'modelsImport' | 'renderFactorySlot' | 'transcribe'>): ReactNode {
   const [state, setState] = useState<ModelsViewState>({ phase: 'loading' })
   const [pending, setPending] = useState<string | null>(null)
   const [removeTarget, setRemoveTarget] = useState<VoiceModelRow | null>(null)
   const [failedModel, setFailedModel] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const mounted = useRef(true)
   const refreshGeneration = useRef(0)
 
@@ -148,7 +212,7 @@ function SpeechModelSection({
     mounted.current = true
     void refresh(true)
     return () => { mounted.current = false; refreshGeneration.current += 1 }
-  }, [refresh])
+  }, [refresh, revision])
 
   const taskRunning = state.phase === 'ready' && state.models.some(model => model.task?.state === 'running')
   useEffect(() => {
@@ -179,7 +243,7 @@ function SpeechModelSection({
   const models = state.phase === 'ready' ? state.models : []
   const selectedMissing = settings.sttModel !== null && !models.some(model => model.definition.id === settings.sttModel)
   const readyModel = models.find(model => model.definition.id === settings.sttModel && model.status.state === 'ready')
-    ?? models.find(model => model.status.state === 'ready')
+    ?? models.find(model => model.status.state === 'ready' && model.definition.provider !== 'openai')
   const selectedModel = models.find(model => model.definition.id === settings.sttModel)
   const choose = (modelId: string | null): void => {
     updateSettings({ sttModel: modelId })
@@ -211,6 +275,8 @@ function SpeechModelSection({
                 const task = model.task
                 const running = task?.state === 'running'
                 const ready = model.status.state === 'ready'
+                const cloud = model.definition.provider === 'openai'
+                const imported = model.definition.userImported === true
                 const hasInstallation = model.resource.installedVersion !== null || model.resource.integrity !== 'missing'
                 const blocked = pending !== null || running
                 const progress = running ? task.progress : undefined
@@ -222,9 +288,9 @@ function SpeechModelSection({
                     onClick={() => { choose(model.definition.id) }}>
                     <span className={css.modelInfo}>
                       <span className={css.modelTitle}>{model.definition.label ?? model.definition.name}
-                        <span className={css.modelTag}>{t(model.definition.streaming ? 'streaming' : 'offline')}</span>
+                        <span className={css.modelTag}>{t(cloud ? 'cloud' : model.definition.streaming ? 'streaming' : 'offline')}</span>
                         {model.definition.recommended && <span className={css.recommendedTag}>{t('recommended')}</span>}
-                        <span className={css.modelTag}>{formatBytes(model.definition.approximateBytes, t)}</span>
+                        {!cloud && <span className={css.modelTag}>{formatBytes(model.definition.approximateBytes, t)}</span>}
                       </span>
                       <span className={css.modelDescription}>
                         {descriptionKey === undefined ? model.definition.description : t(descriptionKey)}
@@ -237,43 +303,45 @@ function SpeechModelSection({
                   </button>
                   <div className={css.modelResourceRow}>
                     <span className={css.modelMeta} role="status">
-                      {ready ? t('modelReady') : model.status.state === 'failed' ? t('statusFailed') : t('modelNotDownloaded')}
+                      {ready ? t('modelReady') : cloud ? t('cloudNeedsKey') : model.status.state === 'failed' ? t('statusFailed') : t('modelNotDownloaded')}
                       {progress !== undefined && ' · ' + t(progress.state === 'downloading' ? 'downloading' : 'installing') + ' ' + formatBytes(progress.receivedBytes, t) + ' / ' + formatBytes(progress.totalBytes, t)}
                       {running && ' · ' + t(task.operation === 'download' ? 'taskDownload' : task.operation === 'reinstall' ? 'taskReinstall' : 'taskUpdate')}
                       {task?.state === 'cancelled' && ' · ' + t('taskCancelled')}
                       {task?.state === 'failed' && ' · ' + t('operationFailed')}
                     </span>
-                    <div className={css.modelActions}>
+                    {!cloud && <div className={css.modelActions}>
                       {!ready && !hasInstallation && <Tooltip label={t('modelDownload')} portal><button type="button" className={css.iconButton}
                         aria-label={t('modelDownload')} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsDownload(model.definition.id)) }}><IconDownloadOutlineRegular /></button></Tooltip>}
-                      {hasInstallation && <Tooltip label={t('modelReinstall')} portal><button type="button" className={css.iconButton}
+                      {hasInstallation && !imported && <Tooltip label={t('modelReinstall')} portal><button type="button" className={css.iconButton}
                         aria-label={t('modelReinstall')} disabled={blocked} onClick={() => { perform(model.definition.id, () => modelsReinstall(model.definition.id)) }}><IconRefreshOutlineRegular /></button></Tooltip>}
-                      {model.resource.installedVersion !== null && <Tooltip label={t('modelUpdate')} portal><button type="button" className={css.iconButton}
+                      {model.resource.installedVersion !== null && !imported && <Tooltip label={t('modelUpdate')} portal><button type="button" className={css.iconButton}
                         aria-label={t('modelUpdate')} disabled={blocked || !model.resource.updateAvailable} onClick={() => { perform(model.definition.id, () => modelsUpdate(model.definition.id)) }}><IconDownloadOutlineRegular /></button></Tooltip>}
                       {running && <Tooltip label={t('modelCancel')} portal><button type="button" className={css.iconButton}
                         aria-label={t('modelCancel')} disabled={pending !== null} onClick={() => { perform(model.definition.id, () => modelsCancel(model.definition.id, task.taskId)) }}><IconCloseOutlineRegular /></button></Tooltip>}
                       {(ready || hasInstallation || model.status.state === 'failed') && <Tooltip label={t('modelRemove')} portal><button type="button" className={css.iconButton}
                         aria-label={t('modelRemove')} disabled={blocked} onClick={() => { setPickerOpen(false); setRemoveTarget(model) }}><IconTrashOutlineRegular /></button></Tooltip>}
-                    </div>
+                    </div>}
                   </div>
                   {failedModel === model.definition.id && <p className={css.statusFailed} role="alert">{t('operationFailed')}</p>}
-                  <details className={css.modelDetails}>
+                  {!cloud && <details className={css.modelDetails}>
                     <summary>{t('modelDetails')}</summary>
                     <p className={css.modelMeta}>{t('installedVersion')}: {model.resource.installedVersion ?? t('notInstalled')}</p>
                     <p className={css.modelMeta}>{t('availableVersion')}: {model.resource.availableVersion}</p>
                     <p className={css.modelMeta}>{t('versionDescription')}</p>
                     <p className={css.modelMeta}>{t('source')}: {model.resource.source.join(', ')}</p>
                     <p className={css.modelMeta}>{t(model.resource.integrity === 'verified' ? 'integrityVerified' : model.resource.integrity === 'unverified' ? 'integrityUnverified' : model.resource.integrity === 'corrupt' ? 'integrityCorrupt' : 'integrityMissing')}</p>
-                  </details>
+                  </details>}
                 </li>
               })}
             </ul>}
           </Menu>
           <Tooltip label={t('checkVersions')} portal><button type="button" className={css.iconButton} aria-label={t('checkVersions')}
             onClick={() => { void refresh() }}><IconRefreshOutlineRegular /></button></Tooltip>
+          <button type="button" className={css.actionButton} disabled={!settings.enabled || pending !== null} onClick={() => { setImportOpen(true) }}>{t('modelImport')}</button>
         </div>
       </div>
       {state.phase === 'loading' && <p className={css.stateRow} role="status">{t('loading')}</p>}
+      <p className={css.settingDescription}>{t('modelImportHelp')}</p>
       {state.phase === 'error' && <div className={css.resourceNotice}>
         <span className={css.statusFailed} role="alert">{t('loadFailed')}</span>
         <button type="button" className={css.actionButton} onClick={() => { void refresh(true) }}>{t('retry')}</button>
@@ -290,8 +358,14 @@ function SpeechModelSection({
             perform(modelId, () => modelsRemove(modelId))
           }}>{t('confirmRemove')}</button>
         </>} />
+      {importOpen && renderFactorySlot('directory.picker', {
+        open: true, busy: false,
+        onPicked: (path) => { setImportOpen(false); perform('__import__', () => modelsImport(path)) },
+        onCancel: () => { setImportOpen(false) },
+        onError: () => { setImportOpen(false); setFailedModel('__import__') },
+      }, { fallback: <p className={css.statusFailed} role="alert">{t('modelImportPickerUnavailable')}</p> })}
       <VoiceTestSection settings={settings} t={t} transcribe={transcribe}
-        modelId={engineReady ? readyModel?.definition.id ?? null : null} />
+        modelId={engineReady || readyModel?.definition.provider === 'openai' ? readyModel?.definition.id ?? null : null} />
     </section>
   )
 }
@@ -343,6 +417,20 @@ function EnableSection({ settings, updateSettings, t }: {
               <span className={css.modeButton}>{t('modeHold')}</span>
             </label>
           </div>
+        </div>
+      </div>
+      <div className={css.settingRow} data-voice-setting="terminal-confirm" data-settings-anchor="voice-terminal-confirm">
+        <div className={css.settingCopy}>
+          <h2 className={css.settingTitle}>{t('terminalConfirmBeforeInsert')}</h2>
+          <p className={css.settingDescription}>{t('terminalConfirmBeforeInsertDescription')}</p>
+        </div>
+        <div className={css.settingControl}>
+          <Switch
+            checked={settings.terminalConfirmBeforeInsert}
+            onChange={(next) => { updateSettings({ terminalConfirmBeforeInsert: next }) }}
+            label={t('terminalConfirmBeforeInsert')}
+            disabled={!settings.enabled}
+          />
         </div>
       </div>
     </section>
@@ -432,11 +520,12 @@ function MicrophoneDeviceSection({ settings, updateSettings, permissionRevision,
  */
 export function VoiceSettingsSection({
   t, useSettings, updateSettings, engineStatus, modelsList, modelsDownload, modelsRemove,
-  modelsReinstall, modelsUpdate, modelsCancel, transcribe,
+  modelsReinstall, modelsUpdate, modelsCancel, modelsImport, renderFactorySlot, transcribe, openAiKeyStatus, openAiKeySave, openAiKeyClear,
 }: VoiceSettingsSectionProps): ReactNode {
   const settings = useSettings(value => value)
   const [engine, setEngine] = useState<EngineViewState>({ phase: 'loading' })
   const [engineRevision, setEngineRevision] = useState(0)
+  const [modelRevision, setModelRevision] = useState(0)
   useEffect(() => {
     let current = true
     setEngine({ phase: 'loading' })
@@ -497,11 +586,15 @@ export function VoiceSettingsSection({
           </div>
         </div>
         <MicrophoneDeviceSection settings={settings} updateSettings={updateSettings} permissionRevision={permissionRevision} t={t} />
+        <LanguageSection settings={settings} updateSettings={updateSettings} t={t} />
+        <OpenAiSection t={t} openAiKeyStatus={openAiKeyStatus} openAiKeySave={openAiKeySave} openAiKeyClear={openAiKeyClear}
+          changed={() => { setModelRevision(value => value + 1) }} />
         <EngineSection t={t} state={engine} refresh={() => { setEngineRevision(value => value + 1) }} />
         <SpeechModelSection settings={settings} updateSettings={updateSettings} t={t}
           modelsList={modelsList} modelsDownload={modelsDownload} modelsRemove={modelsRemove} transcribe={transcribe}
           modelsReinstall={modelsReinstall} modelsUpdate={modelsUpdate} modelsCancel={modelsCancel}
-          engineReady={engine.phase === 'ready' && engine.status.ok}
+          modelsImport={modelsImport} renderFactorySlot={renderFactorySlot}
+          engineReady={engine.phase === 'ready' && engine.status.ok} revision={modelRevision}
         />
       </div>
     </div>

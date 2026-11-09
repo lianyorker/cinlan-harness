@@ -13,5 +13,6 @@ export function architectureFilePaths(arch: VoiceModelArchitecture): readonly st
     case 'whisper': return [arch.encoder, arch.decoder, arch.tokens]
     case 'sense-voice': return [arch.model, arch.tokens]
     case 'nemo-ctc': return [arch.model, arch.tokens]
+    case 'openai': return []
   }
 }

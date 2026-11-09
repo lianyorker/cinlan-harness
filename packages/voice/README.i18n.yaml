@@ -3,20 +3,20 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/voice/README.md
 /:
-  en: d613f196452d5ceb
-  zh: 95834df561c9a3af
+  en: c9b267a4a50a9e01
+  zh: d4b8bb064e4c9105
 /voice-local-voice-transcription:
   en: 54255cf4655f9e59
   zh: 69152db9bf03f12f
 /voice-local-voice-transcription/summary:
-  en: e6742493e32c6db5
-  zh: d49f08c46adbef11
+  en: 46a482720a299ab9
+  zh: 3a530fb92c7a5a64
 /voice-local-voice-transcription/table-of-contents:
   en: 559619aefcb7fc3c
   zh: 6c510edf720b4c2f
 /voice-local-voice-transcription/packages:
-  en: 2a6141811b846e25
-  zh: f69fb63326e3e6ca
+  en: d44cf602db6cfd9c
+  zh: c718681f65b555db
 /voice-local-voice-transcription/related-documentation:
   en: 93622057a5bad3f4
   zh: 82e5c1af28afef67

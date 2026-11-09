@@ -2,7 +2,7 @@
 
 [English](voice.md) | 中文
 
-语音听写使用本地已安装模型转写解码后的音频片段。[语音服务](../../packages/voice/voice/README.zh.md) 拥有模型身份与提供方注册；[本地提供方](../../packages/voice/voice-sherpa-onnx/README.zh.md) 拥有原生资源、下载与推理。消费者负责麦克风采集和将转写文本插入输入框。
+语音听写使用本地已安装模型转写音频。离线模型接收完整解码片段；在线模型接收有界 PCM 分块，并在最终文本前持续发出 partial 假设。[语音服务](../../packages/voice/voice/README.zh.md) 拥有模型身份与提供方注册；[本地提供方](../../packages/voice/voice-sherpa-onnx/README.zh.md) 拥有原生资源、下载与推理。消费者负责麦克风采集和将最终文本插入输入框。
 
 来源：[`packages/voice/voice/src/types.ts`](../../packages/voice/voice/src/types.ts)。以下类型归语音组所有，包括由传输 Controller 重新导出的类型。
 
@@ -13,9 +13,9 @@
 | 类型 | 字段与含义 |
 |---|---|
 | `VoiceModelId` | 品牌化的精确模型选择器。重复注册会被拒绝；解析未知 id 时抛出 `VOICE_MODEL_UNKNOWN`。 |
-| `VoiceModelKind` | `streaming` 或 `non-streaming` 识别器类别。两者都使用下文的最终转写 API。 |
+| `VoiceModelKind` | `streaming` 模型接收在线分块识别；`non-streaming` 模型接收完整音频片段。 |
 | `VoiceModelDefinition` | `id`、显示 `name`、`description`、`recommended`、`kind`、大小提示 `approximateBytes`、`download` 与 `architecture`；可选选择器元数据 `label`、`language`、`type`、`provider` 与 `streaming`。 |
-| `VoiceModelDownload` | `type: archive` 携带 tar.bz2 的 `url` 与 `sha256`。`type: files` 携带 `entries`，每项包含 `name`、`url`、`sha256` 与预期 `bytes`。 |
+| `VoiceModelDownload` | `type: cloud` 没有本地文件。`type: archive` 携带 tar.bz2 的 `url` 与 `sha256`。`type: files` 和 `type: imported` 携带 `entries`，每项包含 `name`、`url`、`sha256` 与预期 `bytes`。 |
 
 `VoiceModelArchitecture` 选择模型缓存目录内的文件布局。路径标识该识别器所需的文件；语言字段配置对应架构。
 
@@ -51,18 +51,22 @@
 
 ## 转写与提供方生命周期
 
-提供方接收解码后的采样，调用方单独提供取消信号。识别器释放原生资源后，结果才结算。
+提供方接收解码后的采样、可选语言提示与取消信号。所选提供方释放自有识别器或请求资源后，调用才结算。
 
 | 类型 | 字段与含义 |
 |---|---|
-| `VoiceTranscribeRequest` | `modelId: VoiceModelId` 与包含单个 16 kHz 单声道片段的 `samples: Float32Array`。 |
-| `VoiceTranscribeResult` | `text` 中的最终转写文本；没有部分结果流。 |
+| `VoiceModelProvider` | `local` 或 `openai`；选择拥有模型操作的提供方。 |
+| `VoiceTranscribeRequest` | `modelId: VoiceModelId`、包含单个 16 kHz 单声道片段的 `samples: Float32Array`，以及可选 ISO 语言提示。 |
+| `VoiceTranscribeResult` | 完整片段转写 API 的最终 `text`。 |
+| `VoiceAudioChunk` | Remote uplink 使用的有界 little-endian float32 16 kHz 单声道 PCM canonical base64。 |
+| `VoiceTranscriptFrame` | 在线识别发出的 `partial` 假设或唯一终止 `final` 文本。 |
 | `VoiceEngine` | 稳定的 `id` 与 `loadModel(definition, cacheDir)`；后者返回就绪的 `VoiceRecognizer`，或因原生绑定不可用、模型文件缺失或损坏而拒绝。 |
-| `VoiceRecognizer` | `transcribe(samples)` 返回 16 kHz 单声道 float32 PCM 的最终转写文本；`dispose()` 释放原生资源，且可安全重复调用。 |
+| `VoiceRecognizer` | `transcribe(samples)` 处理完整片段；可选的 `createStream()` 打开在线识别会话。`dispose()` 释放原生资源，且可安全重复调用。 |
+| `VoiceRecognizerStream` | 同步接收 PCM 分块，并在 `finish()` 时冲刷最终假设。 |
 
-[API Controller 的同名 `VoiceTranscribeRequest`](typert.zh.md) 是包含 `pcm16kMonoBase64` 的 JSON 请求。[共享传输解析器](../../packages/voice/voice/src/transport.ts) 在生成上述归语音组所有的请求前，验证规范的小端 float32 PCM、16 MiB 解码上限与有限数值采样。
+[API Controller 的同名 `VoiceTranscribeRequest`](typert.zh.md) 是包含 `pcm16kMonoBase64` 的 JSON 请求。[共享传输解析器](../../packages/voice/voice/src/transport.ts) 对完整片段限制 16 MiB 解码字节数，对在线分块限制 64 KiB，并拒绝非有限样本。
 
-`VoiceOperations` 为 `ctx.voice` 提供归提供方所有的回调。每个回调接收 `AbortSignal`；取消仅在所拥有工作静止后结算。
+`VoiceOperations` 通过 `supportsModel` 声明模型所有权，并为 `ctx.voice` 提供归提供方所有的回调。每个回调接收 `AbortSignal`；取消仅在所拥有工作静止后结算。
 
 | 操作 | 要求 |
 |---|---|
@@ -70,6 +74,7 @@
 | `modelsDownload` | 安装或等待单个模型的共享安装；取消任一等待方会取消该安装。 |
 | `modelsRemove` | 取消模型工作，等待原生资源释放，再移除缓存与可续传部分。 |
 | `transcribe` | 使用已安装模型转写解码后的采样，并在结算前释放识别器。 |
+| `transcribeStream` | 仅对 streaming 模型接收有界分块；持续发出识别假设与最终文本，并在结算前释放子进程和模型租约。 |
 
 [运行时](../../packages/voice/voice/src/index.ts) 允许注册一个引擎与一组操作。每次注册返回释放器；撤销操作会立即阻止新分派。没有已注册操作时，调用以 `VOICE_UNAVAILABLE` 拒绝。`VoiceError` 携带开放字符串错误代码，不是封闭的错误代码联合。
 

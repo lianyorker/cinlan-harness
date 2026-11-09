@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { architectureFilePaths } from '@deepseek-ai/dsh-voice'
+import { architectureFilePaths } from '@cinlan/voice'
 import { SHIPPED_MODELS } from '../src/model-registry.ts'
 
 describe('Orca local model catalog', () => {

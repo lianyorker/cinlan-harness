@@ -3,7 +3,7 @@ description: "Cinlan-private Web composition layer for the Cinlan Harness fork: 
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-cinlan-web
+# @cinlan/cinlan-web
 
 English | [中文](README.zh.md)
 
@@ -22,6 +22,8 @@ still needs.
 The `web` profile template already lists this bundle right after
 `@deepseek-ai/dsh-web-app`; `dsh` resolves its `cordis.patch.yml` automatically
 when the profile selects it.
+
+The Web browser-test scaffold includes this layer after `dsh-web-app` and supplies the launch profile identity, so Cinlan settings pages and MCP management use the same composition as the Web profile. It isolates `CLH_HOME` and `CINLAN_HARNESS_HOME` inside its temporary home and restores them at teardown; voice model checks never read the developer's cache.
 
 ### What you get
 

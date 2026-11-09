@@ -1,18 +1,22 @@
 /** Host-owned model tasks and recognizer lifetimes shared by authenticated transports. */
 import { randomUUID } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { VoiceError } from '@deepseek-ai/dsh-voice'
+import { VoiceError } from '@cinlan/voice'
 import type {
   VoiceRuntime, VoiceEngineStatus, VoiceModelId, VoiceModelTaskId, VoiceModelTask,
   VoiceModelOperation, VoiceModelStatus, VoiceOperations, VoiceTranscribeRequest,
-} from '@deepseek-ai/dsh-voice'
+  VoiceAudioChunk, VoiceTranscriptFrame,
+} from '@cinlan/voice'
+import { parseVoiceAudioChunk } from '@cinlan/voice/transport'
 import { engineRepairHint } from './engine-repair.ts'
 import { downloadModelToStaging } from './model-cache.ts'
 import type { DownloadOptions, ExtractArchive } from './model-cache.ts'
 import { VoiceResourceNotReadyError, VoiceResourceStore } from './resource-store.ts'
 import type { ResourceStoreOptions } from './resource-store.ts'
 import { describeSherpaOnnxCause, loadSherpaOnnx, sherpaOnnxLoadCause } from './sherpa-deps.ts'
+import { OnlineRecognitionProcess } from './streaming-process.ts'
 
 interface ActiveOperation {
   readonly controller: AbortController
@@ -31,6 +35,7 @@ export class SherpaVoiceOperations implements VoiceOperations {
   private readonly active = new Set<ActiveOperation>()
   private readonly removing = new Set<VoiceModelId>()
   private readonly tasks = new Map<VoiceModelId, ModelTask>()
+  private readonly imported = new Map<VoiceModelId, () => void>()
   private readonly store: VoiceResourceStore
 
   constructor(
@@ -43,9 +48,13 @@ export class SherpaVoiceOperations implements VoiceOperations {
     this.store = new VoiceResourceStore(cacheRoot, storeOptions)
   }
 
+  supportsModel(definition: import('@cinlan/voice').VoiceModelDefinition): boolean {
+    return definition.provider !== 'openai'
+  }
+
   engineStatus(signal: AbortSignal): Promise<VoiceEngineStatus> {
     return this.run(signal, () => {
-      const status: VoiceEngineStatus = loadSherpaOnnx() !== null
+      const status: VoiceEngineStatus = loadSherpaOnnx(createRequire(import.meta.url)) !== null
         ? { ok: true }
         : { ok: false, cause: describeSherpaOnnxCause(sherpaOnnxLoadCause()), ...engineRepairHint() }
       return Promise.resolve(status)
@@ -53,8 +62,10 @@ export class SherpaVoiceOperations implements VoiceOperations {
   }
 
   modelsList(signal: AbortSignal) {
-    return this.run(signal, async operationSignal => ({
-      models: await Promise.all(this.voice.listDefinitions().map(async (definition) => {
+    return this.run(signal, async (operationSignal) => {
+      await this.initialize()
+      const definitions = this.voice.listDefinitions().filter(definition => this.supportsModel(definition))
+      return { models: await Promise.all(definitions.map(async (definition) => {
         const { cacheDir, ...resource } = await this.store.inspect(definition, operationSignal)
         const task = this.tasks.get(definition.id)?.snapshot ?? null
         let status: VoiceModelStatus = { state: 'not-downloaded' }
@@ -69,12 +80,14 @@ export class SherpaVoiceOperations implements VoiceOperations {
             ...(definition.language !== undefined ? { language: definition.language } : {}),
             ...(definition.type !== undefined ? { type: definition.type } : {}),
             ...(definition.provider !== undefined ? { provider: definition.provider } : {}),
+            ...(definition.userImported === undefined ? {} : { userImported: definition.userImported }),
             ...(definition.streaming !== undefined ? { streaming: definition.streaming } : {}),
           },
           resource, task, status,
         }
       })),
-    }))
+      }
+    })
   }
 
   modelsDownload(modelId: VoiceModelId, signal: AbortSignal) {
@@ -122,9 +135,42 @@ export class SherpaVoiceOperations implements VoiceOperations {
           throw new VoiceError('voice installation changed on another Host', 'VOICE_RESOURCE_CONFLICT')
         }
         this.tasks.delete(modelId)
+        this.imported.get(modelId)?.()
+        this.imported.delete(modelId)
       })
     } finally {
       this.removing.delete(modelId)
+    }
+  }
+
+  modelsImport(sourcePath: string, signal: AbortSignal) {
+    return this.run(signal, async (operationSignal) => {
+      let definition: import('@cinlan/voice').VoiceModelDefinition
+      try { definition = await this.store.importDirectory(sourcePath, operationSignal) }
+      catch (error) {
+        operationSignal.throwIfAborted()
+        if (error instanceof VoiceError) throw error
+        throw new VoiceError('Import failed; check clh-voice-model.json and its required regular files', 'VOICE_INVALID_REQUEST')
+      }
+      this.lifetime.signal.throwIfAborted()
+      this.imported.set(definition.id, this.voice.registerModel(definition))
+      const rows = await this.modelsList(new AbortController().signal)
+      const row = rows.models.find(candidate => candidate.definition.id === definition.id)
+      if (row === undefined) throw new VoiceError('Imported model was removed by another Host', 'VOICE_RESOURCE_CONFLICT')
+      return row
+    })
+  }
+
+  /** Register durable user definitions for this Provider lifetime. */
+  async initialize(): Promise<void> {
+    const definitions = await this.store.importedDefinitions(this.lifetime.signal)
+    this.lifetime.signal.throwIfAborted()
+    const ids = new Set(definitions.map(definition => definition.id))
+    for (const [id, unregister] of this.imported) {
+      if (!ids.has(id)) { unregister(); this.imported.delete(id) }
+    }
+    for (const definition of definitions) {
+      if (!this.imported.has(definition.id)) this.imported.set(definition.id, this.voice.registerModel(definition))
     }
   }
 
@@ -139,7 +185,11 @@ export class SherpaVoiceOperations implements VoiceOperations {
         operationSignal.throwIfAborted()
         const engine = this.voice.engineOrUndefined
         if (engine === undefined) throw new VoiceError('no voice engine is registered', 'VOICE_UNAVAILABLE')
-        const recognizer = await engine.loadModel(lease.definition, lease.cacheDir)
+        const architecture = lease.definition.architecture
+        const definition = request.language !== undefined && (architecture.type === 'whisper' || architecture.type === 'sense-voice')
+          ? { ...lease.definition, architecture: { ...architecture, language: request.language } }
+          : lease.definition
+        const recognizer = await engine.loadModel(definition, lease.cacheDir)
         try {
           operationSignal.throwIfAborted()
           const text = await recognizer.transcribe(request.samples)
@@ -154,6 +204,44 @@ export class SherpaVoiceOperations implements VoiceOperations {
     }, request.modelId)
   }
 
+  transcribeStream(
+    modelId: VoiceModelId,
+    chunks: AsyncIterable<VoiceAudioChunk>,
+    signal: AbortSignal,
+  ): AsyncIterable<VoiceTranscriptFrame> {
+    const definition = this.requireModel(modelId)
+    if (definition.kind !== 'streaming') {
+      throw new VoiceError('model does not support streaming recognition', 'VOICE_STREAM_UNSUPPORTED')
+    }
+    const store = this.store
+    const voice = this.voice
+    return this.runStream(signal, async function* (operationSignal: AbortSignal) {
+      const lease = await store.acquire(definition, operationSignal).catch((error: unknown) => {
+        if (error instanceof VoiceResourceNotReadyError) throw new VoiceError('voice model files are not verified', 'VOICE_MODEL_NOT_READY')
+        throw error
+      })
+      let worker: OnlineRecognitionProcess | undefined
+      let sampleCount = 0
+      try {
+        operationSignal.throwIfAborted()
+        if (voice.engineOrUndefined === undefined) throw new VoiceError('no voice engine is registered', 'VOICE_UNAVAILABLE')
+        worker = new OnlineRecognitionProcess(lease.definition, lease.cacheDir, operationSignal)
+        await worker.start()
+        for await (const chunk of chunks) {
+          operationSignal.throwIfAborted()
+          const samples = parseVoiceAudioChunk(chunk)
+          sampleCount += samples.length
+          yield await worker.accept(samples)
+        }
+        operationSignal.throwIfAborted()
+        if (sampleCount === 0) throw new VoiceError('voice audio stream contains no samples', 'VOICE_INVALID_REQUEST')
+        yield await worker.finish()
+      } finally {
+        try { await worker?.dispose() } finally { await lease.release() }
+      }
+    }, modelId)
+  }
+
   /** Abort and join this Host's tasks and native recognizers before provider disposal settles. */
   async dispose(): Promise<void> {
     this.lifetime.abort(new DOMException('voice provider disposed', 'AbortError'))
@@ -161,10 +249,13 @@ export class SherpaVoiceOperations implements VoiceOperations {
       ...[...this.active].map(operation => operation.promise),
       ...[...this.tasks.values()].map(task => task.done),
     ])
+    for (const unregister of this.imported.values()) unregister()
+    this.imported.clear()
   }
 
   private startTask(modelId: VoiceModelId, operation: VoiceModelOperation, signal: AbortSignal): Promise<VoiceModelTask> {
     const definition = this.requireModel(modelId)
+    if (definition.userImported === true) throw new VoiceError('Imported models must be imported again to replace their files', 'VOICE_INVALID_REQUEST')
     signal.throwIfAborted()
     this.lifetime.signal.throwIfAborted()
     const current = this.tasks.get(modelId)
@@ -180,7 +271,7 @@ export class SherpaVoiceOperations implements VoiceOperations {
   }
 
   private admitTask(
-    definition: import('@deepseek-ai/dsh-voice').VoiceModelDefinition,
+    definition: import('@cinlan/voice').VoiceModelDefinition,
     operation: VoiceModelOperation,
     resource: import('./resource-store.ts').ResourceInspection,
   ): VoiceModelTask {
@@ -240,6 +331,42 @@ export class SherpaVoiceOperations implements VoiceOperations {
     this.active.add(operation)
     void promise.then(() => { this.active.delete(operation) }, () => { this.active.delete(operation) })
     return promise
+  }
+
+  private runStream<T>(
+    signal: AbortSignal,
+    work: (signal: AbortSignal) => AsyncIterable<T>,
+    modelId?: VoiceModelId,
+  ): AsyncIterable<T> {
+    const controller = new AbortController()
+    const operationSignal = AbortSignal.any([signal, this.lifetime.signal, controller.signal])
+    operationSignal.throwIfAborted()
+    const completion = Promise.withResolvers<void>()
+    const operation: ActiveOperation = { controller, promise: completion.promise, ...(modelId === undefined ? {} : { modelId }) }
+    let started = false
+    let finished = false
+    const finish = (): void => {
+      if (finished) return
+      finished = true
+      operationSignal.removeEventListener('abort', onAbort)
+      this.active.delete(operation)
+      completion.resolve()
+    }
+    const onAbort = (): void => {
+      if (!started) finish()
+    }
+    this.active.add(operation)
+    operationSignal.addEventListener('abort', onAbort, { once: true })
+    return (async function* () {
+      started = true
+      try {
+        operationSignal.throwIfAborted()
+        for await (const value of work(operationSignal)) yield value
+      } finally {
+        operation.controller.abort(new DOMException('voice stream settled', 'AbortError'))
+        finish()
+      }
+    })()
   }
 }
 

@@ -9,6 +9,7 @@
     "src/client/css-modules.d.ts"
   ],
   "references": [
+    { "path": "../ui-workspace" },
     {
       "path": "../../../vendor/cordis"
     },
