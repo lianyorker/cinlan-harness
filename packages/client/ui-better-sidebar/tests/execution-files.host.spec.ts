@@ -1,9 +1,9 @@
 /** Execution-world file operations retain one lease and reject canonical SSH path escapes. */
 import { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-execution-binding'
+import type {} from '@cinlan/execution-binding'
 import type {
   ExecutionBinding, ExecutionIncarnation, ExecutionLease, SshExecutionSnapshot,
-} from '@deepseek-ai/dsh-execution-binding/types'
+} from '@cinlan/execution-binding/types'
 import type { FileSystem, FsTarget } from '@deepseek-ai/dsh-fs'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import type { GitCommitPreview, GitCompareResult, GitStatusResult } from '@deepseek-ai/dsh-sidebar-git/types'
+import type { GitCommitPreview, GitCompareResult, GitStatusResult } from '@cinlan/sidebar-git/types'
 import { GitView } from '../src/client/GitView.tsx'
 import { builtinTabs } from '../src/client/builtins/tabs.tsx'
 import { createSidebarStore, type SidebarTab } from '../src/client/state.ts'

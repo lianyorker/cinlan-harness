@@ -1,6 +1,6 @@
 /** Shell and directory resolution within a captured Session execution world. */
 import { posix } from 'node:path'
-import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import type { ExecutionLease } from '@cinlan/execution-binding/types'
 import type {} from '@deepseek-ai/dsh-fs'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import { SidebarTerminalError } from '@deepseek-ai/dsh-sidebar-terminals'

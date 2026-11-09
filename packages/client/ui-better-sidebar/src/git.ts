@@ -1,7 +1,7 @@
 /** HTTP request decoding for the shared sidebar Git owner. */
-import { SidebarGitError } from '@deepseek-ai/dsh-sidebar-git'
-import type { SidebarGit } from '@deepseek-ai/dsh-sidebar-git'
-import type { GitCommitPreview, GitMutationRequest, GitSessionRequest } from '@deepseek-ai/dsh-sidebar-git/types'
+import { SidebarGitError } from '@cinlan/sidebar-git'
+import type { SidebarGit } from '@cinlan/sidebar-git'
+import type { GitCommitPreview, GitMutationRequest, GitSessionRequest } from '@cinlan/sidebar-git/types'
 import { SidebarError, requireString } from './wire.ts'
 
 function recordOf(value: unknown): Record<string, unknown> {

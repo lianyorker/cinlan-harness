@@ -1,6 +1,6 @@
 /** Shared sidebar operations for authenticated Fetch and the fenced Web aliases. */
 import { STATUS_CODES } from 'node:http'
-import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import type { ExecutionLease } from '@cinlan/execution-binding/types'
 import { executionFileSystem, executionPaths, executionTarget } from './execution-files.ts'
 import type { HostConnectionFetch } from '@deepseek-ai/dsh-client-connection/types'
 import type { ResolvedSidebarConfig } from './config.ts'

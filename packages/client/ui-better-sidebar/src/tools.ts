@@ -13,7 +13,7 @@
  *   C10 — no UI/transport vocabulary in the canonical value.
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
-import type {} from '@deepseek-ai/dsh-execution-binding'
+import type {} from '@cinlan/execution-binding'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Context } from './context-types.ts'

@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Office previews in Files > shows missing fonts without replacing or hiding the preview > Office preview with missing fonts 1`] = `
+<div>
+  <div
+    class="_preview_5f11c9"
+    data-office-preview="ready"
+  >
+    <div
+      class="_toolbar_5f11c9"
+    >
+      <a
+        class="_control_5f11c9"
+        download=""
+        href="/api/sidebar.file?sessionId=office-session&path=%2Fworkspace%2Freport.docx&download=1"
+      >
+        Download original
+      </a>
+      <button
+        class="_control_5f11c9"
+        type="button"
+      >
+        Refresh preview
+      </button>
+    </div>
+    <details
+      class="_fontNotice_5f11c9"
+    >
+      <summary>
+        2 fonts unavailable; layout may differ
+      </summary>
+      <p>
+        These fonts are not installed on the Host. Text and layout may differ from the original file.
+      </p>
+      <ul>
+        <li>
+          Missing Serif
+        </li>
+        <li>
+          Missing Sans
+        </li>
+      </ul>
+    </details>
+    <div
+      class="_stage_5f11c9"
+    >
+      <iframe
+        class="_frame_5f11c9"
+        src="blob:office-1"
+        title="report.docx"
+      />
+      <div
+        aria-hidden="true"
+        class="_shield_5f11c9"
+      />
+    </div>
+  </div>
+</div>
+`;

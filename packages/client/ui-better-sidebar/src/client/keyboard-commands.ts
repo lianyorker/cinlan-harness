@@ -1,8 +1,8 @@
 /** Real CodeMirror file actions and their default shortcuts. */
-import type { KeyEventFacts, KeyboardService } from '@deepseek-ai/dsh-client-keyboard/client'
+import type { KeyEventFacts, KeyboardService } from '@cinlan/client-keyboard/client'
 import type { CopyKey } from './locales.ts'
 
-declare module '@deepseek-ai/dsh-client-keyboard/client' {
+declare module '@cinlan/client-keyboard/client' {
   interface KeyboardCommandMap {
     'editor.save': { scope: 'editor' }
     'editor.find': { scope: 'editor' }

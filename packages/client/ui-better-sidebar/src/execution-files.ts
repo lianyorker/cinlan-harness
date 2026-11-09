@@ -1,8 +1,8 @@
 /** Session-owned file operations over one retained execution world. */
 import { posix, win32 } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-execution-binding'
-import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import type {} from '@cinlan/execution-binding'
+import type { ExecutionLease } from '@cinlan/execution-binding/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { GitError } from '@deepseek-ai/dsh-git'
 import { FsError, type FileSystem, type FsTarget } from '@deepseek-ai/dsh-fs'

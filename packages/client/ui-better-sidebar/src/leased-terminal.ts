@@ -1,7 +1,7 @@
 /** Adapt a captured subprocess terminal into the sidebar's existing retained PTY registry. */
 import { StringDecoder } from 'node:string_decoder'
 import { finished } from 'node:stream/promises'
-import type { ExecutionLease } from '@deepseek-ai/dsh-execution-binding/types'
+import type { ExecutionLease } from '@cinlan/execution-binding/types'
 import type { SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
 import type { SidebarTerminalProcess } from './pty-manager.ts'
 

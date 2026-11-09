@@ -1,7 +1,7 @@
 /** Owner-local Git data and callback fixtures; no repository or transport side effects. */
 import { vi } from 'vitest'
 import type { ClientRemote, RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
-import type { GitCommitPreview, GitLogEntry, GitRepositoryState, GitStatusResult } from '@deepseek-ai/dsh-sidebar-git/types'
+import type { GitCommitPreview, GitLogEntry, GitRepositoryState, GitStatusResult } from '@cinlan/sidebar-git/types'
 import type { SidebarGitClient } from '../src/client/api.ts'
 
 export const scope = { sessionId: 'git-session', cwd: '/workspace/subdir' }

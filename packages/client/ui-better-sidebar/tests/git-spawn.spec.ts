@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SidebarGit } from '@deepseek-ai/dsh-sidebar-git'
-import { SidebarGitError } from '@deepseek-ai/dsh-sidebar-git'
+import type { SidebarGit } from '@cinlan/sidebar-git'
+import { SidebarGitError } from '@cinlan/sidebar-git'
 import { buildGitApi } from '../src/git.ts'
 
 /** The HTTP carrier passes no client cwd or unreviewed message to the executor. */

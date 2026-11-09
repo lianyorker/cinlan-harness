@@ -1,5 +1,5 @@
 /** Host-safe sidebar failures shared by HTTP routes and native terminal owners. */
-import type { SidebarGitErrorCode } from '@deepseek-ai/dsh-sidebar-git/types'
+import type { SidebarGitErrorCode } from '@cinlan/sidebar-git/types'
 
 /** Machine-readable error codes of the sidebar API. */
 export type SidebarErrorCode =

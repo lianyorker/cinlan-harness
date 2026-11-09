@@ -9,7 +9,7 @@ import type {
   GitCommitPreview, GitCompareResult, GitLogEntry, GitRepositoryState, GitStatusEntry, GitStatusResult,
   SessionScope, SidebarGitClient,
 } from './api.ts'
-import { generateCommitMessageDraft } from '@deepseek-ai/dsh-git-settings/ai-author'
+import { generateCommitMessageDraft } from '@cinlan/git-settings/ai-author'
 import { DiffView } from './DiffView.tsx'
 import { relativeTo } from './paths.ts'
 import { relativeTime, t } from './locales.ts'
