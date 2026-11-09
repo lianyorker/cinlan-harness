@@ -24,6 +24,9 @@
       "path": "../../llm/llm"
     },
     {
+      "path": "../../ptc-runtime/ptc-runtime"
+    },
+    {
       "path": "../../core/system-prompt"
     },
     {

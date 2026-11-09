@@ -56,7 +56,7 @@ class FactoryOwnership {
   private accepting = true
   private readonly teardown = new AbortController()
   private readonly inactive = Promise.withResolvers<void>()
-  private readonly liveAgents = new Map<SessionId, () => Promise<void>>()
+  private readonly liveAgents = new Set<() => Promise<void>>()
   private startupTasks = new Set<Promise<void>>()
 
   constructor(private readonly fiber: Context['fiber']) {}
@@ -71,21 +71,9 @@ class FactoryOwnership {
   }
 
   /** Track one live agent's shared teardown until it has run. */
-  track(id: SessionId, dispose: () => Promise<void>): () => void {
-    this.liveAgents.set(id, dispose)
-    return () => {
-      if (this.liveAgents.get(id) === dispose) {
-        this.liveAgents.delete(id)
-      }
-    }
-  }
-
-  /** Release one tracked live agent by id, awaiting its teardown. */
-  async releaseAgent(id: SessionId): Promise<void> {
-    const dispose = this.liveAgents.get(id)
-    if (dispose !== undefined) {
-      await dispose()
-    }
+  track(dispose: () => Promise<void>): () => void {
+    this.liveAgents.add(dispose)
+    return () => { this.liveAgents.delete(dispose) }
   }
 
   /** Join config startup work that begins before an agent exists. */

@@ -5,7 +5,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { PtcProgramFormat, PtcRunRequest, PtcRunResult, PtcRunSpec } from './types.ts'
+import type { PtcRunRequest, PtcRunResult, PtcRunSpec } from './types.ts'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 
 export type {
@@ -124,18 +124,6 @@ export abstract class PtcRuntime extends Service {
 
   /** Source evaluation form, independent of whether the provider retains state for an owner. */
   get programFormat(): 'function-body' | 'repl' { return 'function-body' }
-
-  /**
-   * Release an owner's retained environment and await its execution resources.
-   * Stateless providers have no retained resources to release.
-   * @param owner - The exact object supplied as the request's state owner.
-   * @returns Completion after all owned execution resources have been released.
-   * @throws When managed resource cleanup fails.
-   */
-  release(owner: object): Promise<void> { void owner; return Promise.resolve() }
-
-  /** Source evaluation form, independent of whether the provider retains state for an owner. */
-  get programFormat(): PtcProgramFormat { return 'function-body' }
 
   /** Whether this provider retains program memory across runs for the same stateOwner. */
   get retainsState(): boolean { return false }
