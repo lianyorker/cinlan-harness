@@ -543,13 +543,6 @@ export async function readPackageDependencyFacts(
       throw new Error(`${pkg.manifestPath}: requiredServicePeers must name a referenced workspace package: ${name}`)
     }
   }
-  const servicePeers = policy.requiredServicePeers?.[pkg.name] ?? []
-  const allSourceUses = readAllSourceUses(root, pkg)
-  for (const name of servicePeers) {
-    if (!workspaceNames.has(name) || !allSourceUses.has(name)) {
-      throw new Error(`${pkg.manifestPath}: requiredServicePeers must name a referenced workspace package: ${name}`)
-    }
-  }
   return {
     manifestPath: pkg.manifestPath,
     role,

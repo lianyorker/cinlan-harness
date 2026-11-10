@@ -80,7 +80,7 @@ describe('security skill resource builder', () => {
     await writeFile(join(options.sourceRoot, '.gitkeep'), '')
     await mkdir(join(options.sourceRoot, '.claude-plugin'))
     await writeFile(join(options.sourceRoot, '.claude-plugin/marketplace.json'), '{}')
-    expect((await collectResourceInventory(options.sourceRoot)).files.map(file => file.path)).toEqual(['skills/SKILL.md'])
+    expect((await collectResourceInventory(options.sourceRoot)).files.map((file: { path: string }) => file.path)).toEqual(['skills/SKILL.md'])
   })
 
   it('rejects credential files, unknown formats, malformed skills and duplicate identities', async () => {

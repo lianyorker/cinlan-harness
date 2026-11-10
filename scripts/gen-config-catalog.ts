@@ -274,26 +274,6 @@ function loadWorkspaceSource(world: World, from: FileCtx, specifier: string): Fi
   return loadFile(resolved.resolvedFileName, rel, world.cache)
 }
 
-/** Resolve a local schema helper without treating it as a workspace package export. */
-function loadRelativeSchemaSource(world: World, from: FileCtx, specifier: string): FileCtx {
-  if (world.compilerOptions === undefined) {
-    const parsed = ts.getParsedCommandLineOfConfigFile(resolve(world.scanRoot, 'tsconfig.json'), {}, {
-      ...ts.sys,
-      onUnRecoverableConfigFileDiagnostic(diagnostic) {
-        throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
-      },
-    })
-    if (parsed === undefined || parsed.errors.length > 0) throw new Error('cannot resolve local schema import through the workspace source tsconfig')
-    world.compilerOptions = parsed.options
-  }
-  const resolved = ts.resolveModuleName(specifier, from.abs, world.compilerOptions, ts.sys).resolvedModule
-  if (resolved === undefined || !resolved.resolvedFileName.endsWith('.ts') || resolved.resolvedFileName.endsWith('.d.ts')) {
-    throw new Error(`local schema import ${JSON.stringify(specifier)} does not resolve to a TypeScript source file`)
-  }
-  const rel = relative(world.scanRoot, resolved.resolvedFileName).split(sep).join('/')
-  return loadFile(resolved.resolvedFileName, rel, world.cache)
-}
-
 /** Find a directly declared const schema, requiring public exports at imported entries. */
 function schemaConst(ctx: FileCtx, name: string, exported: boolean): ts.Expression | null {
   for (const statement of ctx.sf.statements) {

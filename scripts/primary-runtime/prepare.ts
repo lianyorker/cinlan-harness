@@ -2,8 +2,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { cpSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { cp } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -216,8 +215,11 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
   const destination = join(paths.runtime, 'primary-runtime')
   const runtimeJsonPath = join(destination, 'runtime.json')
   const require = createRequire(import.meta.url)
-  const pnpmManifest = require.resolve('pnpm')
-  const pnpmVersion = options.pythonOnly ? undefined : (JSON.parse(readFileSync(pnpmManifest, 'utf8')) as { version: string }).version
+  let pnpmVersion: string | undefined
+  if (!options.pythonOnly) {
+    const pnpmManifest = require.resolve('pnpm')
+    pnpmVersion = (JSON.parse(readFileSync(pnpmManifest, 'utf8')) as { version: string }).version
+  }
   const expectedDigest = primaryRuntimePayloadDigest(target, lock, pnpmVersion)
   if (existsSync(runtimeJsonPath)) {
     try {

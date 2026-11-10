@@ -175,8 +175,6 @@ for (const [file, jobIds] of [['release.yml', ['dependencies', 'pack']], ['relea
   })
 }
 
-it.each(['release-publish.yml', 'release-vendor-publish.yml'])('keeps %s manual and entirely hosted', (file) => {
-  const publish = workflow(file)
 it('keeps vendor publication manual and entirely hosted', () => {
   const publish = workflow('release-vendor-publish.yml')
   expect(Object.keys(publish.on)).toEqual(['workflow_dispatch'])
