@@ -31,7 +31,7 @@ function bench(value: Partial<NotificationSettings> = {}) {
     t: makeTranslate(en, {}),
     usePanelInfo: (() => ({})) as NotificationsSectionProps['usePanelInfo'],
     useSessionStatus: (() => ({})) as NotificationsSectionProps['useSessionStatus'],
-    useSessionRetainInfo: (() => ({})) as NotificationsSectionProps['useSessionRetainInfo'],
+    useSessionRetainInfo: () => ({ referenceCount: 0, retainedBy: {} }),
     useSessions: bindSnapshotSelector(sessions.list),
     useWorkspaces: bindSnapshotSelector(workspaces.list),
     ...allowAllAccess, useContextMenu: contextMenuHook(),
