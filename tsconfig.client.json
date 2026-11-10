@@ -1,4 +1,4 @@
-﻿{
+{
   "extends": "./tsconfig.base.client.json",
   "compilerOptions": {
     "noEmit": true,
@@ -44,7 +44,11 @@
   "exclude": [
     "packages/client/*/tests/**/*.host.spec.ts",
     "packages/client/*/tests/**/*.host.e2e.ts",
-    "packages/client/*/tests/**/*.host.ts"
+    "packages/client/*/tests/**/*.host.ts",
+    "packages/client/ui-better-sidebar/tests/**",
+    "packages/client/ui-right-sidebar/**",
+    "packages/notifications/notifications/tests/**",
+    "packages/test-support/client-runtime/tests/**"
   ],
   "references": [
     {
@@ -258,10 +262,10 @@
       "path": "./packages/client/ui-user-questions"
     },
     {
-      "path": "./packages/client/ui-trajectory"
+      "path": "./packages/session-query/session-log-export/tsconfig.client.json"
     },
     {
-      "path": "./packages/session-query/session-log-export/tsconfig.client.json"
+      "path": "./packages/session-query/session-query-sqlite"
     },
     {
       "path": "./packages/client/ui-open-in-app"
@@ -393,14 +397,14 @@
       "path": "./packages/jobs/tool-jobs"
     },
     {
-      "path": "./packages/session-query/tool-session-query"
+      "path": "./packages/experimental/tool-session-query"
     },
     {
-      "path": "./packages/terminal/tool-terminal"
+      "path": "./packages/experimental/tool-terminal"
     },
     { "path": "./packages/client/ui-right-sidebar" },
     { "path": "./packages/experimental/client-ui-claude-code-mods" },
-    { "path": "./packages/experimental/session-inspector" }
+    { "path": "./packages/experimental/session-inspector" },
     { "path": "./packages/experimental/client-ui-action-cards" },
     { "path": "./packages/experimental/client-ui-creation-recommendations" },
     { "path": "./packages/experimental/client-ui-plugin-recommendations" },
@@ -515,7 +519,7 @@
     { "path": "./packages/api/workspace-files/tsconfig.client.json" },
     { "path": "./packages/client/web" },
     { "path": "./packages/context/file-reference" },
-    { "path": "./apps/web" }
+    { "path": "./apps/web" },
     { "path": "./packages/util/plugin-market-index" },
     { "path": "./packages/client/ui-cinlan-design/tsconfig.client.json" },
     { "path": "./packages/client/ui-paired-shell" },
@@ -545,8 +549,9 @@
     { "path": "./packages/client/ui-quick-commands" },
     { "path": "./packages/api/terminal-quick-commands-controller" },
     { "path": "./packages/jobs/tool-jobs" },
-    { "path": "./packages/session-query/tool-session-query" },
-    { "path": "./packages/terminal/tool-terminal" },
+    { "path": "./packages/experimental/tool-session-query" },
+    { "path": "./packages/experimental/tool-terminal" },
     { "path": "./packages/client/ui-right-sidebar" },
+    { "path": "./packages/client/ui-session-inspector" },
   ]
 }

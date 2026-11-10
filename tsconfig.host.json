@@ -567,6 +567,9 @@
       "path": "./packages/session/session-format-v3-to-v4"
     },
     {
+      "path": "./packages/session/session-format-v4-to-v5"
+    },
+    {
       "path": "./packages/session/session-format-catalog"
     },
     {
@@ -608,10 +611,7 @@
     {
       "path": "./packages/credentials/authorization"
     },
-    {
-      "path": "./packages/session-query/tool-session-query"
-    },
-    {
+        {
       "path": "./packages/storage/storage"
     },
     {
@@ -638,10 +638,7 @@
     {
       "path": "./packages/session/session-title-first-prompt-llm"
     },
-    {
-      "path": "./packages/session/session-title-all-prompts-llm"
-    },
-    {
+        {
       "path": "./packages/session/session-turn-outline"
     },
     {
@@ -722,10 +719,7 @@
     {
       "path": "./packages/skill/skill"
     },
-    {
-      "path": "./packages/skill/skill-badge"
-    },
-    {
+        {
       "path": "./packages/skill/skill-filesystem"
     },
     {
@@ -779,10 +773,7 @@
     {
       "path": "./packages/shell/tool-pwsh-persistent"
     },
-    {
-      "path": "./packages/terminal/tool-terminal"
-    },
-    {
+        {
       "path": "./packages/ptc-runtime/ptc-runtime"
     },
     {
@@ -974,10 +965,7 @@
     {
       "path": "./packages/subagent/tool-subagent-control"
     },
-    {
-      "path": "./packages/subagent/subagent-in-process-driver"
-    },
-    {
+        {
       "path": "./packages/subagent/subagent-spawn-in-process"
     },
     {
@@ -1022,16 +1010,7 @@
     {
       "path": "./packages/workflow/tool-workflow"
     },
-    {
-      "path": "./packages/workflow/tool-ralph"
-    },
-    {
-      "path": "./packages/webhook/webhook"
-    },
-    {
-      "path": "./packages/webhook/webhook-github"
-    },
-    {
+                {
       "path": "./packages/todo/tool-todo"
     },
     {
@@ -1047,6 +1026,15 @@
       "path": "./packages/preset/persona"
     },
     {
+      "path": "./packages/preset/bot-registry"
+    },
+    {
+      "path": "./packages/knowledge/knowledge-base"
+    },
+    {
+      "path": "./packages/knowledge/tool-knowledge-search"
+    },
+    {
       "path": "./packages/guard/repeat-tool-reminder"
     },
     {
@@ -1055,16 +1043,7 @@
     {
       "path": "./packages/extensions/tool-cordis"
     },
-    {
-      "path": "./packages/hooks/hook-protocol"
-    },
-    {
-      "path": "./packages/hooks/hooks-claude-code"
-    },
-    {
-      "path": "./packages/hooks/hooks-codex"
-    },
-    {
+                {
       "path": "./packages/mcp/mcp-client"
     },
     {
@@ -1215,6 +1194,9 @@
       "path": "./packages/workspace/worktree-task-git"
     },
     {
+      "path": "./packages/workspace/worktree-task-workspace"
+    },
+    {
       "path": "./packages/api/worktree-task-controller/tsconfig.json"
     },
     {
@@ -1347,6 +1329,9 @@
       "path": "./packages/work-items/work-items"
     },
     {
+      "path": "./packages/work-items/work-items-gitee"
+    },
+    {
       "path": "./packages/work-items/work-items-github"
     },
     {
@@ -1386,6 +1371,9 @@
       "path": "./packages/security/finding-session"
     },
     {
+      "path": "./packages/security/security-rea"
+    },
+    {
       "path": "./packages/security/security-skills"
     },
     {
@@ -1410,9 +1398,7 @@
       "path": "./packages/voice/voice-sherpa-onnx"
     },
     { "path": "./packages/experimental/claude-code-mods" },
-    { "path": "./packages/experimental/client-ui-claude-code-mods" },
     { "path": "./packages/experimental/inspector-profile" },
-    { "path": "./packages/experimental/session-inspector" },
     { "path": "./packages/experimental/webworker-runtime" },
     { "path": "./packages/schedule/tool-schedule" },
     { "path": "./packages/security/finding-export" },
@@ -1422,7 +1408,7 @@
     { "path": "./packages/boot/plugin-market" },
     { "path": "./packages/util/plugin-market-index" },
     { "path": "./packages/experimental/worktree" },
-    { "path": "./packages/experimental/tool-worktree" }
+    { "path": "./packages/experimental/tool-worktree" },
     { "path": "./packages/experimental/plugin-market-bundle" },
     { "path": "./packages/experimental/cua/tsconfig.host.json" },
     { "path": "./packages/experimental/cua-bundle" },

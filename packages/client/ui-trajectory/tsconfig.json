@@ -6,7 +6,6 @@
     },
     {
       "path": "./tsconfig.client.json"
-      "path": "../../util/values"
     }
   ]
 }

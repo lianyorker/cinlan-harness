@@ -542,10 +542,10 @@
       "@deepseek-ai/dsh-api-browser-controller/types": [
         "./packages/api/browser-controller/src/types.ts"
       ],
-      "@deepseek-ai/dsh-api-device-capabilities-controller/types": [
+      "@cinlan/api-device-capabilities-controller/types": [
         "./packages/api/device-capabilities-controller/src/types.ts"
       ],
-      "@deepseek-ai/dsh-api-device-capabilities-controller/remote": [
+      "@cinlan/api-device-capabilities-controller/remote": [
         "./packages/api/device-capabilities-controller/lib/typert.remote-client.d.ts"
       ],
       "@deepseek-ai/dsh-api-security-research-controller/types": [
@@ -647,6 +647,31 @@
       "@deepseek-ai/dsh-permission-presets/client": [
         "./packages/interaction/permission-presets/src/client.ts"
       ],
+      "@cinlan/execution-binding": ["./packages/execution-host/execution-binding/src/index.ts"],
+      "@cinlan/execution-binding/types": ["./packages/execution-host/execution-binding/src/types.ts"],
+      "@cinlan/execution-host-targets": ["./packages/execution-host/execution-host-targets/src/index.ts"],
+      "@cinlan/execution-host-targets/types": ["./packages/execution-host/execution-host-targets/src/types.ts"],
+      "@cinlan/execution-runtime": ["./packages/execution-host/execution-runtime/src/index.ts"],
+      "@cinlan/execution-runtime/types": ["./packages/execution-host/execution-runtime/src/types.ts"],
+      "@cinlan/git-settings/settings-schema": ["./packages/git/git-settings/src/settings-schema.ts"],
+      "@cinlan/git-settings/types": ["./packages/git/git-settings/src/types.ts"],
+      "@cinlan/sidebar-git": ["./packages/git/sidebar-git/src/index.ts"],
+      "@cinlan/sidebar-git/types": ["./packages/git/sidebar-git/src/types.ts"],
+      "@cinlan/mcp-management": ["./packages/mcp/mcp-management/src/index.ts"],
+      "@cinlan/mcp-management/types": ["./packages/mcp/mcp-management/src/types.ts"],
+      "@deepseek-ai/dsh-permission-presets/types": ["./packages/interaction/permission-presets/src/types.ts"],
+      "@cinlan/usage-query": ["./packages/session-query/usage-query/src/index.ts"],
+      "@cinlan/usage-query/types": ["./packages/session-query/usage-query/src/types.ts"],
+      "@cinlan/terminal-quick-commands": ["./packages/terminal/terminal-quick-commands/src/index.ts"],
+      "@cinlan/terminal-quick-commands/types": ["./packages/terminal/terminal-quick-commands/src/types.ts"],
+      "@cinlan/voice": ["./packages/voice/voice/src/index.ts"],
+      "@cinlan/voice/transport": ["./packages/voice/voice/src/transport.ts"],
+      "@cinlan/voice/types": ["./packages/voice/voice/src/types.ts"],
+      "@cinlan/work-items": ["./packages/work-items/work-items/src/index.ts"],
+      "@cinlan/work-items/types": ["./packages/work-items/work-items/src/types.ts"],
+      "@cinlan/worktree-task": ["./packages/workspace/worktree-task/src/index.ts"],
+      "@cinlan/worktree-task/types": ["./packages/workspace/worktree-task/src/types.ts"],
+      "@deepseek-ai/dsh-tools/types": ["./packages/core/tools/src/types.ts"],
       "@deepseek-ai/dsh-work-items/types": [
         "./packages/work-items/work-items/src/types.ts"
       ],
@@ -776,6 +801,15 @@
       "@deepseek-ai/dsh-security-skills/types": [
         "./packages/security/security-skills/src/types.ts"
       ],
+      "@cinlan/security-skills/resources": [
+        "./packages/security/security-skills/src/resources.ts"
+      ],
+      "@cinlan/security-skills/resource-inventory": [
+        "./packages/security/security-skills/src/resource-inventory.ts"
+      ],
+      "@cinlan/security-skills/types": [
+        "./packages/security/security-skills/src/types.ts"
+      ],
       "@deepseek-ai/dsh-mobile-device-adb": [
         "./packages/mobile-device/mobile-device-adb/src/index.ts"
       ],
@@ -827,10 +861,10 @@
       "@deepseek-ai/dsh-api-browser-controller/src/*": [
         "./packages/api/browser-controller/src/*"
       ],
-      "@deepseek-ai/dsh-api-device-capabilities-controller": [
+      "@cinlan/api-device-capabilities-controller": [
         "./packages/api/device-capabilities-controller/src"
       ],
-      "@deepseek-ai/dsh-api-device-capabilities-controller/src/*": [
+      "@cinlan/api-device-capabilities-controller/src/*": [
         "./packages/api/device-capabilities-controller/src/*"
       ],
       "@deepseek-ai/dsh-api-execution-host-controller": [

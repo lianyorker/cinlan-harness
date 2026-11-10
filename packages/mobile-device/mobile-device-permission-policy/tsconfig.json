@@ -12,9 +12,6 @@
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../tools"
-    },
-    {
       "path": "../../../vendor/cosmokit"
     },
     {
