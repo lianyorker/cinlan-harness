@@ -9,9 +9,14 @@ import {
   getCheckConclusion,
   truncateLogTailForPrompt,
 } from '../src/client/pr-checks-fix-prompt.ts'
-import type { PRCheckDetail, PRSummary } from '../src/client/pr-checks-types.ts'
+import type { PRSummary } from '../src/client/pr-checks-types.ts'
 import { en } from '../src/client/locales.ts'
 import { ReviewBody } from '../src/client/ReviewBody.tsx'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+
+// The body consumes none of the slot framework hooks in this spec.
+const standard = {} as PropsRuntime<'sidebar.right.pane.tab'>
 
 afterEach(() => {
   cleanup()
@@ -165,7 +170,8 @@ describe('ReviewBody Subtab switching', () => {
 
     render(
       <ReviewBody
-        sessionId="session-1" as any
+        {...standard}
+        sessionId={'session-1' as SessionId}
         t={t}
         list={list}
         compare={compare}

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { bindSnapshotSelector, makeTranslate, stubSettingsScope, TestSessions, TestWorkspaces } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate, stubSettingsScope, TestSessions, TestWorkspaces } from '@deepseek-ai/dsh-client-test-runtime'
 import type { NotificationSettings } from '@cinlan/notifications/types'
 import { NotificationsSection } from '../src/client/NotificationsSection.tsx'
 import type { NotificationsSectionProps } from '../src/client/NotificationsSection.tsx'
@@ -34,6 +34,7 @@ function bench(value: Partial<NotificationSettings> = {}) {
     useSessionRetainInfo: (() => ({})) as NotificationsSectionProps['useSessionRetainInfo'],
     useSessions: bindSnapshotSelector(sessions.list),
     useWorkspaces: bindSnapshotSelector(workspaces.list),
+    ...allowAllAccess, useContextMenu: contextMenuHook(),
     useResource: () => { throw new Error('Resource hook is not used by this fixture') },
     useSettings: bindSnapshotSelector(settings.scope),
     writePreference, writeQuietHours, selectCustomSound, resetPreferences, testNotification,

@@ -13,13 +13,13 @@ describe('ui-right-sidebar apply', () => {
   })
 
   it('registers definitions, dictionaries, and bodies through effects', () => {
-    const effects: Function[] = []
+    const effects: Array<() => unknown> = []
     const mockContext = {
-      effect: vi.fn((fn: Function) => { effects.push(fn); return fn() }),
+      effect: vi.fn((fn: () => unknown) => { effects.push(fn); return fn() }),
       locale: { register: vi.fn(), bind: vi.fn(() => (key: string) => key) },
       sidebarRightTabs: { register: vi.fn(() => () => {}) },
       slots: {
-        inject: vi.fn((_name: string, factory: Function) => { factory(); return () => {} }),
+        inject: vi.fn((_name: string, factory: () => unknown) => { factory(); return () => {} }),
         register: vi.fn(() => () => {}),
       },
       remote: { worktreeTasks: {}, workspaceIsolation: {} },

@@ -6,10 +6,13 @@ import {
   getDiffPreferences,
   resetDiffPreferences,
   setDiffPreferences,
-  useDiffPreferences,
 } from '../src/client/diff-preferences-store.ts'
 import { DiffPreferencesRow } from '../src/client/DiffPreferencesRow.tsx'
+import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { en } from '../src/client/locales.ts'
+
+// The row consumes none of the standard hooks in these specs.
+const standard = {} as GlobalStandardProps
 
 beforeEach(() => {
   localStorage.clear()
@@ -47,7 +50,7 @@ describe('DiffPreferencesRow component', () => {
   const t = (key: keyof typeof en) => en[key] ?? key
 
   it('renders title, description, and autoSave managed status badge', () => {
-    render(<DiffPreferencesRow t={t as any} />)
+    render(<DiffPreferencesRow {...standard} t={t} />)
     expect(screen.getByText(en['review.diffPreferencesTitle'])).toBeTruthy()
     expect(screen.getByText(en['review.diffPreferencesDesc'])).toBeTruthy()
     expect(screen.getByText(en['review.autoSaveTitle'])).toBeTruthy()
@@ -56,7 +59,7 @@ describe('DiffPreferencesRow component', () => {
   })
 
   it('allows switching view mode and toggling word-wrap and whitespace', () => {
-    render(<DiffPreferencesRow t={t as any} />)
+    render(<DiffPreferencesRow {...standard} t={t} />)
 
     // Switch to side-by-side
     const sideBySideBtn = screen.getByText(en['review.viewSideBySide'])

@@ -2,7 +2,7 @@
 /** Existing shell seats expose exactly one configured entry and the shared keyboard matcher. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { FloatingEntry, type FloatingEntryProps } from '../src/client/FloatingEntry.tsx'
 import { en } from '../src/client/locales.ts'
 import type { FloatingSnapshot } from '../src/client/contract.ts'
@@ -22,7 +22,7 @@ function mount(position: ToggleButtonPosition, selected: ToggleButtonPosition = 
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: FloatingEntryProps = {
     useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused,
-    useSessionRetainInfo: unused, useResource: unused,
+    useSessionRetainInfo: unused, useResource: unused, ...allowAllAccess, useContextMenu: contextMenuHook(),
     useFloating: bindSnapshotSelector({ getSnapshot: () => snapshot, subscribe: () => () => {} }),
     t: makeTranslate(en), position, toggle, openSideChat, matchesShortcut,
   }

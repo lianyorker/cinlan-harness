@@ -2,7 +2,7 @@
 /** Settings presentation: one card with enablement and the two entry positions. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { FloatingWorkspaceSection, type FloatingWorkspaceSectionProps } from '../src/client/FloatingWorkspaceSection.tsx'
 import { en, zh, type FloatingWorkspaceSettingsKey } from '../src/client/locales.ts'
 import type { FloatingActions, FloatingSnapshot } from '../src/client/contract.ts'
@@ -37,7 +37,9 @@ function mount(initial: FloatingSnapshot = accepted(), dictionary: Record<Floati
   const set = vi.fn<FloatingActions['set']>(async () => {})
   const unused = (() => { throw new Error('unused standard hook') }) as never
   const props: FloatingWorkspaceSectionProps = {
-    useSessions: unused, useWorkspaces: unused, usePanelInfo: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
+    useSessions: unused, useWorkspaces: unused, usePanelInfo: unused,
+    useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
+    ...allowAllAccess, useContextMenu: contextMenuHook(),
     close: vi.fn(), useFloating: bindSnapshotSelector(source), set, t: makeTranslate(dictionary),
   }
   const view = render(<FloatingWorkspaceSection {...props} />)
@@ -91,7 +93,11 @@ describe('Floating Workspace settings presentation', () => {
     const refused = mount({ ...accepted({ enabled: true }), writeFailed: true })
     expect(screen.getByRole('alert').textContent).toBe(en.writeFailed)
     refused.unmount()
-    mount({ ...accepted({ enabled: true }), settings: { ...accepted().settings, writable: false, value: { ...accepted().settings.value!, enabled: true } } })
+    const acceptedState = accepted()
+    mount({
+      ...accepted({ enabled: true }),
+      settings: { ...acceptedState.settings, writable: false, value: { ...acceptedState.settings.value!, enabled: true } },
+    })
     expect(screen.getByText(en.readOnly)).toBeTruthy()
     expect(screen.getByRole('switch', { name: en.enable }).hasAttribute('disabled')).toBe(true)
   })

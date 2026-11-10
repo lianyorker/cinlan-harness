@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   addPortForward,
   disconnectHostPorts,
@@ -11,6 +12,9 @@ import {
 } from '../src/client/ports-store.ts'
 import { PortsBody } from '../src/client/PortsBody.tsx'
 import { en } from '../src/client/locales.ts'
+
+// The panel consumes none of the slot framework hooks in these specs.
+const standard = {} as PropsRuntime<'sidebar.right.pane.tab'>
 
 beforeEach(() => {
   localStorage.clear()
@@ -111,7 +115,7 @@ describe('PortsBody component', () => {
       ports: [{ port: 4000, host: '127.0.0.1', processName: 'express', detectedAt: Date.now() }],
     })
 
-    render(<PortsBody t={t as any} probe={probe} />)
+    render(<PortsBody {...standard} t={t} probe={probe} />)
 
     expect(screen.getByTestId('right-sidebar-ports-panel')).toBeTruthy()
     expect(screen.getByText(en['ports.title'])).toBeTruthy()
@@ -130,7 +134,7 @@ describe('PortsBody component', () => {
       ports: [{ port: 5173, host: '127.0.0.1', processName: 'vite-dev', detectedAt: Date.now() }],
     })
 
-    render(<PortsBody t={t as any} probe={probe} />)
+    render(<PortsBody {...standard} t={t} probe={probe} />)
 
     await waitFor(() => {
       expect(screen.getByText('5173')).toBeTruthy()
@@ -148,7 +152,7 @@ describe('PortsBody component', () => {
 
   it('supports manual port forwarding form and stops active rules', async () => {
     const probe = vi.fn().mockResolvedValue({ ok: true, ports: [] })
-    render(<PortsBody t={t as any} probe={probe} />)
+    render(<PortsBody {...standard} t={t} probe={probe} />)
 
     await waitFor(() => {
       expect(screen.getByText(en['ports.noForwarded'])).toBeTruthy()
@@ -192,7 +196,7 @@ describe('PortsBody component', () => {
     })
     const onOpenUrl = vi.fn()
 
-    render(<PortsBody t={t as any} probe={probe} onOpenUrl={onOpenUrl} />)
+    render(<PortsBody {...standard} t={t} probe={probe} onOpenUrl={onOpenUrl} />)
 
     await waitFor(() => {
       expect(screen.getByText('8080')).toBeTruthy()
@@ -209,7 +213,7 @@ describe('PortsBody component', () => {
       error: 'Host isolation container not running',
     })
 
-    render(<PortsBody t={t as any} probe={probe} />)
+    render(<PortsBody {...standard} t={t} probe={probe} />)
 
     await waitFor(() => {
       const alert = screen.getByRole('alert')

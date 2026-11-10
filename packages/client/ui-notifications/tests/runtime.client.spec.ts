@@ -3,7 +3,8 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TestRemote, TestSessions, stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
 import type { MutableSessionEventSource, SessionLiveEventEntry, SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
-import { MessageId, ToolCallId } from '@deepseek-ai/dsh-llm/brand'
+import { createToolResultMessage } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm/brand'
 import type { NotificationSettings } from '@cinlan/notifications/types'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
 import { createNotificationRuntime, isQuietHours } from '../src/client/runtime.ts'
@@ -73,10 +74,11 @@ function result(seq: number, text: string): SessionLiveEventEntry {
   const callId = ToolCallId(`call-${seq}`)
   return { type: 'event', event: {
     type: 'tool/result', seq: SessionSeq(seq), time: 1, surfaceOp: 'append',
-    data: { turn: 1, step: 1, message: {
-      id: MessageId(`result-${seq}`), role: 'user', source: { kind: 'tool', callId },
-      content: [{ type: 'tool-result', toolCallId: callId, content: [{ type: 'text', text }], isError: false }],
-    } },
+    data: { turn: 1, step: 1, message: createToolResultMessage({
+      callId,
+      content: [{ type: 'text', text }],
+      isError: false,
+    }) },
   } }
 }
 

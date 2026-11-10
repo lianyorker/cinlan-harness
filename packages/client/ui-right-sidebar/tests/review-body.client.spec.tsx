@@ -2,9 +2,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { WorkspaceIsolationComparisonView, WorkspaceIsolationLeaseId, WorkspaceIsolationLeaseView } from '@deepseek-ai/dsh-api-workspace-isolation-controller/types'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { buildSideBySideRows, parseDiff, ReviewBody, type DiffLineComment } from '../src/client/ReviewBody.tsx'
 import { resetDiffPreferences } from '../src/client/diff-preferences-store.ts'
 import { en } from '../src/client/locales.ts'
+
+// The body consumes none of the slot framework hooks in these specs.
+const standard = {} as PropsRuntime<'sidebar.right.pane.tab'>
 
 afterEach(() => {
   cleanup()
@@ -26,12 +30,12 @@ index 1234567..89abcdef 100644
 function makeLease(leaseId: string, branch: string): WorkspaceIsolationLeaseView {
   return {
     leaseId: leaseId as WorkspaceIsolationLeaseId,
-    sessionId: 'session-1' as any,
+    sessionId: 'session-1' as SessionId,
     sourcePath: '/workspaces/repo',
     checkoutPath: `/tmp/checkout-${leaseId}`,
     branch,
     phase: 'active',
-    reviewState: 'clean',
+    reviewState: 'none',
     baseBranch: 'main',
     baseHead: '0123456789abcdef0123456789abcdef01234567',
     head: 'fedcba9876543210fedcba9876543210fedcba98',
@@ -126,7 +130,7 @@ describe('ReviewBody component with diff-line-comments', () => {
     const list = vi.fn(async () => ({ items: [] }))
     const compare = vi.fn()
 
-    render(<ReviewBody t={t as any} list={list} compare={compare} />)
+    render(<ReviewBody {...standard} t={t} list={list} compare={compare} />)
     expect(await screen.findByText(en['review.empty'])).toBeTruthy()
     expect(list).toHaveBeenCalledOnce()
   })
@@ -136,7 +140,7 @@ describe('ReviewBody component with diff-line-comments', () => {
     const list = vi.fn(async () => ({ items: [lease] }))
     const compare = vi.fn(async () => ({ comparison: makeComparison(lease, samplePatch) }))
 
-    render(<ReviewBody t={t as any} list={list} compare={compare} />)
+    render(<ReviewBody {...standard} t={t} list={list} compare={compare} />)
 
     const select = await screen.findByRole('combobox', { name: en['review.title'] })
     expect(select).toBeTruthy()
@@ -154,11 +158,12 @@ describe('ReviewBody component with diff-line-comments', () => {
     const lease = makeLease('lease-1', 'feature/test-branch')
     const list = vi.fn(async () => ({ items: [lease] }))
     const compare = vi.fn(async () => ({ comparison: makeComparison(lease, samplePatch) }))
-    const sendCommentToAgent = vi.fn<[DiffLineComment], Promise<void>>(async () => {})
+    const sendCommentToAgent = vi.fn<(comment: DiffLineComment) => Promise<void>>(async () => {})
 
     render(
       <ReviewBody
-        t={t as any}
+        {...standard}
+        t={t}
         list={list}
         compare={compare}
         sendCommentToAgent={sendCommentToAgent}
@@ -234,7 +239,8 @@ describe('ReviewBody component with diff-line-comments', () => {
 
     render(
       <ReviewBody
-        t={t as any}
+        {...standard}
+        t={t}
         list={list}
         compare={compare}
         sendCommentToAgent={sendCommentToAgent}
@@ -301,7 +307,8 @@ describe('ReviewBody component with diff-line-comments', () => {
 
     render(
       <ReviewBody
-        t={t as any}
+        {...standard}
+        t={t}
         list={list}
         compare={compare}
         sendCommentToAgent={sendCommentToAgent}
@@ -315,7 +322,6 @@ describe('ReviewBody component with diff-line-comments', () => {
 
     // Check toolbar buttons are present
     const sideBySideBtn = screen.getByRole('button', { name: en['review.viewSideBySide'] })
-    const inlineBtn = screen.getByRole('button', { name: en['review.viewInline'] })
     const wordWrapBtn = screen.getByRole('button', { name: en['review.wordWrap'] })
     const whitespaceBtn = screen.getByRole('button', { name: en['review.showWhitespace'] })
 
@@ -359,4 +365,3 @@ describe('ReviewBody component with diff-line-comments', () => {
     })
   })
 })
-
