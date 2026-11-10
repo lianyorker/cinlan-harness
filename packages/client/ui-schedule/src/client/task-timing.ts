@@ -4,7 +4,7 @@
  */
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
-  ScheduleRecord, ScheduleUpdateRequest, ScheduleUpdateResult,
+  ScheduleEditRequest, ScheduleEditResult, ScheduleRecord,
 } from '@deepseek-ai/dsh-schedule/client'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { TaskManagerKey } from './task-manager-locales.ts'
@@ -18,7 +18,7 @@ export interface TaskTimingInjected {
    * replacement name, instruction, and timing change; an omitted `change` keeps the committed target.
    * @returns Original Remote mutation result; transport or storage exceptions may reject.
    */
-  readonly onUpdateTiming: (request: ScheduleUpdateRequest) => Promise<RemoteResult<ScheduleUpdateResult>>
+  readonly onUpdateTiming: (request: ScheduleEditRequest) => Promise<RemoteResult<ScheduleEditResult>>
 }
 
 /** Native input values retained for one edit session. */
@@ -53,6 +53,7 @@ export function timingSnapshot(record: ScheduleRecord): ScheduleRecord {
     case 'cron': return {
       ...common, kind: record.kind, expression: record.expression, timeZone: record.timeZone,
     }
+    case 'rrule': return { ...common, kind: record.kind, rrule: record.rrule }
   }
   /* v8 ignore next -- Exhaustiveness guard for the closed ScheduleRecord union. */
   return assertNever(record)
@@ -147,6 +148,11 @@ export function timingDraft(record: ScheduleRecord): TimingDraft {
     case 'daily':
     case 'weekly': return { ...draft, time: record.time, timeZone: record.timeZone }
     case 'cron': return { ...draft, expression: record.expression, timeZone: record.timeZone }
+    case 'rrule': {
+      const zone = draftZone(record).zone
+      const wallClock = zonedWallClock(record.scheduledAt, zone)
+      return { ...draft, date: wallClock.slice(0, 10), time: wallClock.slice(11, 23), timeZone: zone }
+    }
   }
   /* v8 ignore next -- Exhaustiveness guard for the closed ScheduleRecord union. */
   return assertNever(record)
@@ -184,20 +190,10 @@ export function secondPrecision(time: string): string {
  * @param code - Error code returned by the timing update.
  * @returns Dictionary key describing the recovery action.
  */
-export function timingError(code: Extract<ScheduleUpdateResult, { code: string }>['code']): TaskManagerKey {
+export function timingError(code: Extract<ScheduleEditResult, { code: string }>['code']): TaskManagerKey {
   switch (code) {
     case 'schedule_conflict': return 'timing.conflict'
-    case 'schedule_ended': return 'timing.inactive'
     case 'schedule_not_found': return 'timing.notFound'
-    case 'subagent_session': return 'timing.subagentSession'
-    case 'invalid_time_zone': return 'timing.invalidZone'
-    case 'not_future': return 'timing.notFuture'
-    case 'frequency_too_high': return 'timing.invalidInterval'
-    case 'invalid_prompt':
-    case 'invalid_selector':
-    case 'invalid_rule':
-    case 'time_out_of_range': return 'timing.invalid'
-    case 'internal_error': return 'timing.error'
   }
   /* v8 ignore next -- Exhaustiveness guard for the closed ScheduleUpdateResult error-code union. */
   return assertNever(code)
