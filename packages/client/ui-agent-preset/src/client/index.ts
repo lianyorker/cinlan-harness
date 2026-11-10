@@ -204,7 +204,6 @@ export function apply(ctx: ClientContext): void {
           return outcome.kind === 'refused' ? outcome.reason : undefined
         },
         dismissRefusal: (error) => { seat.dismissRefusal(error) },
-        dismissRefusal: (error) => { seat.dismissRefusal(error) },
         introduced: () => { seat.introduced() },
       }
     }

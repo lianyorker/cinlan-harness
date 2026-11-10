@@ -135,6 +135,8 @@ export type { PresetDisplaySource, PresetDisplayText } from '@deepseek-ai/dsh-ag
 
 /** Japanese copy, checked against the English keys. */
 export const ja = {
+  'presetSecurityResearchName': 'セキュリティリサーチ',
+  'presetSecurityResearchDescription': '許可されたセキュリティ評価、リバースエンジニアリング、脆弱性検証、マルウェア分析、セキュリティレポート向けのエージェントです。',
   ...guideJa,
   'builtInGroup': '組み込み',
   'customGroup': 'カスタム',
@@ -168,6 +170,8 @@ export const ja = {
 
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
+  presetSecurityResearchName: 'Investigación de seguridad',
+  presetSecurityResearchDescription: 'Un agente para evaluación de seguridad autorizada, ingeniería inversa, validación de vulnerabilidades, análisis de malware e informes de seguridad.',
   ...guideEs,
   builtInGroup: 'Incorporado', customGroup: 'personalizado',
   sectionIntro: 'Elija las herramientas del agente y cómo funciona. Utilice el modo Estándar para las tareas diarias o el modo Creador para agregar capacidades a DSH.',
@@ -213,6 +217,8 @@ export const es = {
 
 /** French dictionary, checked against the English keys. */
 export const fr = {
+  presetSecurityResearchName: 'Recherche de sécurité',
+  presetSecurityResearchDescription: 'Un agent pour l’évaluation de sécurité autorisée, la rétro-ingénierie, la validation de vulnérabilités, l’analyse de malwares et les rapports de sécurité.',
   ...guideFr,
   builtInGroup: 'Intégré', customGroup: 'Personnalisé',
   sectionIntro: 'Choisissez les outils de l’agent et son fonctionnement. Utilisez le mode Standard pour les tâches quotidiennes ou le mode Créateur pour ajouter des fonctionnalités à DSH.',
@@ -258,6 +264,8 @@ export const fr = {
 
 /** German dictionary, checked against the English keys. */
 export const de = {
+  presetSecurityResearchName: 'Sicherheitsforschung',
+  presetSecurityResearchDescription: 'Ein Agent für autorisierte Sicherheitsbewertung, Reverse Engineering, Schwachstellenvalidierung, Malware-Analyse und Sicherheitsberichte.',
   ...guideDe,
   builtInGroup: 'Eingebaut', customGroup: 'Benutzerdefiniert',
   sectionIntro: 'Wählen Sie die Tools des Agenten und deren Funktionsweise aus. Verwenden Sie den Standardmodus für alltägliche Aufgaben oder den Creator-Modus, um DSH Funktionen hinzuzufügen.',
@@ -303,6 +311,8 @@ export const de = {
 
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
+  presetSecurityResearchName: 'Исследование безопасности',
+  presetSecurityResearchDescription: 'Агент для авторизованной оценки безопасности, обратной разработки, проверки уязвимостей, анализа вредоносного ПО и отчётов по безопасности.',
   ...guideRu,
   builtInGroup: 'Встроенный', customGroup: 'Пользовательский',
   sectionIntro: 'Выбирайте инструменты агента и то, как они работают. Используйте стандартный режим для повседневных задач или режим Creator, чтобы расширить возможности DSH.',
@@ -348,6 +358,8 @@ export const ru = {
 
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
+  presetSecurityResearchName: 'Pesquisa de segurança',
+  presetSecurityResearchDescription: 'Um agente para avaliação de segurança autorizada, engenharia reversa, validação de vulnerabilidades, análise de malware e relatórios de segurança.',
   ...guidePt,
   builtInGroup: 'Integrado', customGroup: 'Personalizado',
   sectionIntro: 'Escolha as ferramentas do agente e como funciona. Use o modo Padrão para tarefas diárias ou o modo Criador para adicionar recursos ao DSH.',
