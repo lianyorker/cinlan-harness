@@ -356,46 +356,6 @@ describe('ImageGallery', () => {
     await runtime.sessions.add({ id: 'message-images-test' })
     const session = runtime.sessions.retainFor(runtime.ctx, SessionId('message-images-test'))
     const loadImage = vi.fn().mockResolvedValue('blob:slot-image')
-    const useSession: MessageImagesProps['useSession'] = () => {
-      throw new Error('MessageImages does not read the session snapshot')
-    }
-    const useInput: MessageImagesProps['useInput'] = () => {
-      throw new Error('MessageImages does not read the input snapshot')
-    }
-    const useSessions: MessageImagesProps['useSessions'] = () => {
-      throw new Error('MessageImages does not read the session list snapshot')
-    }
-    const useWorkspaces: MessageImagesProps['useWorkspaces'] = () => {
-      throw new Error('MessageImages does not read the workspace list snapshot')
-    }
-    const props: MessageImagesProps = {
-      sessionId: 'message-images-test' as MessageImagesProps['sessionId'],
-      useSession,
-      useSessions,
-      usePanelInfo, useSessionRetainInfo: () => undefined, useResource,
-      useSessionStatus,
-      useWorkspaces,
-      useProjection: () => undefined,
-      useConversation,
-      useChat,
-      useTrajectory,
-      useInput,
-      inputActions: {
-        captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
-        insertText: () => false,
-        setDraft: vi.fn(),
-        persistDraft: vi.fn(),
-        addAttachments: vi.fn(() => true),
-        removeAttachment: vi.fn(),
-        pruneAttachments: vi.fn(),
-        submit: vi.fn(),
-      },
-      images: [{ attachment }],
-      loadImage,
-      align: 'end',
-      t,
-    }
-    const view = render(<MessageImages {...props} />)
     const slot = runtime.renderSlot('conversation.chat.message.images', {
       images: [{ attachment }], loadImage, align: 'end',
     }, { session })

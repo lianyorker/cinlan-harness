@@ -522,7 +522,7 @@ describe('Chat inject API', () => {
     expect(flow.injected.keyedHooks.chatNode('missing')).toBe(injected.keyedHooks.chatNode('missing'))
     expect(flow.injected.keyedHooks.chatNodeProcess('missing')).toBe(injected.keyedHooks.chatNodeProcess('missing'))
     expect(flow.injected.keyedHooks.chatNodeBottom('missing')).toBe(injected.keyedHooks.chatNodeBottom('missing'))
-    expect(flow.injected.hooks.connectionState).toBe(b.runtime.ctx.get('connection')!.state)
+    expect(flow.injected.hooks.connectionState.getSnapshot()).toBe('connected')
     expect(flow.injected.hooks.presentation).toBe(injected.hooks.presentation)
 
     const entry = b.runtime.slots.entries('conversation.chat.node').find(entry => entry.options.key === 'assistant-step')!

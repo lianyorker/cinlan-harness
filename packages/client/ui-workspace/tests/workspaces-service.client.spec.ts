@@ -18,7 +18,7 @@ import { LayoutController } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type { DraftInitializationOptions, SessionInputResolver } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { RowToast } from '../src/client/contract/slots.ts'
+import type { RowToast, SessionDeleteTarget } from '../src/client/contract/slots.ts'
 import { DirectoryBrowseError, UiWorkspaceService } from '../src/client/navigation.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { createWorkspaceViewStore, FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
@@ -304,6 +304,7 @@ function bench(options: BenchOptions = {}) {
     selectPanel: vi.fn(), retainMainPanels: vi.fn(),
     setSidebar: vi.fn(), toggleSidebar: vi.fn(), setViewportWidth: vi.fn(),
     setRightbar: vi.fn(), openRightbar: vi.fn(), closeRightbar: vi.fn(),
+    resetWidths: vi.fn(),
   }, () => true, createSnapshotStore({ activePanelId: null }))
   const selectPanel = vi.spyOn(layout, 'selectPanel')
   ctx.provide('layout', layout)
@@ -858,7 +859,6 @@ describe('UiWorkspaceService', () => {
       expect(b.notify).not.toHaveBeenCalled()
     })
 
-    it.each([undefined, {}, { clearPreviousDraft: false }])('does not invoke the draft API for default options %j', async (options) => {
     it.each<DraftInitializationOptions | undefined>([
       undefined, {}, { clearPreviousDraft: false }, { whenDraftExists: 'append' }, { clearPreviousDraft: true, whenDraftExists: 'keep' },
     ])('does not invoke the draft API for options that cannot change text %j', async (options) => {

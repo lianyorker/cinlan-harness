@@ -4,14 +4,15 @@
  * round-trip, and registration lifecycle.
  */
 import { Context, Service } from '@deepseek-ai/cordis'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/src/client/conversation/assembly.ts'
 import { FileReference, FolderReference, type FileReferenceInjected } from '../src/client/FileReference.tsx'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
+import type { SessionFixture } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
   CandidateRequest, ClientSessionContext, InputTriggerCandidate, InputTriggerSource,
 } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
@@ -92,8 +93,10 @@ async function bench(
     }],
   })),
   listed: Record<string, { updatedAt: number }> = {},
-): Promise<{ ctx: Context; fiber: ReturnType<Context['plugin']>; source: InputTriggerSource }> {
+  opening: Pick<SessionFixture, 'initialOpen' | 'snapshot'> = {},
+): Promise<{ ctx: Context; fiber: ReturnType<Context['plugin']>; source: InputTriggerSource; sessions: TestSessions }> {
   const ctx = new Context()
+  ctx.provide('sidebarRight', { openResource: vi.fn() })
   let source: InputTriggerSource | undefined
   ctx.provide('inputTriggers', {
     registerSource(candidate: InputTriggerSource) {
@@ -125,18 +128,17 @@ async function bench(
     if (id !== session.sessionId) await sessionStore.add({ id, summary })
   }
   await installTextSlots(ctx, sessionStore)
-  const owner = sessionStore.retainFor(ctx, session.sessionId)
+  sessionStore.retainFor(ctx, session.sessionId)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   if (source === undefined) throw new Error('reference source was not registered')
-  return { ctx, fiber, source }
+  return { ctx, fiber, source, sessions: sessionStore }
 }
 
 describe('apply', () => {
   it('declares its services and releases the @ reference registration on disposal', async () => {
     expect(inject).toEqual([
       'inputTriggers', 'locale', 'sessions', 'remote', 'remote.fileReferences',
-      'remote.sessionReferenceResolver',
       'remote.sessionReferenceResolver', 'sidebarRight', 'slots', 'uiConversation',
     ])
     const { fiber } = await bench()

@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { WorktreeTaskView, WorktreeTaskSettings, WorktreeTaskReview } from '@cinlan/api-worktree-task-controller/types'
+import { allowAllAccess, contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import { WorktreeTaskSection, type WorktreeTaskSectionProps } from '../src/client/WorktreeTaskSection.tsx'
 import { en } from '../src/client/locales.ts'
 
@@ -37,6 +38,7 @@ const unusedHook = (): never => { throw new Error('Worktree task settings does n
 function props(overrides: Partial<WorktreeTaskSectionProps> = {}): WorktreeTaskSectionProps {
   const dictionary: Readonly<Record<string, string>> = en
   return {
+    ...allowAllAccess, useContextMenu: contextMenuHook(),
     close: vi.fn(), useWorkspaces,
     usePanelInfo: unusedHook,
     useSessionStatus: unusedHook,

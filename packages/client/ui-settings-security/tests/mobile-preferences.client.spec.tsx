@@ -11,7 +11,7 @@ import { en } from '../src/client/locales.ts'
 import type { MobileSectionInjected } from '../src/client/CapabilitySection.tsx'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { MobileDeviceSettings } from '@deepseek-ai/dsh-mobile-device/types'
-import type { MobileDeviceListSnapshot, MobileSdkSnapshot } from '@cinlan/api-device-capabilities-controller/types'
+import type { MobileDeviceListSnapshot, MobileSdkSnapshot } from '@deepseek-ai/dsh-api-remotes/client'
 
 afterEach(cleanup)
 

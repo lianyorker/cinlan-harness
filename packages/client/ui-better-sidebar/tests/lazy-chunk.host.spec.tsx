@@ -14,7 +14,7 @@ import { createElement, type ComponentType, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import { builtinTabs, type BuiltinTabOptions } from '../src/client/builtins/tabs.tsx'
-import type { TerminalCallbacks } from '@cinlan/api-sidebar-terminal-controller/types'
+import type { TerminalCallbacks } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
 import { gitCallbacks } from './git-fixture.client.ts'
 import { builtinViewers } from '../src/client/builtins/viewers.tsx'
 import { registerChunkForTests, resetChunks } from '../src/client/chunk-loader.ts'
@@ -31,8 +31,6 @@ function callbacks(): BuiltinTabOptions {
       terminalInput: vi.fn<TerminalCallbacks['terminalInput']>().mockResolvedValue(undefined),
       terminalResize: vi.fn<TerminalCallbacks['terminalResize']>().mockResolvedValue(undefined),
       terminalShells: vi.fn<TerminalCallbacks['terminalShells']>().mockResolvedValue([]),
-      terminalListUi: vi.fn<TerminalCallbacks['terminalListUi']>().mockResolvedValue([]),
-      terminalRenameUi: vi.fn<TerminalCallbacks['terminalRenameUi']>(),
       terminalCloseUi: vi.fn<TerminalCallbacks['terminalCloseUi']>().mockResolvedValue(undefined),
       terminalCloseAgent: vi.fn<TerminalCallbacks['terminalCloseAgent']>().mockResolvedValue(undefined),
     },

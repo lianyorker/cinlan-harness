@@ -5,15 +5,21 @@
  * loopback-only document action over the real settings mirror, and recovery
  * across Loader rebuilds of the declaring chain.
  */
+import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, onTestFinished, vi } from 'vitest'
+import { IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { ok, type RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import type { SettingsNamespaceView } from '@deepseek-ai/dsh-settings/types'
 import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import { graphFromRoster } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/roster.ts'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { LOCALE_SETTINGS_NAMESPACE, LocaleSettingsSchema } from '@deepseek-ai/dsh-client-locale/src/locale-settings.ts'
-import { inject } from '../src/client/index.ts'
+import { apply, inject } from '../src/client/index.ts'
 import type { DeveloperToolsRowInjected } from '../src/client/DeveloperToolsRow.tsx'
 import { HostReleasePrompt, type HostReleasePromptInjected } from '../src/client/HostReleasePrompt.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
@@ -24,6 +30,14 @@ import type { SettingsDocumentActionInjected } from '../src/client/SettingsDocum
 // These specs assert the shipped Chinese copy. The lane has no jsdom `window`,
 // so browser-language detection never runs and a fresh LocaleRuntime opens on
 // FALLBACK_LOCALE (en); bench stages zh explicitly on the locale instead.
+
+const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
+const SIDEBAR = '@deepseek-ai/dsh-client-ui-sidebar'
+const it = createClientTest({ roster: webApp })
+/** The whole roster's first boot pays the cold module transform of every plugin package. */
+const COLD_BOOT_TIMEOUT_MS = 60_000
+/** Dictionary namespace this plugin owns; every seat it fills declares it. */
+const NS = 'settings'
 
 /** The seats this plugin fills for a loopback browser (slot name → expected component). */
 const SEATS = [
@@ -56,6 +70,33 @@ async function client(mock: RemoteMock, start: () => Promise<TestClient>, hasDoc
   return { c, settings }
 }
 
+/** Unit bench: a bare Context with the slots registry, a zh locale, and the real ui-settings shell over a scripted TestRemote. */
+async function bench(isLoopback = true) {
+  const ctx = new Context()
+  await ctx.plugin(SlotRegistry).await()
+  const locale = new LocaleRuntime(ctx)
+  locale.setLocale('zh')
+  ctx.provide('locale', locale)
+  const settingsDescribe = vi.fn(() => Promise.resolve({
+    ok: true as const,
+    value: {
+      writable: true,
+      hasDocument: true,
+      namespaces: [],
+    },
+  }))
+  const settingsOpenDocument = vi.fn(() => Promise.resolve({
+    ok: true as const, value: { opened: true as const },
+  }))
+  const remote = new TestRemote(ctx, {
+    settings: { describe: settingsDescribe, openSettingsDocument: settingsOpenDocument },
+  })
+  // The fixed Host facts the shell reads its loopback-only action from.
+  remote.$host = { home: undefined, isLoopback }
+  await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, settingsDescribe, settingsOpenDocument }
+}
+
 /** This plugin's rows in a seat: the list seats also carry feature-owned rows (the product's other sections and actions). */
 function ownEntries(c: TestClient, name: (typeof SEATS)[number][0]) {
   return c.ctx.slots.entries(name).filter(entry => entry.locale === NS)
@@ -74,9 +115,15 @@ function developerToolsRowOf(c: TestClient): DeveloperToolsRowInjected {
   return (developerRow.inject as unknown as () => DeveloperToolsRowInjected)()
 }
 
-function actionInjectedOf(c: TestClient): SettingsDocumentActionInjected {
-  const entry = ownEntries(c, 'settings.action')[0]!
-  return (entry.inject as unknown as () => SettingsDocumentActionInjected)()
+function expectSeated(c: TestClient): void {
+  for (const [name, component] of SEATS) {
+    expect(ownEntries(c, name).map(entry => entry.component)).toEqual([component])
+  }
+}
+
+/** The page authority the `connection` plugin classifies at apply, reconfigured through the jsdom instance vitest exposes. */
+function setPageUrl(url: string): void {
+  (globalThis as unknown as { jsdom: { reconfigure(settings: { url: string }): void } }).jsdom.reconfigure({ url })
 }
 
 /** Declare the shell's child slots the way ui-settings' entry does. */
@@ -98,7 +145,7 @@ function declare(slots: SlotRegistry): () => void {
   )
 }
 
-function generalEntry(slots: SlotRegistry) {
+function generalSlotEntry(slots: SlotRegistry) {
   return slots.entries('settings.section').find(e => e.component === GeneralSection)
 }
 
@@ -114,33 +161,41 @@ describe('ui-settings-general apply', () => {
     for (const [name, component] of SEATS) {
       expect(before.slots.entries(name)[0]!.component).toBe(component)
     }
-    const entry = generalEntry(before.slots)!
+    const entry = generalSlotEntry(before.slots)!
     expect(entry.options).toMatchObject({ id: 'general', order: 0 })
     const icon = before.slots.entries('settings.section.icon')[0]!
     expect(icon.component).toBe(IconSettingsOutline16)
     expect(icon.options.key).toBe('general')
     // The nav label is a locale-following thunk; owners resolve at read time.
-    expect(generalLabel(c)).toBe('通用设置')
-    expect(c.ctx.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
-    // The shared developer-tool control belongs to General; onboarding remains feature-owned.
-    expect(c.ctx.slots.entries('settings.general.item').filter(row => row.locale === NS).map(row => row.options.id)).toEqual(['developer-tools', 'current-version'])
-    expect(c.ctx.slots.entries('settings.onboarding').filter(row => row.locale === NS)).toEqual([])
-    const developer = developerToolsRowOf(c)
-    expect(developer.hooks.developerTools).toBe(c.ctx.configForms.developerTools.enabled)
-    expect(developer.hooks.developerTools.getSnapshot()).toBe(false)
-    const setEnabled = vi.spyOn(c.ctx.configForms.developerTools, 'setEnabled').mockResolvedValue(undefined)
-    await developer.setEnabled(true)
-    expect(setEnabled).toHaveBeenCalledExactlyOnceWith(true)
-    const { controller, hooks } = actionInjectedOf(c)
-    expect(controller.store.getSnapshot().status).toBe('idle')
-    expect(hooks.snapshot).toBe(controller.store)
-    // Copy rides the standard locale seat: every row this plugin seats declares the namespace.
+    expect(resolveSlotLabel(entry.options.label)).toBe('通用设置')
+    expect(before.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
+    expect(before.slots.entries('settings.general.item').map(e => e.options.id)).toEqual(['developer-tools', 'current-version'])
+    // The onboarding hole stays declared for feature-owned steps; this plugin
+    // no longer seats one.
+    expect(before.slots.entries('settings.onboarding')).toEqual([])
+    const action = before.slots.entries('settings.action')[0]!
+    const actionInjected = (action.inject as unknown as () => SettingsDocumentActionInjected)()
+    expect(actionInjected.controller.store.getSnapshot().status).toBe('idle')
+    expect(actionInjected.hooks.snapshot).toBe(actionInjected.controller.store)
+    // Copy rides the standard locale seat: every seat declares the namespace.
+    for (const [name] of SEATS) {
+      expect(before.slots.entries(name)[0]!.locale).toBe('settings')
+    }
+    const after = await bench()
+    await after.ctx.plugin({ inject: [...inject], apply }).await()
+    for (const [name] of SEATS) expect(after.slots.entries(name)).toHaveLength(0)
+    declare(after.slots)
+    await Promise.resolve()
     for (const [name, component] of SEATS) {
       expect(after.slots.entries(name)[0]!.component).toBe(component)
       // The self-inflicted ledger notifications hit the duplicate guard.
       expect(after.slots.entries(name)).toHaveLength(1)
     }
-  }, COLD_BOOT_TIMEOUT_MS)
+    expect(after.slots.entries('settings.section.icon')[0]!.component).toBe(IconSettingsOutline16)
+    await vi.waitFor(() => {
+      expect(after.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
+    })
+  })
 
   it('reports a Coding Tools toggle only when a known value changes to the requested one', async ({ mock, start }) => {
     const { c } = await client(mock, start)
@@ -196,7 +251,7 @@ describe('ui-settings-general apply', () => {
     await row.setEnabled(false)
     expect(track).toHaveBeenCalledTimes(2)
     expect(track).toHaveBeenLastCalledWith('code_work_view_toggle', { is_enabled: false }, 300)
-  })
+  }, COLD_BOOT_TIMEOUT_MS)
 
   it('registers the zh/en settings dictionaries and frees the seats when its row unloads', async ({ mock, start }) => {
     const { c, settings } = await client(mock, start)
@@ -212,8 +267,16 @@ describe('ui-settings-general apply', () => {
     expect(t('connection.reconnect')).toBe('Disconnected, reconnect now')
     expect(t('connection.connecting')).toBe('Reconnecting')
     await vi.waitFor(() => {
-      expect(after.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
+      expect(settings.mutate.mock.calls).toEqual([
+        [LOCALE_SETTINGS_NAMESPACE, [{ op: 'set', path: ['preference'], value: 'en' }], 0],
+      ])
+      expect(c.ctx.configForms.describe().getSnapshot().view?.namespaces).toEqual([english])
     })
+    await c.unload(SELF)
+    await c.flush()
+    // The (ns, locale) seats are free again — the dictionary disposer ran.
+    expect(() => { c.ctx.locale.register(NS, 'zh', {})() }).not.toThrow()
+    expect(() => { c.ctx.locale.register(NS, 'en', {})() }).not.toThrow()
   })
 
   it('registers the zh/en settings dictionaries and frees the seats on teardown', async () => {
@@ -244,9 +307,9 @@ describe('ui-settings-general apply', () => {
       expect(b.slots.getVersion(name)).toBe(zhVersions[i]!)
       expect(b.slots.entries(name)).toHaveLength(1)
     })
-    expect(resolveSlotLabel(generalEntry(b.slots)!.options.label)).toBe('General')
+    expect(resolveSlotLabel(generalSlotEntry(b.slots)!.options.label)).toBe('General')
     b.locale.setLocale('zh')
-    expect(resolveSlotLabel(generalEntry(b.slots)!.options.label)).toBe('通用设置')
+    expect(resolveSlotLabel(generalSlotEntry(b.slots)!.options.label)).toBe('通用设置')
   })
 
   it('reads availability from the shared mirror and follows its reconnect refresh', async () => {
@@ -329,9 +392,20 @@ describe('ui-settings-general apply', () => {
     expect(c.ctx.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
     expect(c.ctx.slots.entries('settings.general.item').filter(row => row.locale === NS).map(row => row.options.id)).toEqual(['developer-tools', 'current-version'])
     // The recovered registrations still ride the locale path.
-    b.locale.setLocale('en')
-    expect(resolveSlotLabel(generalEntry(b.slots)!.options.label)).toBe('General')
-    b.locale.setLocale('zh')
+    const english = localeView('en', 1)
+    const chinese = localeView('zh', 2)
+    settings.mutate.mockResolvedValueOnce(ok(english)).mockResolvedValueOnce(ok(chinese))
+    c.ctx.locale.setLocale('en')
+    expect(generalLabel(c)).toBe('General')
+    c.ctx.locale.setLocale('zh')
+    expect(generalLabel(c)).toBe('通用设置')
+    await vi.waitFor(() => {
+      expect(settings.mutate.mock.calls).toEqual([
+        [LOCALE_SETTINGS_NAMESPACE, [{ op: 'set', path: ['preference'], value: 'en' }], 0],
+        [LOCALE_SETTINGS_NAMESPACE, [{ op: 'set', path: ['preference'], value: 'zh' }], 1],
+      ])
+      expect(c.ctx.configForms.describe().getSnapshot().view?.namespaces).toEqual([chinese])
+    })
   })
 
   it('removes every seat and the item declaration on teardown', async () => {

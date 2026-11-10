@@ -327,7 +327,7 @@ describe('ui-voice-dictation apply', () => {
     await vi.waitFor(() => { expect(audio.close).toHaveBeenCalledOnce() })
     const disposal = fiber.dispose()
     expect(b.notify).not.toHaveBeenCalled()
-    closed.resolve()
+    closed.resolve(undefined)
     await disposal
 
     expect(b.notify).not.toHaveBeenCalled()
@@ -645,7 +645,7 @@ describe('ui-voice-dictation apply', () => {
       expect(track.stop).toHaveBeenCalledOnce()
     })
     expect(b.readDraft()).toBe('')
-    moduleLoad.resolve()
+    moduleLoad.resolve(undefined)
     await fiber.dispose()
   })
   it('closes active capture on plugin disposal without transcribing or modifying the draft', async () => {

@@ -17,12 +17,11 @@ function mount() {
   vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { scheduled = callback; return 1 }))
   vi.stubGlobal('cancelAnimationFrame', vi.fn(() => { scheduled = undefined }))
   const onInspectElement = vi.fn()
-  const onUnavailable = vi.fn()
   const onCancel = vi.fn()
   const view = render(<>
     <div id="native-viewport"><webview data-sidebar-browser-frame="webview" /></div>
     <ElementInspectorOverlay viewportId="native-viewport" onInspectElement={onInspectElement}
-      onUnavailable={onUnavailable} onCancel={onCancel} />
+      onCancel={onCancel} />
   </>)
   const guest = view.container.querySelector('webview')!
   Object.defineProperties(guest, { clientWidth: { value: 800 }, clientHeight: { value: 600 } })
@@ -35,7 +34,7 @@ function mount() {
     scheduled = undefined
     await act(async () => { callback?.(0) })
   }
-  return { view, overlay, move, frame, onInspectElement, onUnavailable, onCancel }
+  return { view, overlay, move, frame, onInspectElement, onCancel }
 }
 
 it('highlights the real native target at display scale without opening an editor', async () => {
@@ -50,7 +49,6 @@ it('highlights the real native target at display scale without opening an editor
   expect(highlight.style.height).toBe('20px')
   expect(highlight.textContent).toContain('button')
   expect(h.onInspectElement).not.toHaveBeenCalled()
-  expect(h.onUnavailable).not.toHaveBeenCalled()
   fireEvent.click(h.overlay, { clientX: 130, clientY: 120 })
   await act(async () => {})
   expect(h.onInspectElement).toHaveBeenCalledExactlyOnceWith(ELEMENT)
@@ -103,5 +101,4 @@ it('clears a highlight for unreadable targets without showing a click failure', 
   h.move(400)
   await h.frame()
   expect(h.overlay.firstElementChild).toBeNull()
-  expect(h.onUnavailable).not.toHaveBeenCalled()
 })

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /** Live terminal preferences update renderer options without replacing the connected process. */
 import { act, cleanup, render, screen } from '@testing-library/react'
-import type { TerminalCallbacks } from '@cinlan/api-sidebar-terminal-controller/types'
-import type { SidebarTerminalFrame, SidebarTerminalAttachmentId, SidebarTerminalProcessId } from '@cinlan/sidebar-terminals/types'
+import type { TerminalCallbacks } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
+import type { SidebarTerminalFrame, SidebarTerminalAttachmentId, SidebarTerminalProcessId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ITerminalOptions } from '@xterm/xterm'
 import { SIDEBAR_PREFS_DEFAULTS } from '../src/prefs-shared.ts'

@@ -18,7 +18,7 @@ describe('preset display copy', () => {
       .toEqual({ name: en[nameKey], description: en[descriptionKey] })
     expect(presetDisplayText(preset, translate(zh)))
       .toEqual({ name: zh[nameKey], description: zh[descriptionKey] })
-    expect(presetDisplayText(preset, translate(ja)))
+    expect(presetDisplayText(preset, translate(ja as typeof en)))
       .toEqual({ name: ja[nameKey], description: ja[descriptionKey] })
   })
 

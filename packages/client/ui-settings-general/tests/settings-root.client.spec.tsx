@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsRootComponentProps, SettingsSectionRow } from '../src/client/shell-contract.ts'
-import { allowAllAccess, bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess } from '@deepseek-ai/dsh-client-test-runtime'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en } from '../src/client/locales.ts'
 
@@ -24,14 +24,12 @@ beforeEach(() => {
   Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: scrollIntoView })
   scrollIntoView.mockClear()
 })
-const scrollIntoView = vi.fn()
-beforeEach(() => {
-  scrollIntoView.mockClear()
-  Element.prototype.scrollIntoView = scrollIntoView
+afterEach(() => {
+  cleanup()
   if (scrollIntoViewDescriptor === undefined) Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
   else Object.defineProperty(Element.prototype, 'scrollIntoView', scrollIntoViewDescriptor)
+  vi.unstubAllGlobals()
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 type Row = Pick<SettingsSectionRow, 'id' | 'order' | 'label'> & Partial<Pick<SettingsSectionRow, 'groupId' | 'title' | 'description' | 'items'>>
 const resolveRows = (rows: Row[]): SettingsSectionRow[] => rows.map(row => ({
@@ -290,8 +288,6 @@ describe('SettingsPage navigation', () => {
     expect(screen.getByRole('button', { name: 'Alpha' }).querySelector('[data-testid="icon-alpha"]')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Beta' }).querySelector('[data-testid="icon-beta"]')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Missing' }).querySelector('svg')).toBeTruthy()
-    // Each product glyph names its sprite symbol id in data-icon.
-      .map(name => screen.getByRole('button', { name }).querySelector('svg')?.getAttribute('data-icon'))
   })
 
   it('switches the rendered section on nav click', () => {

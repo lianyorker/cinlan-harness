@@ -1,7 +1,7 @@
 import { getEventListeners } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SidebarTerminalError } from '@cinlan/sidebar-terminals'
-import type { SidebarTerminalAttachmentId, SidebarTerminalFrame, SidebarTerminalProcessId } from '@cinlan/sidebar-terminals/types'
+import { SidebarTerminalError } from '@deepseek-ai/dsh-sidebar-terminals'
+import type { SidebarTerminalAttachmentId, SidebarTerminalFrame, SidebarTerminalProcessId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { encodedFrameBytes, TerminalOutput } from '../src/terminal-output.ts'
 
 type Options = ConstructorParameters<typeof TerminalOutput>[0]

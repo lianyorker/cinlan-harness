@@ -511,7 +511,7 @@ describe('SettingsScopeController', () => {
     const describeCall = vi.fn()
     const mutate = vi.fn()
     const ctx = ctxWith({ describe: describeCall, mutate })
-    const mirror = new SettingsDescribeMirror(ctx, 'memory')
+    const mirror = new SettingsDescribeMirror(ctx)
     const scope = new SettingsScopeController<UiTestSettings>(
       ctx, { namespace: 'ui-test' }, mirror, 'memory', settingsSchema)
     expect(scope.getSnapshot()).toEqual({
@@ -616,7 +616,7 @@ describe('SettingsScopeBinder.bind', () => {
 
   it('binds a remote browser in memory mode without starting a settings read', async () => {
     const describeCall = vi.fn()
-    const mirror = new SettingsDescribeMirror(ctxWith({ describe: describeCall }), 'memory')
+    const mirror = new SettingsDescribeMirror(ctxWith({ describe: describeCall }))
     const ctx = new Context()
     let scope!: SettingsScope<UiTestSettings>
     new TestRemote(ctx, { settings: { describe: describeCall } })

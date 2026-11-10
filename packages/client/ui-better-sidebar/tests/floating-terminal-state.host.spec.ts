@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { FloatingWorkspaceTerminalContext, FloatingWorkspaceWindowId } from '@cinlan/sidebar-terminals/types'
+import type { FloatingWorkspaceTerminalContext, FloatingWorkspaceWindowId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import {
   allLeaves, createSidebarStore, createTerminalTab, firstLeaf, makeDefaultState,
   openTabInActivePane, reconcileAgentTerminals, SidebarStore, toggleBottomPanel,

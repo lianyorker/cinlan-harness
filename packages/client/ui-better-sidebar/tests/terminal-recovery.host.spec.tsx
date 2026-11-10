@@ -2,7 +2,7 @@
 /** Retained-list races use the existing layout owner and never open native processes. */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import type { SidebarUiTerminalSnapshot } from '@cinlan/sidebar-terminals/types'
+import type { SidebarUiTerminalSnapshot } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import { TerminalRecovery } from '../src/client/TerminalRecovery.tsx'
 import { rememberTerminalTitle } from '../src/client/terminal-launch.ts'
 import { allLeaves, closeTab, createSidebarStore, openTabInActivePane, patchTab, type SidebarStore } from '../src/client/state.ts'

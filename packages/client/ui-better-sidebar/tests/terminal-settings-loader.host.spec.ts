@@ -15,7 +15,7 @@ import * as sidebar from '../src/index.ts'
 import { shellSpawnArgs } from '../src/pty-manager.ts'
 import { SIDEBAR_PREFS_NS } from '../src/prefs-shared.ts'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
-import type { SidebarTerminalFrame, SidebarTerminalSessionId, SidebarTerminalTabId, SidebarTerminalReleaseRequest } from '@cinlan/sidebar-terminals/types'
+import type { SidebarTerminalFrame, SidebarTerminalSessionId, SidebarTerminalTabId, SidebarTerminalReleaseRequest } from '@deepseek-ai/dsh-sidebar-terminals/types'
 
 // Native process creation is external; all preferences, routes, PTY ownership and persistence stay real.
 const native = vi.hoisted(() => ({ spawn: vi.fn() }))

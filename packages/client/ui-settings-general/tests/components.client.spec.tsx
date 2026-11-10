@@ -9,6 +9,8 @@ import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import type { TriggerContentProps } from '../src/client/chrome.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
+import { DeveloperToolsRow } from '../src/client/DeveloperToolsRow.tsx'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
 
@@ -40,7 +42,7 @@ const useSessionStatus = (() => new Map()) as GlobalStandardProps['useSessionSta
 const useSessionRetainInfo = (() => undefined) as GlobalStandardProps['useSessionRetainInfo']
 const kit = {
   useSessions: unusedHook, useSessionStatus,
-  usePanelInfo, useSessionRetainInfo: () => undefined, useResource, useWorkspaces: unusedHook,
+  usePanelInfo, useSessionRetainInfo, useResource, useWorkspaces: unusedHook,
   ...allowAllAccess,
   useContextMenu: contextMenuHook(),
 }

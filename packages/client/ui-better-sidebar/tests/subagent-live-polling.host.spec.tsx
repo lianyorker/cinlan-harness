@@ -10,7 +10,8 @@ import { createElement, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import { SubagentView } from '../src/client/SubagentView.tsx'
-import type { Context, SidebarSessionList } from '../src/context-types.ts'
+import type { Context, SidebarSessionList, SidebarSubagentAddress } from '../src/context-types.ts'
+import type { SessionScope } from '../src/client/api.ts'
 
 /** A subscribable sessions-list snapshot (mirror of the runtime list feed). */
 function makeStore(initial: SidebarSessionList) {
@@ -175,7 +176,7 @@ describe('SubagentView live polling', () => {
     const store = makeStore(runningSnapshot())
     const ctx = makeCtx(store, vi.fn())
     const openMain = vi.fn()
-    const openAside = vi.fn()
+    const openAside = vi.fn<(address: SidebarSubagentAddress, scope?: SessionScope) => void>()
     ctx.sessions.openSubagent = openMain
     ctx.betterSidebar = { openSubagentChat: openAside } as Context['betterSidebar']
     const view = mount(createElement(SubagentView, { sessionId: 'root', active: false, ctx }))

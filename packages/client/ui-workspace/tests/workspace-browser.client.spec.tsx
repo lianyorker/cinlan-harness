@@ -124,6 +124,8 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     closeAddWorkspace: controls.closeAdd,
     setDirectoryBusy: controls.directoryBusy,
     requestSessionRename: controls.rename,
+    notifyArchivedNotOpenable: vi.fn(),
+    unarchiveSession: vi.fn(),
     wide: true,
     expandSidebar: vi.fn(),
     useSessions: hook(sessionState([])),

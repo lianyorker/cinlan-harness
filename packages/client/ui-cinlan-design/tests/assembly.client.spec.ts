@@ -2,6 +2,8 @@
 import { afterEach, expect } from 'vitest'
 import { createClientTest, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import { CinlanDesignBody } from '../src/client/view/CinlanDesignBody.tsx'
+// SlotMap augmentation for 'browser.design.tools'; nothing in the shipped graph imports it yet.
+import type {} from '../../ui-sidebar-browser/src/client/design-slot.ts'
 import type { SidebarRightTabRegistry } from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/tab-registry.ts'
 
 const it = createClientTest({ roster: webApp })

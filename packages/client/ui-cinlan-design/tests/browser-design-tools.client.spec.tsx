@@ -5,6 +5,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { useSyncExternalStore } from 'react'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import { BrowserDesignTools, type BrowserDesignToolsProps } from '../src/client/view/BrowserDesignTools.tsx'
+// SlotMap augmentation for 'browser.design.tools'; nothing in the shipped graph imports it yet.
+import type {} from '../../ui-sidebar-browser/src/client/design-slot.ts'
 import { en } from '../src/client/locales.ts'
 import { createBrowserPinsStore } from '../src/client/browser-pins.ts'
 

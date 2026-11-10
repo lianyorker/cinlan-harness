@@ -203,7 +203,7 @@ function assertLiveViewerSettings(ctx: Context, slots: SlotRegistry, face: SideC
     const after = ctx.settingsMetadata.getSnapshot()
     expect(after.items.filter(item => item.anchorId.startsWith(prefix))).toEqual([])
     expect(after.items).toHaveLength(before.items.length)
-    expect(after.items).toEqual(expect.arrayContaining(before.items))
+    expect(after.items).toEqual(expect.arrayContaining([...before.items]))
     expect(after.sections).toEqual(before.sections)
     expect(slots.entries('settings.section')).toEqual(pages)
   } finally {
@@ -234,7 +234,7 @@ it('waits for sidebarGit, drains its registrations and terminals on unload, and 
     'settings.section.icon': { kind: 'keyed', scope: 'root' },
     'settings.section.extension': { kind: 'keyed', scope: 'root' },
     'conversation.chat.turnTail': { kind: 'list', scope: 'session' },
-  } }, () => null)
+  } } as never, () => null)
   ctx.provide('locale', new LocaleRuntime(ctx))
 
   const preferences = stubSettingsScope<SidebarPrefs>()
@@ -312,7 +312,7 @@ it('waits for sidebarGit, drains its registrations and terminals on unload, and 
   expect(workspaces.openPath).not.toBe(openPath)
   expect(createTerminal).toHaveBeenCalledTimes(1)
   first.store.setSession(scope.sessionId)
-  const firstTerminal = terminals[0]
+  const firstTerminal = terminals[0]!
   expect(firstTerminal.callbacks.watchAgentTerminals).toHaveBeenCalledExactlyOnceWith(scope.sessionId, expect.any(Function))
   await expect(first.git.gitStatus(scope)).resolves.toBe(status)
   await expect(first.diff.gitDiff(scope, 'source.ts', false)).resolves.toEqual({ diff: patch })
@@ -355,7 +355,7 @@ it('waits for sidebarGit, drains its registrations and terminals on unload, and 
   expect(second.store.getPrefs().defaultWidthPercent).toBe(48)
   expect(first.store.getPrefs()).toEqual(retiredPreferences)
   second.store.setSession(scope.sessionId)
-  const secondTerminal = terminals[1]
+  const secondTerminal = terminals[1]!
   expect(secondTerminal.callbacks.watchAgentTerminals).toHaveBeenCalledExactlyOnceWith(scope.sessionId, expect.any(Function))
   await expect(second.git.gitStatus(scope)).resolves.toBe(replacementStatus)
   await expect(second.diff.gitDiff(scope, 'source.ts', false)).resolves.toEqual({ diff: 'replacement patch' })

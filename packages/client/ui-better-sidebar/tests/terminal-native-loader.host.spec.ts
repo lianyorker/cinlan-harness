@@ -15,9 +15,9 @@ import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import Gateway from '@deepseek-ai/dsh-api-gateway'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
 import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
-import SidebarTerminalController from '@cinlan/api-sidebar-terminal-controller'
+import SidebarTerminalController from '@deepseek-ai/dsh-api-sidebar-terminal-controller'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
-import type { SidebarTerminalFrame, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalSessionId, SidebarTerminalTabId } from '@cinlan/sidebar-terminals/types'
+import type { SidebarTerminalFrame, SidebarTerminalOpenRequest, SidebarTerminalReleaseRequest, SidebarTerminalSessionId, SidebarTerminalTabId } from '@deepseek-ai/dsh-sidebar-terminals/types'
 import * as sidebar from '../src/index.ts'
 import { SIDEBAR_PREFS_NS } from '../src/prefs-shared.ts'
 
@@ -65,7 +65,7 @@ async function load() {
     { name: '@deepseek-ai/dsh-client-connection' },
     { name: '@deepseek-ai/dsh-typert-registry' },
     { name: '@deepseek-ai/dsh-api-gateway' },
-    { name: '@cinlan/api-sidebar-terminal-controller' },
+    { name: '@deepseek-ai/dsh-api-sidebar-terminal-controller' },
   ]
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, rows.map(row => '- ' + JSON.stringify(row)).join('\n') + '\n')
@@ -88,7 +88,7 @@ async function load() {
     ['@cinlan/client-ui-better-sidebar', sidebar],
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials], ['@deepseek-ai/dsh-client-connection', Connection],
     ['@deepseek-ai/dsh-typert-registry', TypertRegistry], ['@deepseek-ai/dsh-api-gateway', Gateway],
-    ['@cinlan/api-sidebar-terminal-controller', SidebarTerminalController],
+    ['@deepseek-ai/dsh-api-sidebar-terminal-controller', SidebarTerminalController],
   ])
   ctx.loader.internal = { version: 'v2', async import(specifier: string) {
     if (!modules.has(specifier)) throw new Error('Unexpected Loader module: ' + specifier)

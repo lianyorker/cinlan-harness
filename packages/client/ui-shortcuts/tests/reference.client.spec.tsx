@@ -112,7 +112,7 @@ it.each(['macos', 'windows'] as const)('shows the reference, filters labels and 
   expect(store.getSnapshot().query).toBe('')
   expect(document.activeElement).toBe(opener)
   fireEvent.pointerEnter(opener)
-  expect(screen.getByRole('tooltip').getAttribute('aria-label')).toBe(`${en['global-hint']} ${platform === 'macos' ? '⌘ /' : 'Ctrl + /'}`)
+  expect(screen.getByRole('tooltip').getAttribute('aria-label')).toBe(`${en.open} ${platform === 'macos' ? '⌘ /' : 'Ctrl + /'}`)
   act(() => { catalog.set(catalog.getSnapshot().map(row => row.id === 'shortcuts.open'
     ? { ...row, binding: null, keys: [], aria: undefined } : row)) })
   expect(screen.queryByRole('tooltip')).toBeNull()

@@ -76,6 +76,7 @@ async function bench(options: {
   describeGate?: Promise<undefined>
   presets?: AgentPresetRow[]
   developerToolsEnabled?: boolean
+  memory?: boolean
 } = {}) {
   const ctx = new Context()
   // The host's answer, mutable so a spec can move the default the way the

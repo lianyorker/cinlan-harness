@@ -25,15 +25,17 @@ import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type {
   RowToast, RowToastState, SessionArchiveConfirmInjected, SessionArchiveConfirmRequest,
-  SessionRenameDialogInjected, SessionRenameTarget,
+  SessionDeleteDialogInjected, SessionDeleteTarget, SessionRenameDialogInjected, SessionRenameTarget,
 } from '../src/client/contract/slots.ts'
 import {
   ArchiveSessionRowButton, SessionArchiveConfirmDialog,
 } from '../src/client/session-actions/ArchiveSession.tsx'
+import { SessionDeleteDialog } from '../src/client/session-actions/DeleteSession.tsx'
 import { PinSessionRowButton } from '../src/client/session-actions/PinSession.tsx'
 import { SessionRenameDialog } from '../src/client/session-actions/RenameSession.tsx'
 import { RowActionToast } from '../src/client/session-actions/RowActionToast.tsx'
 import { en, zh } from '../src/client/locales.ts'
+import { createWorkspaceViewStore } from '../src/client/stores.ts'
 
 afterEach(cleanup)
 
@@ -516,6 +518,13 @@ describe('RowActionToast', () => {
     translate = t,
   ) {
     const toast = createSnapshotStore<RowToastState | null>(null)
+    const instance = createWorkspaceViewStore().create()
+    // A v5 snapshot hydrates without the filter key; mirror it by dropping the
+    // fresh store's default rather than writing an explicit undefined.
+    const state = { ...instance.store.getSnapshot() }
+    if (viewState.archivedFilter === undefined) delete state.archivedFilter
+    else state.archivedFilter = viewState.archivedFilter
+    const view = createSnapshotStore(state)
     const dismissToast = vi.fn(() => { toast.set(null) })
     const undoArchive = vi.fn()
     const showArchived = vi.fn()

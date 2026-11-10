@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SettingsPathOpView } from '@deepseek-ai/dsh-settings/types'
+import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-contract.ts'
 import { t } from '../src/client/locales.ts'
 import { createSidebarStore } from '../src/client/state.ts'
 import { SidebarPreferencesController } from '../src/client/preferences-controller.ts'

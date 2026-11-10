@@ -153,7 +153,6 @@ function harness(placement: Placement, controller: AbortController) {
     openMenu,
     useContextMenu: contextMenuHook(openMenu),
     renderFactorySlot: (name: string, input: object) => name === 'sidebar.files.tree' ? <TreeFixture {...input as FileTreeInput} t={t} /> : null,
-    renderSlot: () => null,
     sessionId: SESSION,
     useSessions: <S,>(sel: (s: SessionListState) => S) => sel(sessionsAt(placement.cwd)),
     useStore: hookOf(instance),

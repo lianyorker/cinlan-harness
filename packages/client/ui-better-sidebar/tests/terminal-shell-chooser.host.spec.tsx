@@ -2,7 +2,7 @@
 /** User launch choices persist with each tab; mocked native rendering keeps these tests keyless. */
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { TerminalCallbacks, SidebarTerminalFrame } from '@cinlan/api-sidebar-terminal-controller/types'
+import type { TerminalCallbacks, SidebarTerminalFrame } from '@deepseek-ai/dsh-api-sidebar-terminal-controller/types'
 import { allLeaves, createTerminalTab, openTabInActivePane, SidebarStore, type SidebarTab } from '../src/client/state.ts'
 import { terminalLaunchOf } from '../src/client/terminal-launch.ts'
 import { TerminalView } from '../src/client/TerminalView.tsx'

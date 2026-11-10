@@ -151,10 +151,10 @@ describe('Office previews in Files', () => {
   it('contains browser rendering failures inside the file and retries', async () => {
     const createElement = document.createElement.bind(document)
     let rendererUnavailable = true
-    vi.spyOn(document, 'createElement').mockImplementation((tag, options) => {
+    vi.spyOn(document, 'createElement').mockImplementation(((tag: string, options?: ElementCreationOptions) => {
       if (tag === 'iframe' && rendererUnavailable) throw new Error('PDF frame unavailable')
       return createElement(tag, options)
-    })
+    }) as typeof document.createElement)
     const report = vi.spyOn(console, 'error').mockImplementation(() => {})
     const read = vi.fn<ReadOfficePreview>().mockResolvedValue(file)
     const { container } = await mount(preview(read))
@@ -179,9 +179,9 @@ describe('Office previews in Files', () => {
 
 describe('Office Remote reader', () => {
   it('requests foreground conversion with the owning Session and cancellation signal', async () => {
-    const render = vi.fn().mockResolvedValue({ ok: true, value: file })
+    const render = vi.fn<Parameters<typeof createOfficeReader>[0]['render']>().mockResolvedValue({ ok: true, value: file })
     const signal = new AbortController().signal
-    const read = createOfficeReader({ render } as Parameters<typeof createOfficeReader>[0])
+    const read = createOfficeReader({ render })
     expect(await read('office-session', 'report.docx', signal)).toEqual(file)
     expect(render).toHaveBeenCalledExactlyOnceWith('office-session', 'report.docx', 'foreground', signal)
   })

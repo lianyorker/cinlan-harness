@@ -65,12 +65,17 @@ export class FilePeer extends Service {
   get signal(): AbortSignal { return this.lifetime.signal }
 
   /** The remote handshake confirms the deployment Node executable. */
-  get nodeExecutable(): string { return this.config.node }
+  get nodeExecutable(): string {
+    if (this.config.launch.kind !== 'node-script') throw new Error('Fixture Node executable missing')
+    return this.config.launch.node
+  }
 
   /** Full execution requires a deployed bootstrap. */
   get bootstrapPath(): string {
-    if (this.config.bootstrapPath === undefined) throw new Error('Fixture bootstrap missing')
-    return this.config.bootstrapPath
+    if (this.config.launch.kind !== 'node-script' || this.config.launch.bootstrapPath === undefined) {
+      throw new Error('Fixture bootstrap missing')
+    }
+    return this.config.launch.bootstrapPath
   }
 
   /**

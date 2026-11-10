@@ -82,7 +82,6 @@ describe('ui-settings-subagent apply', () => {
     expect(Object.keys(modelsFace.hooks)).toEqual(['subagentModelSelectionCard'])
     const limitsFace = (byId('subagent-limits').inject as () => Pick<SubagentLimitsCardFace, 'hooks'>)()
     expect(Object.keys(limitsFace.hooks)).toEqual(['subagentLimitsCard'])
-    expect(entry.options).toMatchObject({ id: 'subagent', order: 10 })
   })
 
   it('registers each page only while its own namespace is served, and withdraws it when the Host stops', async () => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { UsageQueryResult } from '@cinlan/api-usage-controller/types'
 import { UsageSection, type UsageSectionProps } from '../src/client/UsageSection.tsx'
 import { createUsageFiltersStore } from '../src/client/filters.ts'
@@ -31,6 +31,7 @@ function mount(query: QueryUsage | undefined, dictionary: Record<UsageKey, strin
     close: vi.fn(),
     useSessions: unused, useWorkspaces: unused, usePanelInfo: unused,
     useSessionStatus: unused, useSessionRetainInfo: unused, useResource: unused,
+    ...allowAllAccess, useContextMenu: contextMenuHook(),
     useStore: bindSnapshotSelector(store), actions: store.actions,
     useUsage: bindSnapshotSelector(source), load: source.load, cancel: source.cancel,
     download, t: makeTranslate(dictionary),

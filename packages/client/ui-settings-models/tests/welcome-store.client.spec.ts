@@ -49,7 +49,6 @@ function buildWelcome(
     ctx,
     { namespace: WELCOME_NOTICE_SETTINGS_NAMESPACE, decode: decodeWelcomeSection },
     mirror,
-    'host',
     schemaService,
   )
   return { mirror, controller: new WelcomeNoticeStore(scope) }

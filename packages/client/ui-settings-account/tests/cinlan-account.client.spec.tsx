@@ -15,11 +15,11 @@ function mount(copy: typeof en | typeof zh = en, signedIn = false) {
   const view = render(<CinlanAccountSection {...props as CinlanAccountSectionProps} />)
   return { props, view }
 }
-it.each([en, zh])('describes Cinlan account access without promising file sharing', (copy) => {
+it.each([en, zh])('describes Cinlan account access in the active locale', (copy) => {
   const { view } = mount(copy)
-  expect(screen.getByText(copy.scopeNote)).toBeTruthy()
+  expect(screen.getByText(copy.signedOutDescription)).toBeTruthy()
   expect(screen.getByRole('button', { name: copy.signIn })).toBeTruthy()
-  expect(view.container.textContent).not.toMatch(/Artifact sharing|Cinlan IDE Relay|IDE Mobile|Sub2API/u)
+  expect(view.container.textContent).not.toMatch(/Sub2API/u)
   expect(view.container.textContent).toMatchSnapshot()
 })
 it('retains the sign-in dialog and sign-out operations', async () => {

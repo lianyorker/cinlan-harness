@@ -84,7 +84,6 @@ function baseSnapshot(): SidebarSessionList {
     byId: {
       root: { id: 'root', displayTitle: '主会话', running: true },
       child: { id: 'child', displayTitle: '子代理', origin: 'subagent', parentId: 'root', running: true },
-      child: { id: 'child', displayTitle: '子代理', origin: 'subagent', parentId: 'root', running: true },
     },
     subagentsByParent: {},
     jobsBySession: {
