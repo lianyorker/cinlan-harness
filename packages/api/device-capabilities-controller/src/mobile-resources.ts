@@ -8,7 +8,7 @@ import type MobileRuntimeManager from '@deepseek-ai/dsh-mobile-device-runtime'
  */
 export function localMobileRuntime(ctx: Context): MobileRuntimeManager {
   const invocation = ctx.invocation
-  const operator = ctx.get('connection')?.operator
+  const operator = ctx.get('connection')?.browserPeer
   if (invocation === undefined || operator === undefined || invocation.peer !== operator || invocation.signal.aborted) {
     throw new Error('Mobile runtime management requires an authenticated local request')
   }

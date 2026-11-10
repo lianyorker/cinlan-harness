@@ -1,6 +1,4 @@
 /** Shared projection of the live LLM registry into the browser model catalog. */
-// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'

@@ -1,8 +1,9 @@
 /** Read-only device readiness Remote; never installs software or performs device input. */
 import { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-computer-use'
+import type { ComputerPermissionStatus } from '@deepseek-ai/dsh-computer-use'
 import type {} from '@deepseek-ai/dsh-mobile-device'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { requireLocalOperator } from './local-operator.ts'
 import type {} from 'zod'
 import { SdkProbeConfig, SdkProbes } from './sdk-probes.ts'
 import { localMobileRuntime } from './mobile-resources.ts'
@@ -22,6 +23,50 @@ declare module '@deepseek-ai/cordis' {
 export class DeviceCapabilitiesController extends TypertRemoteService {
   static inject = ['typert']
   static Config = SdkProbeConfig
+
+  /** Read the desktop OS permission state for Computer Use.
+   * @param signal - Cancels only this observation.
+   * @returns Current OS permission facts from the selected provider.
+   */
+  @Remote('computerPermissionStatus')
+  async computerPermissionStatus(signal: AbortSignal): Promise<ComputerPermissionStatus> {
+    requireLocalOperator(this.ctx)
+    signal.throwIfAborted()
+    return this.computerPermissionControls().permissionStatus(signal)
+  }
+  /** Request a desktop OS privilege through the provider's dialog flow.
+   * @param signal - Cancels the pending native request.
+   * @returns Permission state after the native request settles.
+   */
+  @Remote('requestComputerPermissions')
+  async requestComputerPermissions(signal: AbortSignal): Promise<ComputerPermissionStatus> {
+    requireLocalOperator(this.ctx)
+    signal.throwIfAborted()
+    return this.computerPermissionControls().requestPermissions(signal)
+  }
+  /** Open the OS screen-recording settings pane.
+   * @param signal - Cancels the pending open request.
+   * @returns Whether the OS accepted the open request.
+   */
+  @Remote('openComputerScreenRecordingSettings')
+  async openComputerScreenRecordingSettings(signal: AbortSignal): Promise<boolean> {
+    requireLocalOperator(this.ctx)
+    signal.throwIfAborted()
+    return this.computerPermissionControls().openScreenRecordingSettings(signal)
+  }
+
+  /** Resolve the Computer Use runtime for authenticated desktop permission work.
+   * @returns The runtime; an unconfigured Host fails loud before any native request.
+   */
+  private computerPermissionControls(): {
+    permissionStatus: (signal: AbortSignal) => Promise<ComputerPermissionStatus>
+    requestPermissions: (signal: AbortSignal) => Promise<ComputerPermissionStatus>
+    openScreenRecordingSettings: (signal: AbortSignal) => Promise<boolean>
+  } {
+    const service = this.ctx.get('computerUse')
+    if (service === undefined) throw new Error('Computer Use is not configured on this Host')
+    return service
+  }
 
   /** Read native Android resources and connections from the local Host.
    * @param signal - Cancels only this observation.

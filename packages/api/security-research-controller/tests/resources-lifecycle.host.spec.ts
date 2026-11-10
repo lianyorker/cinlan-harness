@@ -19,8 +19,9 @@ describe('Host-owned security resource operations through Remotes', () => {
     const listeners = b.ctx.events._hooks['security-skill-resources/changed']?.length ?? 0
     const observer = new AbortController()
     onTestFinished(() => { observer.abort() })
-    const stream = await b.ctx.typertGateway.wireStream.open(
-      'securityResearch/observeResources', { args: {} }, (async function* () {})(), undefined, observer.signal,
+    const { ctx } = b
+    const stream = await ctx.typertGateway.wireStream.open(
+      'securityResearch/observeResources', { args: {} }, (async function* () {})(), b.peer, observer.signal,
     )
     const iterator = stream[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toMatchObject({ state: 'not-installed' })

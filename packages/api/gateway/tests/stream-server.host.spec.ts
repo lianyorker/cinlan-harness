@@ -702,9 +702,6 @@ async function fixturePeer(): Promise<PeerScope> {
     interactions: 'answer',
     signal: new AbortController().signal,
     dispose: async () => { await fiber.dispose() },
-    principal: { kind: 'owner' },
-    signal: new AbortController().signal,
-    interactions: 'answer',
   }
 }
 

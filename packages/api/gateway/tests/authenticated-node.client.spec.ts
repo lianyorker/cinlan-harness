@@ -175,8 +175,10 @@ async function nodeFixture(interactions: 'none' | 'answer') {
     await ctx.plugin(TypertRegistry)
     await ctx.plugin({ apply, inject })
     await mount(ctx)
+    const connection = ctx.get('connection') as ConnectionHandle | undefined
+    if (connection === undefined) throw new Error('injected Connection service is unavailable')
     return {
-      ctx, connection: ctx.get('connection') as ConnectionHandle, cookies, endpoints, upgrading,
+      ctx, connection, cookies, endpoints, upgrading,
       get socket() { return socket }, upgrade: () => { upgrade() }, close,
     }
   } catch (error) {

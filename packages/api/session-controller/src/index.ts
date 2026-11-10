@@ -178,7 +178,7 @@ export class SessionController extends TypertRemoteService {
   constructor(ctx: Context, config: Config, internals: SessionControllerInternals = {}) {
     super(ctx, 'sessionController', { namespace: 'session' })
     const resolved = SessionController.Config(config)
-    this.listWorkSliceMs = SessionController.Config(config).listWorkSliceMs
+    this.listWorkSliceMs = resolved.listWorkSliceMs
     this.fileApplications = internals.fileApplications ?? nativeFileApplications
     this.openFileApplication = internals.openFileApplication ?? openNativeFileApplication
     this.openPath = internals.openPath ?? openNativeAssociatedPath
@@ -211,7 +211,6 @@ export class SessionController extends TypertRemoteService {
     this.webController = new WebController(ctx, this.historyController, (observation) => { this.promote(observation) })
     this.listState = new ApiSessionList(ctx, this.listWorkSliceMs)
     await this.listState.initialize()
-    this.listState = new ApiSessionList(ctx, resolved.listWorkSliceMs)
     ctx.plugin(SessionFileReferences)
     ctx.plugin(SessionMediaReferences)
     ctx.plugin(SessionSkillCatalog)

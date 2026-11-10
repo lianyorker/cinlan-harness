@@ -3,7 +3,12 @@ import { createAssistantMessage } from '@deepseek-ai/dsh-llm'
 import type { AssistantStreamRecord, TokenUsage } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import type SessionPersistenceJsonl from '@deepseek-ai/dsh-session-persistence-jsonl'
+import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
+
+/** Real JSONL provider type: the shared persistence API plus the jsonl-only current-log lookup. */
+export type JsonlPersistence = SessionPersistence & {
+  resolveCurrentLog(id: SessionId, signal?: AbortSignal): Promise<string | undefined>
+}
 
 export const interval = { from: 1_800_000_000_000, to: 1_800_000_001_000 }
 export const privateText = 'private conversation text never belongs in a usage response'
@@ -40,7 +45,7 @@ function turn(seq: number, number: number, time: number, provider: string, model
  * @param persistence - real JSONL provider rooted in the test's temporary directory.
  * @returns physical fixture paths for byte-preservation assertions.
  */
-export async function seedUsageLogs(persistence: SessionPersistenceJsonl): Promise<string[]> {
+export async function seedUsageLogs(persistence: JsonlPersistence): Promise<string[]> {
   const logs: Array<{ id: string; events: SessionEvent[] }> = [
     { id: 'usage-main', events: [
       ...turn(0, 1, interval.from, 'deepseek', 'deepseek-chat', {

@@ -329,24 +329,25 @@ export class TypertGatewayService extends Service implements TypertGateway {
   }
 
   /**
-   * Check for an active Client event stream.
-   * @returns whether a stream is open and has not been cancelled.
+   * Check for an active owner Client event stream, the only kind that can answer forwarded waterfalls.
+   * @returns whether an owner stream is open and has not been cancelled.
    */
   hasLiveClient(): boolean {
     for (const client of this.remoteEventClients.values()) {
-      if (!client.signal.aborted) return true
+      if (client.answers && !client.signal.aborted) return true
     }
     return false
   }
 
   /**
-   * Check for an active owner Client event stream, the only kind that can answer forwarded waterfalls.
-   * @returns whether an owner stream is open and has not been cancelled.
-      if (client.answers && !client.signal.aborted) return true
    * Inspect unsettled forwarded events without changing their lifetime.
    * @returns detached event names and Agent identities.
+   */
   getPendingRemoteEvents(): readonly PendingRemoteEventInfo[] {
     return [...this.pendingRemoteEvents.values()].map(({ frame }) => ({ event: frame.event, agentId: frame.agentId }))
+  }
+
+  /**
    * Register the sole application-selected forwarded-event source.
    * @param source - stream factory installed by the Remote assembly.
    * @param host - stable Host facts included in each Client generation's opening frame.
@@ -542,8 +543,6 @@ export class TypertGatewayService extends Service implements TypertGateway {
       return this.openRemoteEvents(payload, signal, peer)
     }
     return this.openStream({ ...remoteRequest(endpoint, payload, signal, peer), uplink, uplinkWindow }, control)
-    const operator = this.inProcessOperator ??= new OperatorPeer(this.ctx)
-    return operator
   }
 
   private async *openRemoteEvents(

@@ -281,7 +281,7 @@ mobileDefaultDeviceDescription: 'Default device for new emulator tabs and agent 
 
 **后端：**
 - `@deepseek-ai/dsh-mobile-device` — 移动设备框架
-- `@deepseek-ai/dsh-api-device-capabilities-controller` — 设备能力控制器
+- `@cinlan/api-device-capabilities-controller` — 设备能力控制器
 
 ## 6. 风险和注意事项
 

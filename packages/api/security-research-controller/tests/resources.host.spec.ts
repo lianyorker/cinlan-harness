@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { boot } from '@deepseek-ai/dsh-app-boot'
+import { Peer } from '@deepseek-ai/dsh-client-connection'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
 import SecurityResearchController from '../src/index.ts'
@@ -24,10 +25,12 @@ async function missingManagerFixture() {
       'security-resource-fixture-controller': SecurityResearchController,
     })
   })
+  const peer = new Peer(ctx.root, { principal: { kind: 'owner' } })
   const call = (method: string, request?: unknown) => ctx.typertGateway.invoke({
+    peer,
     namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
   })
-  return { ctx, call }
+  return { ctx, call, peer }
 }
 
 const mutations = [
@@ -70,11 +73,11 @@ describe('Security resource Remotes without an optional manager', () => {
   })
 
   it('closes the actual carrier without retaining resource listeners', async () => {
-    const { ctx } = await missingManagerFixture()
+    const { ctx, peer } = await missingManagerFixture()
     const abort = new AbortController()
     onTestFinished(() => { abort.abort() })
     const stream = await ctx.typertGateway.wireStream.open(
-      'securityResearch/observeResources', { args: {} }, (async function* () {})(), undefined, abort.signal,
+      'securityResearch/observeResources', { args: {} }, (async function* () {})(), peer, abort.signal,
     )
     const iterator = stream[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toEqual({ state: 'unavailable', reason: 'component-missing' })

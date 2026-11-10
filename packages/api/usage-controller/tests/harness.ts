@@ -9,7 +9,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import SessionStore from '@deepseek-ai/dsh-session'
-import SessionPersistenceJsonl from '@deepseek-ai/dsh-session-persistence-jsonl'
+import * as SessionPersistenceJsonl from '@deepseek-ai/dsh-session-persistence-jsonl'
 import SessionQuerySqlite from '@deepseek-ai/dsh-session-query-sqlite'
 import UsageQueryService from '@cinlan/usage-query'
 import type { Config as UsageQueryConfig, UsageQueryRequest } from '@cinlan/usage-query'
@@ -20,7 +20,7 @@ import type { WebRoute, WebServer, WebUpgradeRoute } from '@deepseek-ai/dsh-host
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
 import * as UsageController from '../src/index.ts'
-import { seedUsageLogs } from './fixture.ts'
+import { seedUsageLogs, type JsonlPersistence } from './fixture.ts'
 
 /**
  * Assemble real providers from cordis.yml without an Agent or model adapter.
@@ -42,8 +42,11 @@ export async function createHarness(queryConfig: Partial<UsageQueryConfig> = {})
   ctx.baseUrl = pathToFileURL(root).href + '/'
   const webServer: Pick<WebServer, 'register' | 'registerUpgrade' | 'tapIndex' | 'port'> = {
     register(route) {
-      routes.push(route)
-      return () => { routes.splice(routes.indexOf(route), 1) }
+      // serveApi can only dispatch handler routes; resource routes have no HTTP carrier in this harness.
+      if (!('handler' in route)) return () => { }
+      const webRoute: WebRoute = route
+      routes.push(webRoute)
+      return () => { routes.splice(routes.indexOf(webRoute), 1) }
     },
     registerUpgrade(route) {
       upgrades.push(route)
@@ -88,7 +91,7 @@ export async function createHarness(queryConfig: Partial<UsageQueryConfig> = {})
   } as unknown as NonNullable<typeof ctx.loader.internal>
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
-  const persistence = ctx.get('sessionPersistence') as SessionPersistenceJsonl
+  const persistence = ctx.get('sessionPersistence') as JsonlPersistence
   const paths = await seedUsageLogs(persistence)
   return {
     ctx, root, routes, upgrades, persistence, paths,
@@ -162,7 +165,7 @@ function browserCookie(connection: HostConnectionHandle, origin: string): string
  * @param persistence - real provider whose original open still performs the read or abort check.
  * @returns the entry signal, scheduling release, and operation settlement.
  */
-export function holdColdOpen(persistence: SessionPersistenceJsonl) {
+export function holdColdOpen(persistence: JsonlPersistence) {
   const entered = Promise.withResolvers<AbortSignal>()
   const release = Promise.withResolvers<undefined>()
   const settled = Promise.withResolvers<undefined>()

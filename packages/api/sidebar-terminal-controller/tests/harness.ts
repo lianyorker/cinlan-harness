@@ -115,16 +115,17 @@ export async function createHarness(web = false) {
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(config).href } })
   await ctx.loader.await()
   const shared = ctx.connection.createSharedFetchHandler('/api')
+  const peer = new Connection.Peer(ctx.root, { principal: { kind: 'owner' } })
   const origin = web ? 'http://127.0.0.1:' + String(ctx.webServer.port) : undefined
   let rpcId = 0
   return {
     ctx,
     provider: ctx.sidebarTerminals as ExternalTerminals,
     call(method: string, args: Record<string, unknown> = {}) {
-      return ctx.typertGateway.invoke({ namespace: 'sidebarTerminals', method, args })
+      return ctx.typertGateway.invoke({ peer, namespace: 'sidebarTerminals', method, args })
     },
     async stream(method: string, args: Record<string, unknown>, signal = new AbortController().signal) {
-      const source = await ctx.typertGateway.wireStream.open('sidebarTerminals/' + method, { args }, (async function* () {})(), undefined, signal)
+      const source = await ctx.typertGateway.wireStream.open('sidebarTerminals/' + method, { args }, (async function* () {})(), peer, signal)
       return source[Symbol.asyncIterator]()
     },
     async rpc(method: string, args: Record<string, unknown> = {}, cookie?: string) {
@@ -133,7 +134,7 @@ export async function createHarness(web = false) {
         body: JSON.stringify({ type: 'client-request', rpcId: String(++rpcId), method: 'sidebarTerminals/' + method, payload: { args } }),
       }
       return origin === undefined
-        ? shared.fetch(new Request('dsh-app://app/api/sidebarTerminals/' + method, init))
+        ? shared.fetch(new Request('dsh-app://app/api/sidebarTerminals/' + method, init), peer)
         : fetch(origin + '/api/sidebarTerminals/' + method, init)
     },
     cookie() {

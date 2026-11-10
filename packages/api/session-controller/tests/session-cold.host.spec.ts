@@ -257,7 +257,7 @@ describe('sessions.archived cold summaries', () => {
     ctx.provide('workspaceRegistry', {
       archivedSessionIds: [sid('archived-one'), sid('missing-log')],
     } as never)
-    const remote = createSessionTestRemote(ctx, {
+    const remote = await createSessionTestRemote(ctx, {
       defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
       cwd: '/tmp',
     })

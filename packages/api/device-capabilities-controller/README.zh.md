@@ -3,7 +3,7 @@ description: "deviceCapabilities/check Remote 探测可选的 Computer Use 或 M
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-api-device-capabilities-controller
+# @cinlan/api-device-capabilities-controller
 
 [English](README.md) | 中文
 

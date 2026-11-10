@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { onTestFinished, expect, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
+import { Peer } from '@deepseek-ai/dsh-client-connection'
 import { boot } from '@deepseek-ai/dsh-app-boot'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import * as SecuritySkills from '@cinlan/security-skills'
@@ -110,12 +111,14 @@ export async function resourceHarness(configured = true) {
     })
   })
   const host = ctx
+  const peer = new Peer(host.root, { principal: { kind: 'owner' } })
   const call = (method: string, request?: unknown, signal?: AbortSignal) => host.typertGateway.invoke({
+    peer,
     namespace: 'securityResearch', method, args: request === undefined ? {} : { request },
     ...(signal === undefined ? {} : { signal }),
   }) as Promise<SecuritySkillResourceStatus>
   return {
-    ctx: host, root, resources, call, release,
+    ctx: host, root, resources, call, peer, release,
     holdArchive(): void { hold = true },
     releaseArchive(): void {
       hold = false

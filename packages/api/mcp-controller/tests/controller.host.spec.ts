@@ -1,5 +1,6 @@
 /** Real Gateway dispatch over a Loader-composed durable MCP manager. */
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { Peer } from '@deepseek-ai/dsh-client-connection'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
@@ -18,10 +19,12 @@ async function fixture() {
       'mcp-fixture-typert': TypertRegistry, 'mcp-fixture-gateway': TypertGateway, 'mcp-fixture-controller': McpController,
     })
   } })
+  const peer = new Peer(ctx.root, { principal: { kind: 'owner' } })
   const call = (method: string, request?: unknown) => ctx.typertGateway.invoke({
+    peer,
     namespace: 'mcp', method, args: request === undefined ? {} : { request },
   })
-  return { ctx, call }
+  return { ctx, call, peer }
 }
 
 const record = {
@@ -43,10 +46,10 @@ describe('MCP Remote management', () => {
   })
 
   it('streams committed replacements through the real carrier and cancels without retaining observers', async () => {
-    const { ctx, call } = await fixture()
+    const { ctx, call, peer } = await fixture()
     const abort = new AbortController()
     onTestFinished(() => { abort.abort() })
-    const source = await ctx.typertGateway.wireStream.open('mcp/watch', { args: {} }, (async function* () {})(), undefined, abort.signal)
+    const source = await ctx.typertGateway.wireStream.open('mcp/watch', { args: {} }, (async function* () {})(), peer, abort.signal)
     const iterator = source[Symbol.asyncIterator]()
     expect((await iterator.next()).value).toMatchObject({ revision: 0, servers: [] })
     await call('save', { record, expectedRevision: 0 })

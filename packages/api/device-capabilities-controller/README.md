@@ -3,7 +3,7 @@ description: "The deviceCapabilities/check Remote probes optional Computer Use o
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-api-device-capabilities-controller
+# @cinlan/api-device-capabilities-controller
 
 English | [中文](README.zh.md)
 

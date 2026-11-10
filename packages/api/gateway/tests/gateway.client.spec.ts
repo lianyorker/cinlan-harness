@@ -669,7 +669,8 @@ describe('Client Remote transport readiness', () => {
         await ctx.plugin({ inject: [], apply: applyConnection })
         await ctx.plugin({ inject, apply })
         await vi.advanceTimersByTimeAsync(0)
-        const connection = ctx.get('connection') as ConnectionHandle
+        const connection = ctx.get('connection') as ConnectionHandle | undefined
+        if (connection === undefined) throw new Error('injected Connection service is unavailable')
         expect(FakeWebSocket.sockets).toHaveLength(1)
         expect(connection.generation.getSnapshot()).toBeUndefined()
         await vi.advanceTimersByTimeAsync(110)
@@ -2827,7 +2828,8 @@ describe('Remote stream client carrier lifecycle', () => {
     await withFakeWebSocket('https://harness.example/', async () => {
       const ctx = new Context()
       installConnection(ctx, { interactions: 'answer', location: { hostname: 'harness.example' } })
-      const connection = ctx.get('connection') as ConnectionHandle
+      const connection = ctx.get('connection') as ConnectionHandle | undefined
+      if (connection === undefined) throw new Error('injected Connection service is unavailable')
       const mux = new RemoteStreamMuxClient(undefined, true)
       const cleanup = Promise.withResolvers<undefined>()
       const carrierFailed = vi.fn()

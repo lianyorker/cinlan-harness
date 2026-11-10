@@ -100,8 +100,8 @@ describe('OpenAI transcription through real voice Remote', () => {
     const closed = Promise.withResolvers<undefined>()
     const upstream = await httpFixture((request, response) => {
       request.resume()
-      response.on('close', () => { closed.resolve() })
-      entered.resolve()
+      response.on('close', () => { closed.resolve(undefined) })
+      entered.resolve(undefined)
     })
     const harness = await createHarness(false, { openAi: { baseURL: upstream.origin } })
     await harness.remote('openAiKeySave', { value: { apiKey: key() } })
