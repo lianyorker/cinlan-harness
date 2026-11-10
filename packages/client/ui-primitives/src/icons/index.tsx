@@ -178,9 +178,7 @@ export const IconDeliverDocMedium = productIcon('deliver-doc', 'medium')
 export const IconEditOutlineRegular = productIcon('edit-outline', 'regular')
 
 /** Medium IconEditOutline artwork with a 1.3px stroke. */
-export const IconEditOutlineMedium = (props: IconProps) => (
-  <IconEditOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
-)
+export const IconEditOutlineMedium = productIcon('edit-outline', 'medium')
 
 /** Regular one-pixel IconThinkOutline artwork. */
 export const IconThinkOutlineRegular = productIcon('think-outline', 'regular')
@@ -594,9 +592,7 @@ export const IconSlidersTwoOutlineMedium = productIcon('sliders-two-outline', 'm
 export const IconMicrophoneOutlineRegular = productIcon('microphone-outline', 'regular')
 
 /** Microphone with uniform 1.3px strokes. */
-export const IconMicrophoneOutlineMedium = (props: IconProps) => (
-  <IconMicrophoneOutlineArtwork {...props} strokeWidth={ICON_MEDIUM_STROKE} />
-)
+export const IconMicrophoneOutlineMedium = productIcon('microphone-outline', 'medium')
 
 // Backward-compatibility aliases for legacy icon size suffixes
 export const IconCloseOutline16 = IconCloseOutlineMedium

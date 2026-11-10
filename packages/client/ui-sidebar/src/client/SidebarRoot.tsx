@@ -341,7 +341,6 @@ export function SidebarRoot({
                 className={clsx(css.brand, css.wide)}
                 aria-label={t('session.new.label')}
                 aria-keyshortcuts={newShortcut?.aria}
-                onClick={() => { startSession() }}
                 onClick={(event) => {
                   if ((event.target as Element).closest('[data-copy-version]') !== null) return
                   openNewSession()

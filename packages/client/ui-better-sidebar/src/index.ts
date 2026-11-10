@@ -159,10 +159,10 @@ function shellOverridesOf(getSettings: () => SidebarSettingsFace | undefined): {
   const record = value as Record<string, unknown>
   const shell = typeof record.terminalShell === 'string' ? record.terminalShell.trim() : ''
   const args = typeof record.terminalShellArgs === 'string' ? record.terminalShellArgs.trim() : ''
-  return {
-    shell: shell === '' ? undefined : shell,
-    shellArgs: args === '' ? undefined : args.split(/\s+/).filter(Boolean),
-  }
+  const overrides: { shell?: string; shellArgs?: string[] } = {}
+  if (shell !== '') overrides.shell = shell
+  if (args !== '') overrides.shellArgs = args.split(/\s+/).filter(Boolean)
+  return overrides
 }
 
 function isSettingsConflict(error: unknown): error is { readonly message: string } {
@@ -182,7 +182,6 @@ function isSettingsConflict(error: unknown): error is { readonly message: string
 
 function buildApi(
   ctx: Context,
-  ptyManager: PtyManager | null,
   agentPtyRegistry: AgentPtyRegistry | null,
   resolved: ResolvedSidebarConfig,
   terminalShell: string,
@@ -455,7 +454,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     const viewOf = (): { value?: unknown; revision?: number } => {
       const descriptor = sctx.settings.describe({ redactSecrets: true }).find(candidate => candidate.ns === ns)
       return descriptor === undefined
-        ? { value: undefined, revision: undefined }
+        ? {}
         : { value: descriptor.value, revision: descriptor.revision }
     }
     // Mutual exclusion with the dsh-web-ui family right panel: the aionui
@@ -512,7 +511,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     transport.effect(() => registerTerminalBundleRoute(fetch), 'dsh-better-sidebar: authenticated terminal bundle')
   })
   const operations = createSidebarOperations({
-    api: buildApi(ctx, ptyManager, agentPtyRegistry, resolved, terminalShell, () => settingsFace),
+    api: buildApi(ctx, agentPtyRegistry, resolved, terminalShell, () => settingsFace),
     execution: (sessionId, signal, operation) => withSessionFiles(ctx, sessionId, signal, operation),
     mediaType: mediaTypeForPath,
     config: resolved,

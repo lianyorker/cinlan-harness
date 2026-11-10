@@ -9,7 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createShortcutsStore } from './store.ts'
 import { ShortcutReference, ShortcutSettingsPage } from './Reference.tsx'
-import { en, zh } from './locales.ts'
+import { de, en, es, fr, ja, pt, ru, zh } from './locales.ts'
 import { fixedCommands } from './fixed.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -54,7 +54,7 @@ export function apply(ctx: Context): void {
       let live = true
       let removeItems: (() => void) | undefined
       const publish = (): void => {
-        if (!live || ctx.fiber.store === undefined || ctx.fiber.uid === null) return
+        if (!live || ctx.fiber.uid === null) return
         removeItems?.()
         try {
           removeItems = ctx.settingsMetadata.registerItems('keybindings', [

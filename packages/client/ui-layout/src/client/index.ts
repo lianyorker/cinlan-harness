@@ -20,6 +20,7 @@ import { createLayoutStore } from './stores.ts'
 import { LayoutController } from './service.ts'
 import type { ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
 import { en, ja, es, fr, de, ru, pt, zh } from './shortcut-locales.ts'
+import { en as settingsEn, zh as settingsZh } from './settings-locales.ts'
 import { ThemePresenter } from './theme-presenter.ts'
 
 // Contract exports only (export-convergence rule: cross-package consumers
@@ -44,6 +45,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Layout keyboard command labels. */
     'shortcuts.layout': keyof typeof zh
+    /** Current-window layout settings copy. */
+    'settings.layout': keyof typeof settingsZh
   }
 
   interface GlobalStandardProps {
@@ -161,6 +164,7 @@ export const inject = ['slots', 'theme', 'locale', 'shortcuts']
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register('shortcuts.layout', { zh, en, ja, es, fr, de, ru, pt }), 'layout: command labels')
+  ctx.effect(() => ctx.locale.register('settings.layout', { zh: settingsZh, en: settingsEn }), 'layout: settings copy')
   const t = ctx.locale.bind('shortcuts.layout')
 
   ctx.effect(() => {

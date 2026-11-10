@@ -33,10 +33,10 @@ export function ArchiveSessionRowButton({
       <button
         type="button"
         className={css.iconButton}
-        aria-label={t('menu.archiveSession')}
-        onClick={() => { archiveSession(sessionId) }}
+        aria-label={t(archived ? 'menu.unarchiveSession' : 'menu.archiveSession')}
+        onClick={() => { (archived ? unarchiveSession : archiveSession)(sessionId) }}
       >
-        <IconArchiveOutlineRegular size={14} />
+        {archived ? <IconUnarchiveOutlineRegular size={14} /> : <IconArchiveOutlineRegular size={14} />}
       </button>
     </Tooltip>
   )

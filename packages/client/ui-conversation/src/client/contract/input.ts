@@ -218,6 +218,9 @@ export interface SessionInput extends InputTarget {
   readonly state: SnapshotStore<InputState>
 }
 
+/** An initialization request never waits for a React mount or a remote catalog. */
+export type DraftInitializationResult = 'applied' | 'preserved' | 'blocked'
+
 /** Session-addressed access to the per-session input facade. */
 export interface SessionInputResolver {
   /** Resolve the facade for one session-scope ctx. */
@@ -235,23 +238,6 @@ export interface SessionInputResolver {
 /** Initial text for a target Session; attachments remain under their existing owner. */
 export interface DraftInitializationOptions {
   readonly prompt?: string
-  readonly clearPreviousDraft?: boolean
-  /**
-   * Prepare the exact retained Session before navigation publishes it.
-   * @param binding - target Session generation, already retained by the caller.
-   * @param options - content to adopt and the handling of an existing draft.
-   * @returns applied, preserved, or blocked by a pending submission or disposal.
-   * @throws when binding is not the currently retained Session generation.
-   */
-  requestDraftInitialization(binding: SessionBinding, options: DraftInitializationOptions): DraftInitializationResult
-}
-
-/** An initialization request never waits for a React mount or a remote catalog. */
-export type DraftInitializationResult = 'applied' | 'preserved' | 'blocked'
-
-/** Initial text for a target Session; attachments remain under their existing owner. */
-export interface DraftInitializationOptions {
-  readonly prompt?: string
   /** `true` acts as `whenDraftExists: 'replace'`; ignored when `whenDraftExists` is set. */
   readonly clearPreviousDraft?: boolean
   /**
@@ -262,9 +248,6 @@ export interface DraftInitializationOptions {
    */
   readonly whenDraftExists?: 'replace' | 'append' | 'keep'
 }
-
-/** An initialization request never waits for a React mount or a remote catalog. */
-export type DraftInitializationResult = 'applied' | 'preserved' | 'blocked'
 
 /**
  * The public input action face provided to every session-scope slot

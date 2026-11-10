@@ -469,8 +469,10 @@ function SessionHoverContent({ node, cwd, now, renderSlot, t }: {
   renderSlot: RowRenderSlots
   t: RowTranslate
 }) {
-  // On visible rows every status shows; archived sessions never surface here.
+  // On archived rows the archived line already says the session is inactive,
+  // so resting statuses (idle/completed) drop; live activity still shows.
   const statuses = sessionStatuses(node, t)
+    .filter(status => !(node.archived && (status.state === 'done' || status.state === 'idle')))
   return (
     <div className={css.hoverContent}>
       <div className={css.hoverTitle}>{displayTitle(node, t)}</div>
@@ -485,6 +487,12 @@ function SessionHoverContent({ node, cwd, now, renderSlot, t }: {
           <span>{status.label}</span>
         </div>
       ))}
+      {node.archived && (
+        <div className={clsx(css.hoverStatus, css.hoverArchived)}>
+          <IconArchiveOutlineRegular size={14} />
+          <span>{t('row.archived')}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -492,7 +500,8 @@ function SessionHoverContent({ node, cwd, now, renderSlot, t }: {
 /**
  * One flat search result: title, Workspace context, and optional content
  * excerpt. Search navigation opens the session only; it does not address an
- * event inside the conversation.
+ * event inside the conversation. Archived rows carry a hover unarchive
+ * button, because search is where the filter surfaces them for recovery.
  * @param props.result - merged local/content search row.
  * @param props.currentId - selected session id.
  * @param props.onOpen - open the selected session.
@@ -508,6 +517,7 @@ export function SearchResultItem({
   result: SearchResultNode
   currentId: string | undefined
   onOpen: (id: SearchResultNode['id']) => void
+  onUnarchive: (id: SearchResultNode['id']) => void
   t: RowTranslate
 } & Pick<WorkspaceBrowserProps, 'useSessionAccess'>) {
   const selected = result.id === currentId
@@ -516,15 +526,20 @@ export function SearchResultItem({
   const primaryStatus = statuses[0]
   return (
     <div
-      className={clsx(css.searchResultRow, selected && css.selected)}
+      className={clsx(css.searchResultRow, selected && css.selected, result.archived && css.archived)}
       role="treeitem"
       aria-selected={selected}
+      aria-description={result.archived ? t('toast.archivedNotOpenable') : undefined}
       onClick={() => { onOpen(result.id) }}
     >
       <span className={css.searchResultHeading}>
-        {/* Like session rows, the leading slot owns every row marker. */}
+        {/* Like session rows, the leading slot owns every row marker; on
+            archived rows it stays blank — the grayed row carries the
+            archived look. */}
         <span className={css.slot}>
-          {primaryStatus.state !== 'idle' && <SessionStatusDots statuses={statuses} />}
+          {!result.archived && primaryStatus.state !== 'idle' && (
+            <SessionStatusDots statuses={statuses} />
+          )}
         </span>
         <span className={css.searchResultTitle}>{result.title || t('session.untitled')}</span>
         {result.archived && canUnarchive && (
@@ -643,6 +658,7 @@ export function SessionNodeItem({
       data-row-key={`session:${node.id}`}
       className={clsx(
         css.sessionRow, selected && css.selected, menuOpen && css.menuOpen,
+        row.archived && css.archived,
         drag?.marker === 'before' && css.dropBefore, drag?.marker === 'after' && css.dropAfter,
       )}
       role="treeitem"
@@ -689,7 +705,7 @@ export function SessionNodeItem({
           finished-but-unviewed reminder, which returns after activity stops
           and is cleared by opening the session. */}
       <span className={css.slot}>
-        {!row.blank && (showStatus
+        {!row.archived && !row.blank && (showStatus
           ? <SessionStatusDots statuses={statuses} />
           : renderSlot('sidebar.session.row.leading', { sessionId: node.id }))}
       </span>

@@ -106,6 +106,11 @@ export const ja = {
   'load.failed': 'ページを読み込めませんでした。再読み込みするか、システムブラウザで開いてください。',
   'load.failed.detail': 'ページの読み込みに失敗しました（{code}）: {description}',
   'address.unknown': 'ページが遷移しました。このキャリアは新しいURLを読み取れません。',
+  'designMode.toggle': 'Element Design Mode',
+  'designMode.active': 'Design Mode Active',
+  'designMode.banner': 'Design Mode: Click any element to inject details into session draft',
+  'designMode.exit': 'Exit Design Mode',
+  'designMode.injected': 'Element details injected into session draft',
 } satisfies Record<keyof typeof en, string>
 
 /** Spanish dictionary, checked against the English keys. */
@@ -136,6 +141,11 @@ export const es = {
   'load.failed': 'La página no se pudo cargar; recargarlo o abrirlo en el navegador del sistema.',
   'load.failed.detail': 'Error al cargar la página ({code}): {description}',
   'address.unknown': 'La página navegó; este operador no puede leer su nueva URL.',
+  'designMode.toggle': 'Element Design Mode',
+  'designMode.active': 'Design Mode Active',
+  'designMode.banner': 'Design Mode: Click any element to inject details into session draft',
+  'designMode.exit': 'Exit Design Mode',
+  'designMode.injected': 'Element details injected into session draft',
 } satisfies Record<keyof typeof en, string>
 
 /** French dictionary, checked against the English keys. */
@@ -166,6 +176,11 @@ export const fr = {
   'load.failed': "La page n'a pas pu se charger ; rechargez-le ou ouvrez-le dans le navigateur système.",
   'load.failed.detail': 'Échec du chargement de la page ({code}) : {description}',
   'address.unknown': 'La page parcourue ; cet opérateur ne peut pas lire sa nouvelle URL.',
+  'designMode.toggle': 'Element Design Mode',
+  'designMode.active': 'Design Mode Active',
+  'designMode.banner': 'Design Mode: Click any element to inject details into session draft',
+  'designMode.exit': 'Exit Design Mode',
+  'designMode.injected': 'Element details injected into session draft',
 } satisfies Record<keyof typeof en, string>
 
 /** German dictionary, checked against the English keys. */
@@ -196,6 +211,11 @@ export const de = {
   'load.failed': 'Die Seite konnte nicht geladen werden; neu laden oder im Systembrowser öffnen.',
   'load.failed.detail': 'Laden der Seite fehlgeschlagen ({code}): {description}',
   'address.unknown': 'Die Seite wurde navigiert; Dieser Netzbetreiber kann seine neue URL nicht lesen.',
+  'designMode.toggle': 'Element Design Mode',
+  'designMode.active': 'Design Mode Active',
+  'designMode.banner': 'Design Mode: Click any element to inject details into session draft',
+  'designMode.exit': 'Exit Design Mode',
+  'designMode.injected': 'Element details injected into session draft',
 } satisfies Record<keyof typeof en, string>
 
 /** Russian dictionary, checked against the English keys. */
@@ -226,6 +246,11 @@ export const ru = {
   'load.failed': 'Страница не может загрузиться; перезагрузите или откройте его в системном браузере.',
   'load.failed.detail': 'Ошибка загрузки страницы ({code}): {description}',
   'address.unknown': 'Страница перемещалась; этот оператор связи не может прочитать свой новый URL-адрес.',
+  'designMode.toggle': 'Element Design Mode',
+  'designMode.active': 'Design Mode Active',
+  'designMode.banner': 'Design Mode: Click any element to inject details into session draft',
+  'designMode.exit': 'Exit Design Mode',
+  'designMode.injected': 'Element details injected into session draft',
 } satisfies Record<keyof typeof en, string>
 
 /** Portuguese dictionary, checked against the English keys. */
@@ -256,4 +281,9 @@ export const pt = {
   'load.failed': 'A página não pôde carregar; recarregue ou abra-o no navegador do sistema.',
   'load.failed.detail': 'Falha no carregamento da página ({code}): {description}',
   'address.unknown': 'A página navegada; esta operadora não consegue ler seu novo URL.',
+  'designMode.toggle': 'Element Design Mode',
+  'designMode.active': 'Design Mode Active',
+  'designMode.banner': 'Design Mode: Click any element to inject details into session draft',
+  'designMode.exit': 'Exit Design Mode',
+  'designMode.injected': 'Element details injected into session draft',
 } satisfies Record<keyof typeof en, string>

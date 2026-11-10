@@ -64,6 +64,7 @@ type LayoutActions = {
   setRightbar: (draft: LayoutState, px: number) => void
   openRightbar: (draft: LayoutState, track: boolean, fullscreen: boolean) => void
   closeRightbar: (draft: LayoutState) => void
+  resetWidths: (draft: LayoutState) => void
 }
 
 /**
@@ -141,6 +142,14 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         d.layoutInfo.rightbarShown = false
         d.layoutInfo.rightbarTrack = false
         d.layoutInfo.rightbarFullscreen = false
+      },
+      resetWidths: (d) => {
+        d.layoutInfo.sidebar = SIDEBAR_DEFAULT
+        d.layoutInfo.rightbar = null
+        d.layoutInfo.rightbarShown = false
+        d.layoutInfo.rightbarTrack = false
+        d.layoutInfo.rightbarFullscreen = false
+        d.layoutInfo.rightbarInstant = false
       },
     },
   })

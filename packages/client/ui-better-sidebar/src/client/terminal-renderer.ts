@@ -1,6 +1,8 @@
 /** Optional GPU rendering without replacing the terminal or its process attachment. */
 import type { IEvent, ITerminalAddon, Terminal } from '@xterm/xterm'
-import type { TerminalRenderer } from '../prefs-shared.ts'
+
+/** Terminal rendering mode preference: GPU acceleration when available, else the DOM renderer. */
+export type TerminalRenderer = 'auto' | 'off'
 
 type WebglAddonLike = ITerminalAddon & { onContextLoss: IEvent<void> }
 type WebglAddonLoader = () => Promise<{ WebglAddon: new () => WebglAddonLike }>
@@ -16,7 +18,9 @@ export class TerminalRendererController {
   constructor(
     private readonly term: Pick<Terminal, 'loadAddon'>,
     private readonly getMode: () => TerminalRenderer,
-    private readonly loadWebglAddon: WebglAddonLoader = () => import('@xterm/addon-webgl'),
+    // The WebGL addon is an optional dependency: when it is not installed the
+    // default loader rejects and the terminal keeps the built-in DOM renderer.
+    private readonly loadWebglAddon: WebglAddonLoader = () => Promise.reject(new Error('@xterm/addon-webgl is not installed')),
   ) {}
 
   /** Mark the xterm instance ready for addon activation after `Terminal.open()`. */

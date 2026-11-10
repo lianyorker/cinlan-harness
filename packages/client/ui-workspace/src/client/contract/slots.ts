@@ -43,6 +43,7 @@ import type {
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from './toast.ts'
 import type { SessionSearchResultItem } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionActivity, WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -304,6 +305,8 @@ export type WorkspaceBrowserInjected = {
   searchResultLimit: number
   /** Open the Session rename dialog (a row title double-click); the rename action entry raises the same request. */
   requestSessionRename: (sessionId: SessionId, currentTitle: string) => void
+  /** Tell the user an archived row cannot be opened (a click on it). */
+  notifyArchivedNotOpenable: () => void
   /** Rename a Host Workspace (rejects on name conflict; resolves on durability). */
   renameWorkspace: (workspaceId: WorkspaceId, title: string) => Promise<void>
   /** Delete only a Host Workspace registration; directory and Session logs remain. */
@@ -313,6 +316,8 @@ export type WorkspaceBrowserInjected = {
    * Omitted anchor appends to the end.
    */
   insertWorkspaceBefore: (workspaceId: WorkspaceId, beforeWorkspaceId?: WorkspaceId) => Promise<void>
+  /** Remove a Session from the registry-global archived set (the search results' restore button). */
+  unarchiveSession: (sessionId: SessionId) => void
   /** Adopt a picked host directory as a real Workspace before targeting a Session. */
   createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
 }
@@ -340,6 +345,8 @@ export type RowToast =
   | { kind: 'sessionIdCopyFailed' }
   | { kind: 'pinFailed' }
   | { kind: 'unpinFailed' }
+  /** Opening an archived row's Session is refused; the toast offers unarchive/filter actions. */
+  | { kind: 'archivedNotOpenable' }
   | { kind: 'defaultWorkspaceFailed' }
   | { kind: 'forkRequiresOpen'; sessionId: SessionId }
   | { kind: 'shortcutForkFailed'; reason: 'unavailable' | 'failed' }
@@ -376,18 +383,24 @@ export interface PinSessionInjected {
  * Archive action share (menu row and hover button). The callback carries the
  * whole behavior: the Host call, the notice a success raises, the
  * stop-and-archive confirmation a Host refusal for running work raises, and
- * the diagnostics for any other rejection. Archived sessions never surface
- * as rows, so there is no restore branch here — the Settings page unarchives.
+ * the diagnostics for any other rejection. Rows read the archived set through
+ * {@link ArchiveSessionInjected.hooks} to switch between archive and restore.
  */
 export interface ArchiveSessionInjected {
+  hooks: {
+    /** Archived Session ids. */
+    archived: HostObservable<ReadonlySet<SessionId>>
+  }
   /**
    * Archive a Session into the registry-global set: the row keeps its
-   * account position and leaves the visible list; archiving the current
-   * session clears the selection into the New Session view state. A Session
-   * with running work is not archived by this call: the Host's refusal opens
-   * the stop-and-archive confirmation instead.
+   * account position and leaves the visible list; archiving the
+   * current session clears the selection into the New Session view state. A Session
+   * with running work is not archived by this call: the Host's
+   * refusal opens the stop-and-archive confirmation instead.
    */
   archiveSession: (sessionId: SessionId) => void
+  /** Remove a Session from the registry-global archived set. */
+  unarchiveSession: (sessionId: SessionId) => void
 }
 
 /**
@@ -483,7 +496,6 @@ export interface SessionRenameDialogInjected {
   renameSession: (sessionId: SessionId, title: string) => Promise<void>
 }
 
-/** Row toast share: the notice on display, its dismissal, and the undo action the archived notice offers. */
 /** Existing overlay share: the current notice and its dismissal. */
 export interface RowToastInjected {
   hooks: {
@@ -525,12 +537,9 @@ export type SessionDeleteDialogProps =
   & Omit<SessionDeleteDialogInjected, 'hooks'>
   & PropsHooks<SessionDeleteDialogInjected['hooks']>
 
-/** Props of the row toast entry in `shell.overlay`. */
 /** Props of the existing overlay's keyed notice dispatcher. */
 export type RowToastProps =
   PropsRuntime<'shell.overlay'>
-  & PropsLocale<'workspace'>
-  & Omit<RowToastInjected, 'hooks'>
   & PropsRenderSlots<'workspace.toast'>
   & Pick<RowToastInjected, 'dismissToast'>
   & PropsHooks<RowToastInjected['hooks']>

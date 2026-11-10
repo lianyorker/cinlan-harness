@@ -55,6 +55,8 @@ export interface SessionNode {
   completed: boolean
   /** In the registry-global pin set: leads its section, reorderable only among pinned rows. */
   pinned: boolean
+  /** In the registry-global archive set: renders grayed in place and cannot drag. */
+  archived: boolean
   updatedAt: number
   /** Session working directory; absent when the Host reports none or an empty path. */
   cwd?: string
@@ -62,6 +64,9 @@ export interface SessionNode {
 
 /** Session order selected by the Workspace browser. */
 export type SessionOrderBy = 'manual' | 'updated'
+
+/** The archived-visibility choice for the list and the search results. */
+export type ArchivedFilter = 'default' | 'show' | 'only'
 
 /** One workspace group section: header row facts + visible top-level session rows. */
 export interface GroupNode {
@@ -94,6 +99,8 @@ export interface SearchResultNode {
   runningSubagentCount: number
   /** Finished running while not selected and not yet opened (the green "done" reminder dot). */
   completed: boolean
+  /** In the registry-global archive set; the row renders its restore affordance and cannot drag. */
+  archived: boolean
   snippet?: string
 }
 
@@ -360,6 +367,7 @@ function sessionNode(
   list: SessionListState,
   statuses: SessionStatuses,
   pinned: ReadonlySet<SessionId>,
+  archived: ReadonlySet<SessionId>,
 ): SessionNode {
   const status = statuses.get(s.id)
   const pendingInteraction = visiblePendingKind(status?.pendingInteraction?.kind)
@@ -371,6 +379,7 @@ function sessionNode(
     runningSubagentCount: runningChildCount(list, s.id, statuses),
     completed: status?.completionUnread === true,
     pinned: pinned.has(s.id),
+    archived: archived.has(s.id),
     updatedAt: s.updatedAt,
     ...(s.cwd === undefined || s.cwd === '' ? {} : { cwd: s.cwd }),
     ...(pendingInteraction === undefined ? {} : { pendingInteraction }),
@@ -420,7 +429,7 @@ export function deriveGroups(
       containsCurrent: g.key === currentGroup,
       sessions: expanded
         ? sectionMembers(g.sessions, pinned)
-          .map(session => sessionNode(session, list, statuses, pinned))
+          .map(session => sessionNode(session, list, statuses, pinned, archived))
         : [],
     })
   }
@@ -479,7 +488,7 @@ export function deriveFlat(
       : []
   })
   return sectionMembers(members, pinned)
-    .map(session => sessionNode(session, list, statuses, pinned))
+    .map(session => sessionNode(session, list, statuses, pinned, archived))
 }
 
 /**
@@ -568,6 +577,7 @@ export function deriveSearchResults(
           ? {}
           : { pendingInteraction }),
         completed: status?.completionUnread === true,
+        archived: archived.has(summary.id),
         ...match === undefined ? {} : { snippet: match.snippet },
       }
     }),

@@ -27,6 +27,7 @@ export function readonlyWorkspace(unavailable: () => string): UiWorkspace {
     forkSession: reject,
     pinSession: reject,
     unpinSession: reject,
+    whenAccess: () => () => {},
   }
 }
 

@@ -6,7 +6,7 @@ import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 export type WebSearchSettingsLocaleKey =
   | 'nav'
   | 'title' | 'description'
-  | 'title' | 'description' | 'useSearchApi' | 'useSearchApiHint' | 'searchGuide' | 'searchGuideUrl'
+  | 'useSearchApi' | 'useSearchApiHint' | 'searchGuide' | 'searchGuideUrl'
   | 'apiKey' | 'apiKeyHint' | 'apiKeySet' | 'apiKeyUnset'
   | 'baseUrl' | 'baseUrlHint' | 'searchApiBaseUrl' | 'searchApiBaseUrlHint' | 'maxUses' | 'maxUsesHint' | 'count' | 'countHint'
   | 'overridden' | 'reset' | 'readOnly' | 'unavailable'
@@ -87,6 +87,7 @@ export function formLabels(t: (key: WebSearchSettingsLocaleKey) => string): Sett
 
 /** Japanese copy, checked against the English keys. */
 export const ja = {
+  'nav': 'Web 検索',
   'title': 'Web 検索',
   'description': 'DeepSeek 検索プロバイダーを設定します。',
   'useSearchApi': '新しい Web Search API を使用する',
@@ -118,6 +119,7 @@ export const ja = {
 
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
+  nav: 'Búsqueda web',
   title: 'búsqueda web',
   description: 'Configure el proveedor de búsqueda DeepSeek.',
   useSearchApi: 'Utilice la nueva búsqueda web API',
@@ -149,6 +151,7 @@ export const es = {
 
 /** French dictionary, checked against the English keys. */
 export const fr = {
+  nav: 'Recherche sur le Web',
   title: 'Recherche sur le Web',
   description: 'Configurez le moteur de recherche DeepSeek.',
   useSearchApi: 'Utilisez la nouvelle recherche Web API',
@@ -180,6 +183,7 @@ export const fr = {
 
 /** German dictionary, checked against the English keys. */
 export const de = {
+  nav: 'Websuche',
   title: 'Websuche',
   description: 'Richten Sie den Suchanbieter DeepSeek ein.',
   useSearchApi: 'Nutzen Sie die neue Websuche API',
@@ -211,6 +215,7 @@ export const de = {
 
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
+  nav: 'Веб-поиск',
   title: 'Веб-поиск',
   description: 'Настройте поисковую систему DeepSeek.',
   useSearchApi: 'Используйте новый веб-поиск API',
@@ -242,6 +247,7 @@ export const ru = {
 
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
+  nav: 'Pesquisa na web',
   title: 'Pesquisa na web',
   description: 'Configure o provedor de pesquisa DeepSeek.',
   useSearchApi: 'Use a nova Pesquisa na Web API',

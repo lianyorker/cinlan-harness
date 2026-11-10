@@ -60,7 +60,6 @@ export const en = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   'section.files': 'ファイルとフォルダ',
-  'section.subagents': 'サブエージェント',
   'section.sessions': 'セッション',
   'candidate.noCwd': '（cwdなし）',
   'crumb.root': 'ワークスペース',
@@ -79,7 +78,6 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   'section.files': 'Archivos y carpetas',
-  'section.subagents': 'Subagentes',
   'section.sessions': 'Sesiones',
   'candidate.noCwd': '(sin cwd)',
   'crumb.root': 'Espacio de trabajo',
@@ -98,7 +96,6 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   'section.files': 'Fichiers et dossiers',
-  'section.subagents': 'Sous-agents',
   'section.sessions': 'Séances',
   'candidate.noCwd': '(pas de cwd)',
   'crumb.root': 'Espace de travail',
@@ -117,7 +114,6 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   'section.files': 'Dateien und Ordner',
-  'section.subagents': 'Subagenten',
   'section.sessions': 'Sitzungen',
   'candidate.noCwd': '(kein CWD)',
   'crumb.root': 'Arbeitsbereich',
@@ -136,7 +132,6 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   'section.files': 'Файлы и папки',
-  'section.subagents': 'Субагенты',
   'section.sessions': 'Сессии',
   'candidate.noCwd': '(без КДВ)',
   'crumb.root': 'Рабочая область',
@@ -155,7 +150,6 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   'section.files': 'Arquivos e pastas',
-  'section.subagents': 'Subagentes',
   'section.sessions': 'Sessões',
   'candidate.noCwd': '(sem cwd)',
   'crumb.root': 'Espaço de trabalho',

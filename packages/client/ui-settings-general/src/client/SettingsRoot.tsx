@@ -283,9 +283,16 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const [localOpen, setLocalOpen] = useState(false)
   const [localActiveId, setLocalActiveId] = useState<string | undefined>(undefined)
   type SettingsRootStoreState = { open: boolean; activeId: string | undefined }
+  // The merged shell contract makes the store share optional; fixtures and
+  // component-local viewing state use the local fallback when it is absent.
   const storeProps = props as Partial<{
-    useStore: (selector: (state: unknown) => SettingsRootStoreState) => SettingsRootStoreState
-    actions: unknown
+    useStore: (selector: (state: SettingsRootStoreState) => SettingsRootStoreState) => SettingsRootStoreState
+    actions: {
+      open(): void
+      close(): void
+      select(id: string): void
+      openSection(id: string): void
+    }
   }>
   const storeState = storeProps.useStore !== undefined ? storeProps.useStore(state => state) : undefined
   const open = storeState !== undefined ? storeState.open : localOpen

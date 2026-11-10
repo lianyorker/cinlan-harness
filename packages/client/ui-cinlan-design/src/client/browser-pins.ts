@@ -1,8 +1,11 @@
 /** Browser annotations use a separate persistence key from standalone Design tabs. */
 import { defineStore } from '@deepseek-ai/dsh-client-store'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
-import type { InspectedElementData } from '@deepseek-ai/dsh-client-ui-sidebar-browser/client'
 import type { PinCategory } from '../types.ts'
+
+/** Inspected element data as the Browser page's slot owner declares it. */
+export type InspectedElementData = Parameters<PropsRuntime<'browser.design.tools'>['locateElement']>[0]
 
 /** A recorded element, not a live locator or a position on the current page. */
 export interface BrowserPin {

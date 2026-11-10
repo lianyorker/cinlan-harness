@@ -88,6 +88,7 @@ export const accessEn = {
 /** Japanese copy, checked against the English keys. */
 export const ja = {
   'title': '権限',
+  'nav': '権限预设',
   'description': '新しいセッションのデフォルトの権限モードを選択',
   'loading': '読み込み中',
   'unavailable': '利用不可',
@@ -104,6 +105,7 @@ export const ja = {
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
   'title': 'Permiso',
+  'nav': 'Permisos',
   'description': 'Elija el modo de permiso predeterminado para nuevas sesiones',
   'loading': 'Cargando',
   'unavailable': 'No disponible',
@@ -120,6 +122,7 @@ export const es = {
 /** French dictionary, checked against the English keys. */
 export const fr = {
   'title': 'Autorisation',
+  'nav': 'Autorisations',
   'description': "Choisissez le mode d'autorisation par défaut pour les nouvelles sessions",
   'loading': 'Chargement',
   'unavailable': 'Indisponible',
@@ -136,6 +139,7 @@ export const fr = {
 /** German dictionary, checked against the English keys. */
 export const de = {
   'title': 'Erlaubnis',
+  'nav': 'Berechtigungen',
   'description': 'Wählen Sie den Standardberechtigungsmodus für neue Sitzungen',
   'loading': 'Laden',
   'unavailable': 'Nicht verfügbar',
@@ -152,6 +156,7 @@ export const de = {
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
   'title': 'Разрешение',
+  'nav': 'Разрешения',
   'description': 'Выберите режим разрешений по умолчанию для новых сеансов',
   'loading': 'Загрузка',
   'unavailable': 'Недоступно',
@@ -168,6 +173,7 @@ export const ru = {
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
   'title': 'Permissão',
+  'nav': 'Permissões',
   'description': 'Escolha o modo de permissão padrão para novas sessões',
   'loading': 'Carregando',
   'unavailable': 'Indisponível',

@@ -254,7 +254,7 @@ export class AgentPtyRegistry {
     pty.onExit(({ exitCode, signal }) => {
       handle.exited = true
       handle.exitCode = exitCode
-      handle.exitSignal = signal
+      handle.exitSignal = signal ?? null
       this.pendingExits.delete(pty)
       settleExit()
       this.notify()

@@ -40,6 +40,13 @@ export const SIDE_BOUNDARY_PREFIX = 'Side conversation boundary'
  *  structurally — not by text prefix. */
 export const SIDE_INJECTION_PLUGIN = 'dsh-better-sidebar'
 
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    /** Context injected by a client plugin; `plugin` names the producer. */
+    plugin: { kind: 'plugin'; plugin: string }
+  }
+}
+
 /**
  * The boundary prompt delivered as the thread's first user message: the
  * inherited seed is reference context only, never active instruction.
@@ -214,7 +221,8 @@ const SNAPSHOT_TOTAL_CAP = 8000
 export function buildSidechatInheritance(events: readonly SidechatLogEvent[]): SidechatInheritance {
   if (events.length === 0) return { seed: [], snapshot: null }
   const boundary = lastTurnBoundary(events)
-  if (boundary < 0 || events[boundary]?.type === 'turn/end') {
+  const boundaryEvent = events[boundary]
+  if (boundary < 0 || boundaryEvent === undefined || boundaryEvent.type === 'turn/end') {
     // Ends outside any turn (or has no turns at all): the whole log is a
     // valid, balanced seed — possibly ending with a pending user message.
     return { seed: copyEvents(events), snapshot: null }
@@ -230,7 +238,7 @@ export function buildSidechatInheritance(events: readonly SidechatLogEvent[]): S
   }
   const seed = copyEvents(events)
   const last = events[events.length - 1]
-  const turn = numberAt(dataOf(events[boundary]!), 'turn')
+  const turn = numberAt(dataOf(boundaryEvent), 'turn')
   const now = last?.time ?? 0
   const openStep = openStepInTurn(events, boundary)
   if (openStep !== undefined) {

@@ -161,6 +161,8 @@ class TurnGroups {
       previous = key
       followed = position.next !== undefined
       const node = readNode(input, key)
+      // Both Definitions retain the same message id; only its question presentation renders.
+      if (node.kind === 'turn-trigger' && replies.has(node.id)) continue
       if (isAtOrOutside(node, 'process')) {
         flush(true)
         emit(key, { kind: 'node', key })

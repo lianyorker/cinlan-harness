@@ -172,9 +172,7 @@ export type SlotSpec<E extends SlotEntryDef> = {
   kind: E['kind']
   scope: E['scope']
   /** Use span anchors and error placeholders for inline content; omitted uses div. */
-  inline?: true
-  /** Use span anchors and error placeholders for inline content; omitted uses div. */
-  inline?: true
+  inline?: E extends { inline: true } ? true : undefined
 } & ('phases' extends keyof E
   ? E['phases'] extends readonly string[]
     ? { phases: E['phases'] }

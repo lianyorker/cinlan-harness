@@ -42,6 +42,9 @@ import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
 import { HostReleasePrompt, type HostReleasePromptInjected } from './HostReleasePrompt.tsx'
+import { DesktopUpdateBadge } from './DesktopUpdateIndicator.tsx'
+import { DesktopUpdateSource } from './desktop-update-source.ts'
+import type { DesktopUpdateBridge } from '../types.ts'
 import { en, ja, es, fr, de, ru, pt, zh, type SettingsKey } from './locales.ts'
 
 export type {
@@ -242,7 +245,7 @@ export function apply(ctx: ClientContext): void {
           'settings.section.icon': { kind: 'keyed', scope: 'root' },
           'settings.onboarding': { kind: 'list', scope: 'root' },
         },
-        inject: shellInjected,
+        inject: () => shellInjected,
       }, SettingsRoot)
       return () => { disposeCommand(); disposeSlot() }
     }))

@@ -147,58 +147,6 @@ function orderOptionalBundles(packages: readonly PackageView[]): PackageView[] {
   return [...packages].sort((a, b) => optionalBundleRank(a.name) - optionalBundleRank(b.name))
 }
 
-/** The optional bundles the main list always holds, in this order; new bundles join the main list. */
-const EXTENSION_BUNDLES = [
-  '@deepseek-ai/dsh-experimental-agent-team-profile',
-  '@deepseek-ai/dsh-experimental-voice-input-bundle',
-  '@deepseek-ai/dsh-experimental-auto-review',
-  '@deepseek-ai/dsh-experimental-inspector-profile',
-]
-/** The optional bundles the main list holds back until the profile picks them; the More list shows them from the start. */
-const MORE_BUNDLES = [
-  '@deepseek-ai/dsh-experimental-tool-worktree',
-  '@deepseek-ai/dsh-experimental-cot-translation-bundle',
-  '@deepseek-ai/dsh-experimental-terminal-bundle',
-  '@deepseek-ai/dsh-experimental-session-search',
-  '@deepseek-ai/dsh-experimental-session-titles-bundle',
-  '@deepseek-ai/dsh-experimental-badge-skill-bundle',
-  '@deepseek-ai/dsh-experimental-ralph-bundle',
-  '@deepseek-ai/dsh-experimental-plugin-market-bundle',
-  '@deepseek-ai/dsh-subagent-codex',
-  '@deepseek-ai/dsh-subagent-claude-code',
-]
-/**
- * Whether the main list shows an official optional bundle: the always-held ones, and any held-back one the profile enabled.
- * @param pkg - the official bundle as the Host reports it.
- * @returns whether the main list shows it.
- */
-function pinnedToMainList(pkg: PackageView): boolean {
-  return !MORE_BUNDLES.includes(pkg.name) || pkg.enabled
-}
-
-/**
- * Where an optional bundle sits on both lists: the always-held ones in their order, then the bundles neither list
- * ranks, then the held-back ones in theirs, so Codex and Claude Code stay last on the More list.
- * @param name - the bundle's package name.
- * @returns the rank; bundles of equal rank keep the order the Host reported.
- */
-function optionalBundleRank(name: string): number {
-  const alwaysHeld = EXTENSION_BUNDLES.indexOf(name)
-  if (alwaysHeld >= 0) return alwaysHeld
-  const heldBack = MORE_BUNDLES.indexOf(name)
-  return heldBack < 0 ? EXTENSION_BUNDLES.length : EXTENSION_BUNDLES.length + 1 + heldBack
-}
-
-/**
- * Order the official optional bundles as both lists show them, so a bundle the profile picks from the More list
- * keeps its place among the neighbours the main list already holds.
- * @param packages - the official bundles the Host offers.
- * @returns the bundles in display order.
- */
-function orderOptionalBundles(packages: readonly PackageView[]): PackageView[] {
-  return [...packages].sort((a, b) => optionalBundleRank(a.name) - optionalBundleRank(b.name))
-}
-
 /** Feature previews of official bundles, shown on their detail pages and selected by UI language. */
 const BUNDLE_PREVIEWS = new Map<string, Readonly<Record<'en' | 'zh', string>>>([
   ['@deepseek-ai/dsh-experimental-badge-skill-bundle', { en: badgeSkillPreview, zh: badgeSkillPreviewZh }],
