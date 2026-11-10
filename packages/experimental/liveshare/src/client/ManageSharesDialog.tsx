@@ -1,4 +1,6 @@
 /** Global owner-side list of shares; each row opens that Session's share dialog. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button, Modal, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'

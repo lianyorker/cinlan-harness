@@ -5,6 +5,8 @@
  * `dsh-resource://forge-changes/<session>/change/<url>`, each part
  * percent-encoded; the source names the tab.
  */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import type { SidebarRightTabDefinition } from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'

@@ -7,6 +7,8 @@
  *
  * @module @deepseek-ai/dsh-experimental-liveshare/src/client/viewer-session
  */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-client-connection/client'

@@ -1,3 +1,5 @@
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import type {} from '@deepseek-ai/dsh-agent/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'

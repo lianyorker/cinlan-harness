@@ -1,4 +1,6 @@
 /** Host-wide removal of every ended task, as the management page's one action reports it. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ScheduleDeleteInactiveResult } from '@deepseek-ai/dsh-schedule/client'
 

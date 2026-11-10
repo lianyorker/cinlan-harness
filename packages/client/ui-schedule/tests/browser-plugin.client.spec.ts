@@ -1,3 +1,5 @@
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi, type Mock } from 'vitest'
@@ -9,7 +11,6 @@ import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-c
 import { apply, inject } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {
   ScheduleEditRequest, ScheduleEditResult, ScheduleId, ScheduleInputErrorCode, ScheduleRunRequest, ScheduleRunResult,

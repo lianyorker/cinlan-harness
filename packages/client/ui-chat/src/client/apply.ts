@@ -1,3 +1,5 @@
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-context-menu/client'
 /** Register the Chat Conversation target, renderers, stats, and details surface. */
 import type {} from '@deepseek-ai/dsh-client-ui-file-drag/client'
@@ -5,7 +7,6 @@ import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { GroupKey } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'

@@ -1,4 +1,6 @@
 /** Tool UI slot declarations and their composed component props. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, SessionIdOf,
 } from '@deepseek-ai/dsh-client-ui-slots'

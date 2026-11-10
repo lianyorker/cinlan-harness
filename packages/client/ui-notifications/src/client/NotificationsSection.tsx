@@ -1,4 +1,6 @@
 /** Notifications settings page shown inside the Settings shell. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import { Button, Input, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useRef, useState } from 'react'

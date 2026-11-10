@@ -4,6 +4,8 @@
  * review, merge state, and the changed lines, which open its changes) above
  * the ready-for-review or merge action.
  */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import { useEffect, useState, type ReactNode } from 'react'
 import clsx from 'clsx'

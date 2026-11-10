@@ -1,4 +1,6 @@
 /** Calendar glyph for the date row's picker trigger. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ReactNode } from 'react'
 
 /** Inputs of the calendar glyph, matching the product icon set's props. */

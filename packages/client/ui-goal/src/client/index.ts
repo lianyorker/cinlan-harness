@@ -8,13 +8,14 @@
  * for its initial history open to succeed before contacting the Host.
  * This plugin does not create goals; deployments may expose /goal separately.
  */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls the generated Remote API and ctx.remote merge through the Client assembly boundary.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: pulls the Session Controller service used for projected goal state.
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 // Type-only: pulls the Chat node slot and its keyed data map.
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 // Type-only: pulls the Conversation service and input-dock slot.

@@ -6,6 +6,8 @@
  * the Subagent runtime (`subagent`), and the Schedule plugin (`schedule`) —
  * through the Workspace registry's archive-admission events.
  */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'

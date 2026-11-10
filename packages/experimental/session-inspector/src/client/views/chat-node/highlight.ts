@@ -1,4 +1,6 @@
 /** Clipping geometry for the Inspector's element-picker overlay outside the Chat subtree. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 /**
  * Intersect a Chat box with its scrollports and the transcript area above the composer.

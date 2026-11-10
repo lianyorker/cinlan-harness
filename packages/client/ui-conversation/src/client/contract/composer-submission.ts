@@ -1,4 +1,6 @@
 /** Composer submission vocabulary shared by the input and settings domains. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import type { BusyEnterBehavior } from '../../submission-settings.ts'
 

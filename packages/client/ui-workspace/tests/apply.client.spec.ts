@@ -1,11 +1,12 @@
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {
+  ISessions, SessionListState, SessionReference, SessionSnapshot, SessionSummary,
+} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ContextMenuTarget } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { MenuRegistry } from '@deepseek-ai/dsh-client-ui-context-menu/src/client/registry.ts'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import type {
-  ISessions, SessionListState, SessionReference, SessionSnapshot, SessionSummary,
-} from '@deepseek-ai/dsh-api-session-controller/client'
 import { SessionForkError } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId, WorkspaceSnapshot, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -388,7 +389,6 @@ describe('ui-workspace apply', () => {
     }, SidebarDeclarationOwner)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     b.setSessions(sessionState([{ ...summary('source', 1), retainedBy: { mainView: 1 } }]))
-    const browser = faceOf(b.slots.entries('sidebar.workspaces')[0]!) as WorkspaceBrowserInjected
     const toast = faceOf(entry(b.slots, 'shell.overlay', 'workspace.row-toast')) as RowToastInjected
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
     onTestFinished(() => { warning.mockRestore() })
@@ -398,8 +398,6 @@ describe('ui-workspace apply', () => {
       resolution.run()
     }
 
-    browser.notifyArchivedNotOpenable()
-    expect(toast.hooks.toast.getSnapshot()).toMatchObject({ kind: 'archivedNotOpenable' })
     b.fork.mockRejectedValueOnce(new SessionForkError(
       new RemoteError('session/fork-unavailable', 'no completed turn', { sessionId: sid('source') }), sid('source'),
     ))
@@ -422,11 +420,8 @@ describe('ui-workspace apply', () => {
     expect(b.slots.entries('sidebar.workspaces')).toEqual([])
     expect(entry(b.slots, 'shell.overlay', 'workspace.row-toast').component).toBe(RowActionToast)
     expect(toast.hooks.toast.getSnapshot()).toBe(failure)
-    browser.notifyArchivedNotOpenable()
-    expect(toast.hooks.toast.getSnapshot()).toMatchObject({ kind: 'archivedNotOpenable' })
     toast.dismissToast()
     expect(toast.hooks.toast.getSnapshot()).toBeNull()
-    expect(browser).not.toHaveProperty('dismissForkError')
   })
 
   it('derives the pinned and archived Sets from the Workspace snapshot, rebuilt only when it changes', async () => {
@@ -519,6 +514,7 @@ describe('ui-workspace apply', () => {
     declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const archiveSession = vi.spyOn(b.ctx.uiWorkspace, 'archiveSession').mockResolvedValue(undefined)
+    const unarchiveSession = vi.spyOn(b.ctx.uiWorkspace, 'unarchiveSession').mockResolvedValue(undefined)
     const toast = faceOf(entry(b.slots, 'shell.overlay', 'workspace.row-toast')) as RowToastInjected
     const archive = faceOf(entry(b.slots, ROW_ACTION, 'archive')) as ArchiveSessionInjected
 
@@ -591,19 +587,7 @@ describe('ui-workspace apply', () => {
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const unarchiveSession = vi.spyOn(b.ctx.uiWorkspace, 'unarchiveSession').mockResolvedValue(undefined)
     const toast = faceOf(entry(b.slots, 'shell.overlay', 'workspace.row-toast')) as RowToastInjected
-    const browser = faceOf(b.slots.entries('sidebar.workspaces')[0]!) as WorkspaceBrowserInjected
     const view = viewInstance(b.slots)
-
-    // The browser raises the not-openable notice into the same entry, and the source notifies.
-    expect(toast.hooks.toast.getSnapshot()).toBeNull()
-    const noticed = vi.fn()
-    const unsubscribe = toast.hooks.toast.subscribe(noticed)
-    browser.notifyArchivedNotOpenable()
-    expect(toast.hooks.toast.getSnapshot()).toEqual({ kind: 'archivedNotOpenable', seq: 1 })
-    expect(noticed).toHaveBeenCalledOnce()
-    toast.dismissToast()
-    expect(toast.hooks.toast.getSnapshot()).toBeNull()
-    unsubscribe()
 
     expect(view.getSnapshot().archivedFilter).toBe('default')
     const archived = b.slots.entries('workspace.toast').find(row => row.options.key === 'archived')!

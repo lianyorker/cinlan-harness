@@ -1,4 +1,6 @@
 /** Adapt authorized delivery and changed-file routes to the shared opening control. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-deliverables/client'
 import { parseNativeFileApplications } from '@deepseek-ai/dsh-native-command/types'

@@ -7,6 +7,8 @@
  * (null), and complete goals render nothing. Durable state arrives as the projected whole snapshot;
  * process-local activation arrives through the injected activation hook.
  */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GoalActivation, GoalSnapshot } from '@deepseek-ai/dsh-goal/client'

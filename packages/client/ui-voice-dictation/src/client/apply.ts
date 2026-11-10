@@ -1,10 +1,11 @@
 /** Voice settings, visible composer button, and global Ctrl+Shift+E dictation plugin. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DictationController } from './dictation-controller.ts'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'

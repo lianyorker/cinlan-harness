@@ -15,6 +15,8 @@
  * a union resolve to `undefined`, which the type-aware lint reads as a duplicated
  * constituent. The indexed access names the same union without the pair.
  */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 /** The values of a record, as one union. */
 type ValuesOf<T> = T[keyof T]

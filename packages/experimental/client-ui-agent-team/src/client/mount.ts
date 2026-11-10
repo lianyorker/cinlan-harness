@@ -1,4 +1,6 @@
 /** Source-safe Agent Teams browser registration and Remote mount lifecycle. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import type {
   TeamMemberView as TeamRosterMember,
@@ -7,11 +9,11 @@ import type {
 import type {} from '@deepseek-ai/dsh-experimental-agent-team/remote'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { TypertRemoteContribution } from '@deepseek-ai/dsh-typert-protocol'
 import {
   TeamAction, type TeamActionInjected, type TeamActionResult, type TeamTaskActionResult,
@@ -26,7 +28,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required browser services for RPC, navigation, slots, and localized copy. */
-export const inject = ['sessions', 'remote', 'slots', 'locale']
+export const inject = ['sessions', 'remote', 'slots', 'locale', 'uiWorkspace']
 
 function registerUi(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'client-ui-agent-team: dictionaries')
@@ -50,22 +52,9 @@ function registerUi(ctx: ClientContext): void {
         ...owner === undefined ? {} : { owner },
       })
     },
-    async openTeammate(sessionId: SessionId, member: TeamRosterMember): Promise<void> {
+    async openTeammate(_sessionId: SessionId, member: TeamRosterMember): Promise<void> {
       if (member.role !== 'teammate') return
-      const parentSessionId = leadSessionId(sessionId)
-      await (sessions as any).refreshSubagents?.(parentSessionId)
-      const snapshot = sessions.list.getSnapshot() as any
-      const current = snapshot.current ?? (Object.values(snapshot.byId ?? {}).find((row: any) => ((row as any).retainedBy?.mainView ?? 0) > 0) as any)?.id
-      if (current !== sessionId) return
-      if (typeof (sessions as any).openSubagent === 'function') {
-        (sessions as any).openSubagent({
-          parentSessionId,
-          childSessionId: member.id,
-          mode: 'continuable',
-        })
-      } else if (typeof (sessions as any).open === 'function') {
-        (sessions as any).open(member.id)
-      }
+      ctx.uiWorkspace.openSession(member.id)
     },
   }
 

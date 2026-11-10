@@ -1,3 +1,5 @@
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 // @vitest-environment jsdom
 /**
  * The assembled viewer page on a share whose owner granted writing: the shared Session itself becomes

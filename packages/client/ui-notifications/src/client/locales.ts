@@ -1,4 +1,6 @@
 /** Localized copy for the Notifications settings section. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 export const zh = {
   nav: '通知',

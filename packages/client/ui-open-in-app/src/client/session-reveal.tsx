@@ -1,4 +1,6 @@
 /** Native directory reveal contributed to the captured Session's structured menu. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OpenInAppController } from './controller.ts'

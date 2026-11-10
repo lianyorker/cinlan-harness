@@ -1,4 +1,6 @@
 /** Changed-file navigation shared by the toolbar menu and wide diff pane, with a disclosure column on every row. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import { useMemo, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { FileTypeIcon, IconChevronDownOutlineRegular, IconFolderCloseRegular, Input, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'

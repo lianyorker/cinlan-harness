@@ -1,3 +1,5 @@
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ContextPressureProjection } from '@deepseek-ai/dsh-token-meter/client'
 
 /** Context usage rendered by conversation and Chat status surfaces. */

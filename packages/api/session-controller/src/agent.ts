@@ -1,4 +1,6 @@
 /** Agent activation, composition, and initial model route owned by API Session. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'

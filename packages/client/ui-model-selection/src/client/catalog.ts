@@ -1,4 +1,6 @@
 /** One Host-generation model catalog shared by every Session selector. */
+// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ModelCatalog, ModelSelection, ModelProviderGroup } from '@deepseek-ai/dsh-api-remotes/client'
