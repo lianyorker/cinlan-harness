@@ -800,6 +800,46 @@ export interface ClientMarker {
     expect(artifacts.find(artifact => artifact.face === 'client')?.dts).toContain('ClientMarker')
   })
 
+  it('keeps a client-only package out of the host face registration', () => {
+    const root = copyFixture()
+    mkdirSync(join(root, 'packages/client-only/src/client'), { recursive: true })
+    writeFileSync(join(root, 'packages/client-only/package.json'), `${JSON.stringify({
+      name: '@fixture/client-only',
+      private: true,
+      type: 'module',
+      dsh: { client: {} },
+      exports: { '.': './src/index.ts', './client': './src/client/index.ts' },
+    }, null, 2)}\n`)
+    writeFileSync(join(root, 'tsconfig.base.client.json'), `${JSON.stringify({
+      extends: './tsconfig.base.json',
+      compilerOptions: { jsx: 'react-jsx', lib: ['ES2024', 'DOM', 'DOM.Iterable'] },
+    }, null, 2)}\n`)
+    writeFileSync(join(root, 'packages/client-only/tsconfig.json'), `${JSON.stringify({
+      extends: '../../tsconfig.base.client.json',
+      compilerOptions: { rootDir: 'src', outDir: 'lib/types', noEmit: false, declaration: true, emitDeclarationOnly: true },
+      include: ['src'],
+      references: [],
+    }, null, 2)}\n`)
+    writeFileSync(join(root, 'packages/client-only/src/client/index.ts'), "import type {} from '@fixture/remote/remote'\n")
+    // The generated Remote declaration exists only as a build output, so a host
+    // program that reaches it must be rejected by the source-only guard.
+    mkdirSync(join(root, 'packages/remote/lib'), { recursive: true })
+    writeFileSync(join(root, 'packages/remote/lib/typert.remote-client.d.ts'), 'export type RemoteStub = true\n')
+    editFile(root, 'tsconfig.base.json', source => source.replace(
+      '"@fixture/remote/*": ["./packages/remote/src/*"]',
+      '"@fixture/remote/*": ["./packages/remote/src/*"],\n      "@fixture/remote/remote": ["./packages/remote/lib/typert.remote-client.d.ts"]',
+    ))
+    writeFileSync(join(root, 'tsconfig.client.json'), `${JSON.stringify({
+      extends: './tsconfig.base.json',
+      files: [],
+      references: [{ path: './packages/remote' }, { path: './packages/client-only' }],
+    }, null, 2)}\n`)
+
+    const model = new WorkspaceAnalyzer({ root, checkDiagnostics: false, faces: ['host'], rejectBuildOutputs: true }).analyze()
+    const host = model.faces.find(face => face.face === 'host')
+    expect(host?.packages.map(pkg => pkg.name)).not.toContain('@fixture/client-only')
+  })
+
   it.each([
     {
       name: 'missing binding',

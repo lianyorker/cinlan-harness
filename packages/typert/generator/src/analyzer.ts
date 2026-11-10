@@ -6,7 +6,7 @@
  */
 
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
-import { dirname, extname, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import ts from 'typescript'
 import { findBuildOutputLoads, findUnresolvedWorkspaceImports } from './build-output-guard.ts'
 import type { BuildOutputLoad, UnresolvedWorkspaceImport } from './build-output-guard.ts'
@@ -561,7 +561,12 @@ export class WorkspaceAnalyzer {
         })
         if (!isDualFacePackage(manifest)) {
           registrations.push(register(face))
-        } else if (configPath === join(packageRoot, 'tsconfig.json')) {
+        } else if (configPath === join(packageRoot, 'tsconfig.json')
+          && classifyConfigFace(configPath, caches) === 'host') {
+          // A neutral compiler face can carry both runtime halves, so both
+          // faces analyze the same program regardless of which aggregate
+          // references the package. A client compiler face never feeds the
+          // host program, even when a host aggregate references the package.
           registrations.push(
             register('host', hostExportSubpaths(manifest)),
             register('client', clientExportSubpaths(manifest)),
@@ -2934,6 +2939,28 @@ function hasPackageSurface(model: PackageModel): boolean {
     || model.objects.length > 0
     || model.schemas.length > 0
     || model.invocations.length > 0
+}
+
+/**
+ * The compiler face a config's `extends` chain selects: `client` when the chain
+ * reaches the client base, `host` for the neutral base or no base at all.
+ * @param configPath - absolute config path to classify.
+ * @param caches - shared config parses.
+ * @returns the selected compiler face.
+ */
+function classifyConfigFace(configPath: string, caches: WorkspaceCaches): TypertFace {
+  let current = configPath
+  for (let depth = 0; depth < 16; depth++) {
+    const raw = caches.config(current).parsed.raw as { extends?: string | readonly string[] } | undefined
+    const targets = raw?.extends === undefined ? [] : Array.isArray(raw.extends) ? [...raw.extends] : [raw.extends]
+    if (targets.length === 0) return 'host'
+    for (const target of targets) {
+      const resolved = isAbsolute(target) ? target : resolve(dirname(current), target)
+      if (basename(resolved).toLowerCase() === 'tsconfig.base.client.json') return 'client'
+      if (target === targets[0]) current = resolved
+    }
+  }
+  return 'host'
 }
 
 function isDualFacePackage(manifest: Record<string, unknown>): boolean {
