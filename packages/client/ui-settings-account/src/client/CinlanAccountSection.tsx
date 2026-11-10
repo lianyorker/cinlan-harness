@@ -6,7 +6,6 @@ import {
 import type { InjectFace, HostObservable, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { Sub2ApiAccountState } from '@deepseek-ai/dsh-api-account-controller/types'
 import type { CinlanAccountKey } from './cinlan-locales.ts'
-import { AccountAvatar } from './AccountAvatar.tsx'
 import css from './CinlanAccountSection.module.css'
 
 /** Snapshot the registration publishes for this page. */
@@ -61,7 +60,6 @@ export function CinlanAccountSection({ t, useState: useCinlan, refresh, signIn, 
     <section className={css.section} aria-label={t('nav')}>
       <div className={css.card}>
         <div className={css.identity}>
-          <span className={css.avatar}><AccountAvatar url={null} /></span>
           <div className={css.identityCopy}>
             <span className={css.name}>{signedIn ? t('signedInTitle') : t('signedOutTitle')}</span>
             <span className={css.status} role="status">{status}</span>

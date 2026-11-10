@@ -31,7 +31,6 @@ export function terminalBlockLabels(t: TranslateNS<'conversation'>): TerminalBlo
     collapse: t('collapse'),
     expandAria: hidden => t('terminal.expandAria', { n: hidden }),
     expand: hidden => t('terminal.expandRest', { n: hidden }),
-    commandLine: line => t('terminal.commandLine', { n: line }),
   }
 }
 
@@ -97,20 +96,6 @@ export function localizeTerminalCardModel(
 export function terminalFailed(model: TerminalCardModel): boolean {
   const { exitCode, signal, running } = model.card
   return running !== true && ((exitCode !== undefined && exitCode !== 0) || signal !== undefined)
-}
-
-/**
- * Localize a settled foreground command's exit status without inventing a code.
- * @param model - terminal card, absent for generic execution errors.
- * @param t - conversation locale.
- * @returns the capsule label, or null for running, background, or successful calls.
- */
-export function terminalExitLabel(model: TerminalCardModel | null | undefined, t: TranslateNS<'conversation'>): string | null {
-  if (model == null || !terminalFailed(model)) return null
-  const { exitCode, signal } = model.card
-  if (signal !== undefined) return t('terminal.signal', { signal })
-  if (exitCode == null) return t('terminal.noExitCode')
-  return t('terminal.exitCode', { code: exitCode })
 }
 
 /**

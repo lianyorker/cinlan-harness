@@ -55,7 +55,4 @@ export function apply(ctx: ClientContext): void {
       }, AgentLoopSettingsSection)
     })), 'ui-settings-agent-loop: general row')
 
-  ctx.effect(() => ctx.configForms.whileServed([AGENT_LOOP_NS], () => ctx.slots.inject('plugins.item', () => ctx.slots.register({
-    name: 'plugins.item', id: 'agent-loop', order: 30, label: () => t('title'), locale: NS, inject: () => card.inject(),
-  }, AgentLoopCard))), 'ui-settings-agent-loop: page')
 }

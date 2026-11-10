@@ -59,6 +59,7 @@ export function formLabels(t: (key: ShellSettingsLocaleKey) => string): Settings
 
 /** Japanese copy, checked against the English keys. */
 export const ja = {
+  'nav': 'ターミナル',
   'title': 'シェル',
   'description': '各コマンドの実行時間と出力量を制限します。',
   'timeoutMs': 'コマンドのタイムアウト (ms)',
@@ -77,7 +78,8 @@ export const ja = {
 
 /** Spanish dictionary, checked against the English keys. */
 export const es = {
-  title: 'Concha',
+  nav: 'Terminal',
+  title: 'Shell',
   description: 'Limite cuánto tiempo puede ejecutarse cada comando y cuánto puede generar.',
   timeoutMs: 'Tiempo de espera del comando (ms)',
   timeoutMsHint: 'Cuánto tiempo puede ejecutarse un comando antes de finalizar.',
@@ -95,7 +97,8 @@ export const es = {
 
 /** French dictionary, checked against the English keys. */
 export const fr = {
-  title: 'Coquille',
+  nav: 'Terminal',
+  title: 'Shell',
   description: "Limitez la durée d'exécution de chaque commande et le volume de résultats qu'elle peut générer.",
   timeoutMs: "Délai d'expiration de la commande (ms)",
   timeoutMsHint: "Combien de temps une commande peut s'exécuter avant d'être terminée.",
@@ -113,7 +116,8 @@ export const fr = {
 
 /** German dictionary, checked against the English keys. */
 export const de = {
-  title: 'Muschel',
+  nav: 'Terminal',
+  title: 'Shell',
   description: 'Begrenzen Sie, wie lange jeder Befehl ausgeführt werden darf und wie viel er ausgeben darf.',
   timeoutMs: 'Befehls-Timeout (ms)',
   timeoutMsHint: 'Wie lange ein Befehl ausgeführt werden darf, bevor er beendet wird.',
@@ -131,7 +135,8 @@ export const de = {
 
 /** Russian dictionary, checked against the English keys. */
 export const ru = {
-  title: 'Ракушка',
+  nav: 'Терминал',
+  title: 'Командная оболочка',
   description: 'Ограничьте продолжительность выполнения каждой команды и объем вывода.',
   timeoutMs: 'Таймаут команды (мс)',
   timeoutMsHint: 'Как долго может выполняться одна команда до ее завершения.',
@@ -149,7 +154,8 @@ export const ru = {
 
 /** Portuguese dictionary, checked against the English keys. */
 export const pt = {
-  title: 'Concha',
+  nav: 'Terminal',
+  title: 'Shell',
   description: 'Limite quanto tempo cada comando pode ser executado e quanto ele pode gerar.',
   timeoutMs: 'Tempo limite do comando (ms)',
   timeoutMsHint: 'Quanto tempo um comando pode ser executado antes de ser encerrado.',
