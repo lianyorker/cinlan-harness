@@ -49,6 +49,9 @@
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-sidebar-right"
     }
   ]
 }
