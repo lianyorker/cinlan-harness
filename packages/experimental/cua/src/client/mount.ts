@@ -37,7 +37,7 @@ export async function mountCuaPermissions(ctx: Context, contribution: TypertRemo
     const controller = new PermissionController(ctx.remote.cuaAccess)
     const face = controller.face()
     ctx.slots.inject('conversation.composer', () => ctx.slots.register({
-      name: 'conversation.composer', priority: -1, locale: NS,
+      name: 'conversation.composer', phase: 'interaction', priority: -1, locale: NS,
       select: ({ pendingInteraction }: ComposerChainProps) => selectApplicationApproval(pendingInteraction),
       inject: () => ({ resolveText: (text: { en: string; [locale: string]: string }) => ctx.locale.resolveText(text) }),
     }, ApplicationApproval))

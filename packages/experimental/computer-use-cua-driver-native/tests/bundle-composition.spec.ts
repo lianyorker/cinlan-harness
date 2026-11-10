@@ -84,7 +84,13 @@ describe('native computer-use bundle', () => {
     for (const entry of context.loader.entries()) await entry.fiber?.await()
     expect(context.tools.schemas().map(tool => tool.name)).toEqual(['cua_driver_native__check_permissions'])
     await expect(context.computerUse.readiness()).resolves.toMatchObject({ kind: 'tool-catalog', state: 'ready', permissions: 'unknown' })
-    const result = await context.tools.execute({ name: 'cua_driver_native__check_permissions', callId: ToolCallId('bundle-native'), arguments: {}, signal: new AbortController().signal })
+    const batch = await context.tools.execute({
+      calls: [{ type: 'tool-call', id: ToolCallId('bundle-native'), name: 'cua_driver_native__check_permissions', arguments: '{}' }],
+      signal: new AbortController().signal,
+    })
+    const outcome = batch.results[0]
+    if (outcome === undefined) throw new Error('Executor omitted the native permissions result')
+    const result = outcome.result
     expect(result.isError).toBe(native !== 'allow')
     expect(sdk.calls).toBe(native === 'allow' ? 1 : 0)
     expect(result.content).toEqual([{ type: 'text', text: native === 'allow' ? 'Fixture permissions unknown.' : native === 'deny' ? 'Error: Native computer use is denied by policy.' : 'Error: ' + Policy.COMPUTER_NATIVE_APPROVAL_REASON }])

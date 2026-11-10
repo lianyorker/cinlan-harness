@@ -5,9 +5,11 @@ import type { ProjectionHandle } from '@deepseek-ai/dsh-session-projection'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionEventMap, SessionId } from '@deepseek-ai/dsh-session'
 import type { TeamEventType, TeamProjectionState, TeamState } from './projection.ts'
+// Type-only: pulls the team/* SessionEventMap augmentation into this program.
+import type {} from './types.ts'
 
 type AppendTeamEvent = <T extends TeamEventType>(type: T, data: SessionEventMap[T]) => void
-type MutableTeamEventType = 'team/member' | 'team/task'
+type MutableTeamEventType = 'team/member' | 'team/task' | 'team/message/queued' | 'team/message/delivered'
 
 /** Owns per-Lead transaction order and committed Team event publication. */
 export class TeamJournal {

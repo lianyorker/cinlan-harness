@@ -78,7 +78,14 @@ describe('Cua Driver native provider', () => {
     }
     await ctx.plugin(NativeProvider)
     const controller = new AbortController()
-    const operation = ctx.tools.execute({ name: 'cua_driver_native__click', arguments: { pid: 9, window_id: 7 }, callId: ToolCallId('native-cancel'), signal: controller.signal })
+    const operation = ctx.tools.execute({
+      calls: [{ type: 'tool-call', id: ToolCallId('native-cancel'), name: 'cua_driver_native__click', arguments: JSON.stringify({ pid: 9, window_id: 7 }) }],
+      signal: controller.signal,
+    }).then((batch) => {
+      const outcome = batch.results[0]
+      if (outcome === undefined) throw new Error('Executor omitted the native input result')
+      return outcome.result
+    })
     let completed = false
     void operation.then(() => { completed = true })
     try {

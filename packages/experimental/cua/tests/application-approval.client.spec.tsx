@@ -36,7 +36,7 @@ it.each(['allow', 'reject', 'always'] as const)('returns the exact %s option fro
   pending.attachWaterfall(request.channel)
   const factory = vi.fn((_name: string, _input: ApprovalCardInput) => null)
   render(<ApplicationApproval {...{ matched: selectApplicationApproval(pending)!, renderFactorySlot: factory,
-    resolveText: text => text.zh ?? text.en } as ApplicationApprovalProps} />)
+    resolveText: (text: { en: string; [locale: string]: string }) => text.zh ?? text.en } as ApplicationApprovalProps} />)
   const [name, card] = factory.mock.calls[0]!
   expect(name).toBe('conversation.approval.card')
   expect(card).toMatchObject({ title: '允许吗？', description: '本次任务', allowLabel: '本次任务允许', subject: { name: 'Calculator' } })
@@ -53,7 +53,7 @@ it('keeps unsupported persistence absent and uses caller text when no localized 
   const pending = new PendingQuestion('s1' as SessionId, [item])
   const factory = vi.fn((_name: string, _input: ApprovalCardInput) => null)
   const props = { matched: selectApplicationApproval(pending)!, renderFactorySlot: factory,
-    resolveText: text => text.en } as ApplicationApprovalProps
+    resolveText: (text: { en: string; [locale: string]: string }) => text.en } as ApplicationApprovalProps
   const view = render(<ApplicationApproval {...props} />)
   expect(factory.mock.calls[0]?.[1]).toMatchObject({ title: 'Allow?', allowLabel: 'Task' })
   expect(factory.mock.calls[0]?.[1]).not.toHaveProperty('onAlways')
@@ -73,7 +73,7 @@ it('uses the original question cancellation and refuses late approval', async ()
   pending.attachWaterfall(request.channel)
   const factory = vi.fn((_name: string, _input: ApprovalCardInput) => null)
   render(<ApplicationApproval {...{ matched: selectApplicationApproval(pending)!, renderFactorySlot: factory,
-    resolveText: text => text.en } as ApplicationApprovalProps} />)
+    resolveText: (text: { en: string; [locale: string]: string }) => text.en } as ApplicationApprovalProps} />)
   const card = factory.mock.calls[0]![1]
   const rejected = expect(request.result).rejects.toMatchObject({ code: 'ASK_ABORTED' })
   controller.abort()

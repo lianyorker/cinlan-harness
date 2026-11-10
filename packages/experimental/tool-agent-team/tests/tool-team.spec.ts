@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { scopeOf } from '@deepseek-ai/dsh-scope'
 import { SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
 import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
@@ -15,7 +15,7 @@ import SessionQueryEngine from '@deepseek-ai/dsh-session-query'
 import SubagentService from '@deepseek-ai/dsh-subagent'
 import * as SubagentFork from '@deepseek-ai/dsh-subagent-fork-in-process'
 import * as SubagentSpawn from '@deepseek-ai/dsh-subagent-spawn-in-process'
-import { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import { renderContextSnapshot, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import * as ToolSubagentControl from '@deepseek-ai/dsh-tool-subagent-control'
 import { defineContentToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
@@ -86,7 +86,7 @@ async function setup(script: ConstructorParameters<typeof MockAdapter>[0], legac
   const adapter = new MockAdapter(script)
   ctx.llm.registerAdapter(['mock'], adapter)
   const lead = await ctx.agentLoop.create(SessionId('tool-team-lead'), { provider: 'mock', model: 'mock' })
-  return { ctx, lead, fiber }
+  return { ctx, lead, fiber, adapter }
 }
 
 function execute(
@@ -137,6 +137,12 @@ async function waitRunning(ctx: Context, id: SessionId): Promise<Agent> {
 
 async function waitNoAgent(ctx: Context, id: SessionId): Promise<void> {
   await vi.waitFor(() => { expect(ctx.agents.get(id)).toBeUndefined() }, { timeout: 5_000 })
+}
+
+/** Run one user turn on an Agent and wait for the loop to settle. */
+async function runTurn(agent: Agent, prompt: string): Promise<void> {
+  agent.followup(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+  await agent.whenIdle()
 }
 
 describe('dsh-tool-team', () => {
@@ -190,7 +196,7 @@ describe('dsh-tool-team', () => {
       name: 'worker', description: 'stay active', prompt: 'wait',
     })
     expect(spawned.isError, text(spawned)).toBe(false)
-    const childId = spawnedChildId(ctx, lead, spawned)
+    const childId = spawnedChildId(spawned)
     const child = await waitRunning(ctx, childId)
     for (const agent of [lead, child]) {
       const assembled = await assembly(ctx, agent)
@@ -213,7 +219,7 @@ describe('dsh-tool-team', () => {
       name: 'reviewer', description: 'review changes', prompt: 'wait for work',
     })
     const { member } = JSON.parse(text(spawned)) as { member: { target: string } }
-    const childId = spawnedChildId(ctx, lead, spawned)
+    const childId = spawnedChildId(spawned)
     const child = await waitRunning(ctx, childId)
     expect(member).not.toHaveProperty('id')
     expect(member).not.toHaveProperty('name')
@@ -296,7 +302,7 @@ describe('dsh-tool-team', () => {
       name: 'reviewer', description: 'review', prompt: 'Review the work', context: mode,
     })
     expect(spawned.isError, text(spawned)).toBe(false)
-    const childId = spawnedChildId(ctx, lead, spawned)
+    const childId = spawnedChildId(spawned)
     await waitNoAgent(ctx, childId)
     const childRequest = serializeRequest(adapter.requests[1]!)
     expect(childRequest.tools).toEqual(parentRequest.tools)
@@ -349,7 +355,7 @@ describe('dsh-tool-team', () => {
     const spawned = await execute(ctx, lead, 'spawn_teammate', {
       name: 'reviewer', description: 'review', prompt: 'Review the work',
     })
-    const teammateId = spawnedChildId(ctx, lead, spawned)
+    const teammateId = spawnedChildId(spawned)
     await waitNoAgent(ctx, teammateId)
     await using persisted = await ctx.sessionPersistence.open(teammateId, 'read')
     const { events: seed } = await persisted.read()
@@ -402,7 +408,7 @@ describe('dsh-tool-team', () => {
     const spawned = await execute(ctx, lead, 'spawn_teammate', {
       name: 'reviewer', description: 'review', prompt: 'Review the work',
     })
-    const childId = spawnedChildId(ctx, lead, spawned)
+    const childId = spawnedChildId(spawned)
     await waitNoAgent(ctx, childId)
     for (const request of adapter.requests.filter(request => request.sessionId === childId)) {
       const snapshots = request.messages.filter(message => message.source?.kind === 'runtime-context')
@@ -443,7 +449,7 @@ describe('dsh-tool-team', () => {
       name: 'reviewer', description: 'review', prompt: 'Review the work',
     })
     expect(spawned.isError, text(spawned)).toBe(false)
-    await waitNoAgent(ctx, spawnedChildId(ctx, lead, spawned))
+    await waitNoAgent(ctx, spawnedChildId(spawned))
     expect(renderContextSnapshot(await assembly(ctx, lead))).toContain('You are the Team Lead named "lead".')
     expect(runtimeContextText(adapter.requests[0]!)).toContain('You are teammate "reviewer".')
   })
@@ -723,7 +729,7 @@ describe('dsh-tool-team', () => {
     const childId = spawnedChildId(spawned)
     await vi.waitFor(() => { expect(ctx.agents.get(childId)).toBeUndefined() }, { timeout: 5_000 })
 
-    await ctx.agentTeams.sendMessage(lead, {
+    const receipt = await ctx.agentTeams.sendMessage(lead, {
       target: 'cold-worker',
       content: [{ type: 'text', text: 'resume with Team scope' }],
       signal: SIGNAL,

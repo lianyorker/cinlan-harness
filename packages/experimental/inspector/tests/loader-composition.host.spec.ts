@@ -79,24 +79,16 @@ describe('experimental Inspector through a real Loader composition', () => {
     expect([...context.loader.entries()]
       .filter(entry => entry.fiber === undefined && !entry.disabled))
       .toEqual([])
-    const inspectorEntry = [...context.loader.entries()]
-      .find(entry => entry.options.name === '@deepseek-ai/dsh-experimental-inspector')
-    expect(inspectorEntry?.disabled).toBe(false)
-    expect(open).toHaveBeenCalledTimes(flag ? 1 : 0)
-    const api = (context.connection as HostConnectionService).createSharedFetchHandler('/api')
-    expect(inspectorEntry?.fiber).toBeDefined()
-    const inspectorEntry = [...context.loader.entries()]
-      .find(entry => entry.options.name === '@deepseek-ai/dsh-experimental-inspector')
-    expect(inspectorEntry?.disabled).toBe(false)
-    expect(open).toHaveBeenCalledTimes(flag ? 1 : 0)
     const connection = context.connection as HostConnectionService
+    const inspectorEntry = [...context.loader.entries()]
+      .find(entry => entry.options.name === '@deepseek-ai/dsh-experimental-inspector')
+    expect(inspectorEntry?.disabled).toBe(false)
+    expect(open).toHaveBeenCalledTimes(flag ? 1 : 0)
     const api = connection.createSharedFetchHandler('/api')
     expect(inspectorEntry?.fiber).toBeDefined()
     await vi.waitFor(async () => {
       expect((await context!.inspector.cordis.getTree()).host?.source.kind).toBe('host')
     })
-    const bootstrap = await api.fetch(new Request(`http://localhost${INSPECTOR_BOOTSTRAP_PATH}`))
-    expect(await bootstrap.json()).toHaveProperty('endpoint', expect.stringContaining('/ingest'))
     const bootstrap = await api.fetch(new Request(`http://localhost${INSPECTOR_BOOTSTRAP_PATH}`), connection.browserPeer)
     expect(await bootstrap.json()).toHaveProperty('endpoint', expect.stringContaining('/ingest'))
 

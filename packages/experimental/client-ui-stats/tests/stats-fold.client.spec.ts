@@ -1,10 +1,3 @@
-declare module '@deepseek-ai/dsh-llm' {
-  interface MessageSourceMap {
-    'team-message': { readonly kind: 'team-message'; readonly senderName: string }
-    'agent-message': { readonly kind: 'agent-message' }
-  }
-}
-
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { SessionEventLike } from '@deepseek-ai/dsh-api-session-controller/client'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
@@ -18,13 +11,24 @@ import {
   type ImageBlock,
   type StreamChunk,
   type TokenUsage,
+  type MessageSourceMap,
   type ToolResultMessage,
   type UserMessage,
 } from '@deepseek-ai/dsh-llm'
 import { RetryId } from '@deepseek-ai/dsh-llm-retry'
 import type {} from '@deepseek-ai/dsh-llm-retry/types'
-import { SessionSeq, type SessionEventMap, type SessionEventType } from '@deepseek-ai/dsh-session/types'
+import { SessionId, SessionSeq, type SessionEventMap, type SessionEventType } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-tool-executor-ptc/types'
+
+/**
+ * Restate the dsh-subagent continuation attribution: this program does not
+ * reach the declaring module, so the source map merge would otherwise miss it.
+ */
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'agent-message': { readonly kind: 'agent-message'; readonly form: 'relay'; readonly senderSessionId: SessionId }
+  }
+}
 import {
   CALL_LIMIT, fallbackState, foldEvent, isCodeMode, newState, promptOf, stepMetrics, toolSpanUnion, triggerSenderOf,
 } from '../src/client/stats-fold.ts'
@@ -90,6 +94,22 @@ function imageBlock(attachmentId = 'sha256:fixture'): ImageBlock {
       height: 1,
     },
   }
+}
+
+/** One Team mailbox delivery attribution, as the agent-team augmentation declares it. */
+function teamSource(senderName: string): MessageSourceMap['team-message'] {
+  return {
+    kind: 'team-message',
+    teamId: 'team-1' as MessageSourceMap['team-message']['teamId'],
+    messageId: 'team-message-1' as MessageSourceMap['team-message']['messageId'],
+    senderId: SessionId('sender-1'),
+    senderName,
+  }
+}
+
+/** One adjacent-Agent message attribution, as the subagent augmentation declares it. */
+function agentSource(): MessageSourceMap['agent-message'] {
+  return { kind: 'agent-message', form: 'relay', senderSessionId: SessionId('agent-1') }
 }
 
 function userMessage(
@@ -725,28 +745,20 @@ describe('prompt helper', () => {
 
 describe('trigger sender helper', () => {
   it('names the teammate that sent a framed message', () => {
-    expect(triggerSenderOf(userMessage([imageBlock(), textBlock('Team message from hfai-deploy: update')], {
-      kind: 'team-message', senderName: 'hfai-deploy',
-    }))).toBe('hfai-deploy')
-    expect(triggerSenderOf(userMessage([textBlock('Team message from  stack-rebase : go')], {
-      kind: 'team-message', senderName: 'stack-rebase',
-    }))).toBe('stack-rebase')
+    expect(triggerSenderOf(userMessage([imageBlock(), textBlock('Team message from hfai-deploy: update')], teamSource('hfai-deploy')))).toBe('hfai-deploy')
+    expect(triggerSenderOf(userMessage([textBlock('Team message from  stack-rebase : go')], teamSource('stack-rebase')))).toBe('stack-rebase')
   })
 
   it('parses the agent id from a direct agent message', () => {
-    expect(triggerSenderOf(userMessage([textBlock('Agent abc-123 sent a message: hi')], {
-      kind: 'agent-message',
-    }))).toBe('abc-123')
+    expect(triggerSenderOf(userMessage([textBlock('Agent abc-123 sent a message: hi')], agentSource()))).toBe('abc-123')
     // Raw session UUIDs are not member names.
-    expect(triggerSenderOf(userMessage([textBlock('Agent 52224ac7-b02b-4d25-8c6e-123456789abc sent a message: hi')], {
-      kind: 'agent-message',
-    }))).toBeNull()
+    expect(triggerSenderOf(userMessage([textBlock('Agent 52224ac7-b02b-4d25-8c6e-123456789abc sent a message: hi')], agentSource()))).toBeNull()
   })
 
   it('returns nothing without a framed sender', () => {
     expect(triggerSenderOf(userMessage([textBlock('Team message from hfai-deploy: x')], { kind: 'user' }))).toBeNull()
-    expect(triggerSenderOf(userMessage([textBlock('hello')], { kind: 'agent-message' }))).toBeNull()
-    expect(triggerSenderOf(userMessage([textBlock('Agent noverb')], { kind: 'agent-message' }))).toBeNull()
+    expect(triggerSenderOf(userMessage([textBlock('hello')], agentSource()))).toBeNull()
+    expect(triggerSenderOf(userMessage([textBlock('Agent noverb')], agentSource()))).toBeNull()
   })
 })
 

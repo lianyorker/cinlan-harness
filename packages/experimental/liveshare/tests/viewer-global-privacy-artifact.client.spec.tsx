@@ -148,7 +148,8 @@ describe('Assembled viewer page global configuration privacy', () => {
     await waitFor(() => { expect(document.querySelector('[data-sample="bash"]')).not.toBeNull() }, { timeout: 30_000 })
 
     const context = input.context()
-    expect(context.get('connection')?.isLoopback).toBe(authority === 'loopback')
+    const connection = context.get('connection') as ConnectionHandle | undefined
+    expect(connection?.isLoopback).toBe(authority === 'loopback')
     expect(context.get('remote')?.$host.isLoopback).toBe(authority === 'loopback')
     const transport = Reflect.get(globalThis, '__DSH_TRANSPORT__') as { readonly ownsHost?: boolean }
     expect(transport.ownsHost).toBeUndefined()
@@ -160,7 +161,6 @@ describe('Assembled viewer page global configuration privacy', () => {
     expect(forms.describe().getSnapshot().error).toContain('settings/describe')
 
     // Direct callers still cross the production viewer transport; absence of Settings UI is not enforcement.
-    const connection = context.get('connection') as ConnectionHandle | undefined
     if (connection === undefined) throw new Error('assembled viewer page Connection did not activate')
     const denialCount = relay.answers.length
     // The Owner Gateway refuses each one through remote access: the share's provider names the

@@ -1,11 +1,12 @@
 /** Agent Teams service façade over roster, messaging, task, and runtime lifecycle owners. */
 
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import { steerHostSubagentPrompt } from '@deepseek-ai/dsh-subagent/internal'
 import { TeamActivity } from './activity.ts'
 import { errorMessage, TeamError } from './error.ts'
@@ -14,6 +15,7 @@ import { TeamRuntimeLifecycle } from './lifecycle.ts'
 import { teamProjectionDefinition } from './projection.ts'
 import { resolveActiveMember, TeamRoster } from './roster.ts'
 import type { TeamMembership } from './roster.ts'
+import { TeamMessageId } from './types.ts'
 import { TeamTaskBoard } from './task-board.ts'
 import { TeamId, TeamTaskId } from './types.ts'
 import type {
@@ -298,16 +300,19 @@ export class TeamService extends TypertRemoteService {
       throw new TeamError(`team message exceeds ${this.config.maxMessageBytes} bytes`, 'TEAM_MESSAGE_TOO_LARGE')
     }
     const source = { kind: 'agent-message' as const, form: 'relay' as const, senderSessionId: caller.id }
-    let messageId
+    // Both delivery paths accept a bare MessageId; the Team surface brands it
+    // back so every SendTeamMessageResult consumer sees the Team identity.
+    let accepted: MessageId
     if (target.id === root.id) {
       const input = createUserMessage({ content, source })
       root.steer(input)
-      messageId = input.id
+      accepted = input.id
     } else {
-      messageId = await steerHostSubagentPrompt(this.ctx.subagents, root, target.id, content, source, request.signal)
+      accepted = await steerHostSubagentPrompt(this.ctx.subagents, root, target.id, content, source, request.signal)
     }
+    const messageId = TeamMessageId(accepted)
     this.activity.notify(membership.id)
-    return { messageId }
+    return { messageId, status: 'accepted' as const }
   }
 
   /** Queue one contained provisioning reconciliation after publication has unwound. */

@@ -245,7 +245,7 @@ export class TeamRoster {
       if (workspaceRegistry === undefined) throw new TeamError('workspace registry is required to archive an integrated teammate Session', 'TEAM_WORKSPACE_UNAVAILABLE')
       if (member.worktreeTaskId === undefined) throw new TeamError('target teammate worktree identity is missing', 'TEAM_WORKTREE_NOT_FOUND')
       taskId = brandString<WorktreeTaskId>(member.worktreeTaskId)
-      await this.lifecycle.withTimeout(this.ctx.subagents.drainContinuableChildren(membership.root, [member.id]))
+      await this.lifecycle.withTimeout(this.ctx.subagents.drainChildren(membership.root, [member.id]))
       await workspaceRegistry.archiveSession(member.id, { stopActivity: true })
       await worktreeTask.unbindSession(taskId, member.id, signal)
       const merged = await worktreeTask.merge({ taskId }, signal)

@@ -1,6 +1,5 @@
 /** Public Agent Teams identities, durable records, and service request values. */
 
-import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -190,9 +189,10 @@ export interface SendTeamMessageRequest {
   readonly signal: AbortSignal
 }
 
-/** Target inbox acceptance under ordinary Agent persistence; no Team retry or deduplication. */
+/** Result after a peer message enters the durable mailbox. */
 export interface SendTeamMessageResult {
-  readonly messageId: MessageId
+  readonly messageId: TeamMessageId
+  readonly status: 'accepted' | 'queued'
 }
 
 /** Input for creating one shared task. */

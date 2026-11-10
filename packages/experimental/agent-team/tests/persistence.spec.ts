@@ -178,7 +178,7 @@ for (const backend of backends) {
       await first.ctx.sessions.flush(child.session)
       const prefix = await readPersistedSession(first.ctx.sessionPersistence, child.id, SIGNAL)
       expect(prefix.events.some(event => event.type === 'agent/inbox/spliced'
-        && event.data.inserted.some(message => message.id === receipt.messageId))).toBe(true)
+        && event.data.inserted.some(message => TeamMessageId(message.id) === receipt.messageId))).toBe(true)
       expect(lead.session.snapshotEvents().some(event => event.type.startsWith('team/message/'))).toBe(false)
       await first.dispose()
       const second = await stack(backend, crashRoot, [textResponse('recovered')])
@@ -187,7 +187,7 @@ for (const backend of backends) {
       const resumed = await second.ctx.agents.resume({
         resumeSessionId: child.id, agentOptions: { provider: 'mock', model: 'mock' },
       })
-      expect(resumed.agent.inbox.nextStep.find(message => message.id === receipt.messageId)).toMatchObject({
+      expect(resumed.agent.inbox.nextStep.find(message => TeamMessageId(message.id) === receipt.messageId)).toMatchObject({
         source: { kind: 'agent-message', form: 'relay', senderSessionId: lead.id },
         content: [{ type: 'text', text: 'Team message from lead:' }, { type: 'text', text: 'accepted before crash' }],
       })
