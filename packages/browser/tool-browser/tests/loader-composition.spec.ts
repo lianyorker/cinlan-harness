@@ -21,6 +21,7 @@ import type { BrowserProvider } from '@deepseek-ai/dsh-browser'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as ToolBrowser from '../src/index.ts'
 
@@ -140,7 +141,7 @@ describe('dsh-tool-browser through a real cordis.yml Loader composition', () => 
       'browser_click', 'browser_screenshot', 'browser_home', 'browser_search', 'browser_history',
       'browser_back', 'browser_forward', 'browser_network', 'browser_upload', 'browser_downloads', 'browser_save_download', 'browser_close',
     ])
-    const result = await context.tools.execute({
+    const result = await executeModelToolFixture(context, {
       callId: ToolCallId('loader-browser-snapshot'),
       name: 'browser_snapshot',
       arguments: { page_id: 'loader-page' },

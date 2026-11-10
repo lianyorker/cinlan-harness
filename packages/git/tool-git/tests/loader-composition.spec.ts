@@ -21,6 +21,7 @@ import type {
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as ToolGit from '../src/index.ts'
 
@@ -108,7 +109,7 @@ describe('dsh-tool-git through a real cordis.yml Loader composition', () => {
     })
     const agent = { id: agentId, session } as unknown as Agent
     await context.agents.register(agent)
-    const result = await context.tools.execute({
+    const result = await executeModelToolFixture(context, {
       signal: new AbortController().signal,
       callId: ToolCallId('loader-status'),
       name: 'git_status',

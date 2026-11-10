@@ -5,6 +5,7 @@ import { WorkItemId } from '@cinlan/work-items'
 import type { WorkItem, WorkItemBoard, WorkItemMutation, WorkItemPage, WorkItemWriteOperation } from '@cinlan/work-items/types'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as ToolWorkItems from '../src/index.ts'
@@ -87,7 +88,7 @@ async function setup(service = serviceMock(), config: ToolWorkItems.Config = {})
 
 async function call(ctx: Context, name: string, args: unknown): Promise<ToolExecutionResult> {
   callNumber += 1
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     callId: ToolCallId(`work-items-${callNumber}`),
     name,
     arguments: args,

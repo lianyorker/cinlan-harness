@@ -882,6 +882,7 @@ describe('RecallableCompactionEngine execution', () => {
     // Pre-step runs compaction
     await ctx.waterfall('agent/pre-step', {
       agent,
+      modelSelection: { provider: MODEL, model: MODEL },
       messages: [],
       turn: 1,
       step: 1,
@@ -892,6 +893,7 @@ describe('RecallableCompactionEngine execution', () => {
     const abortedSignal = AbortSignal.abort('test abort')
     await ctx.waterfall('agent/pre-step', {
       agent,
+      modelSelection: { provider: MODEL, model: MODEL },
       messages: [],
       turn: 1,
       step: 1,
@@ -913,6 +915,7 @@ describe('RecallableCompactionEngine execution', () => {
 
     await noCapCtx.waterfall('agent/pre-step', {
       agent: ag2,
+      modelSelection: { provider: MODEL, model: MODEL },
       messages: [],
       turn: 1,
       step: 1,
@@ -928,6 +931,7 @@ describe('RecallableCompactionEngine execution', () => {
     })
     await noCapCtx.waterfall('agent/pre-step', {
       agent: ag2,
+      modelSelection: { provider: MODEL, model: MODEL },
       messages: [],
       turn: 1,
       step: 1,
@@ -943,6 +947,7 @@ describe('RecallableCompactionEngine execution', () => {
     errCtx.logger.warn = errWarnSpy as never
     await errCtx.waterfall('agent/pre-step', {
       agent: ag2,
+      modelSelection: { provider: MODEL, model: MODEL },
       messages: [],
       turn: 1,
       step: 1,
@@ -954,6 +959,7 @@ describe('RecallableCompactionEngine execution', () => {
     vi.spyOn(engErr, 'compactIfNeeded').mockRejectedValueOnce('string error from pre-step')
     await errCtx.waterfall('agent/pre-step', {
       agent: ag2,
+      modelSelection: { provider: MODEL, model: MODEL },
       messages: [],
       turn: 1,
       step: 1,
@@ -967,6 +973,7 @@ describe('RecallableCompactionEngine execution', () => {
     const belowAgent = createAgent(belowSess)
     await belowThreshCtx.waterfall('agent/pre-step', {
       agent: belowAgent,
+      modelSelection: { provider: MODEL, model: MODEL },
       messages: [],
       turn: 1,
       step: 1,

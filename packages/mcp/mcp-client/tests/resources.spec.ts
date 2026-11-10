@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { boot } from '@deepseek-ai/dsh-app-boot'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime, { type ToolExecution } from '@deepseek-ai/dsh-tools'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -81,7 +82,7 @@ async function setup(resources = true) {
 }
 
 function call(ctx: Context, name: string, args: unknown, signal = new AbortController().signal, agent?: Agent) {
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     name, arguments: args, signal, callId: ToolCallId('resource-call'),
     ...agent === undefined ? {} : { agent },
   })

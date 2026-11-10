@@ -16,6 +16,7 @@ import type {
 } from '@deepseek-ai/dsh-git'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as ToolGit from '../src/index.ts'
 
@@ -99,7 +100,7 @@ async function setup(): Promise<{ ctx: Context; git: StubGitRuntime; agent: Agen
 }
 
 function execute(ctx: Context, name: string, args: unknown, agent?: Agent) {
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     signal: testToolSignal,
     callId: ToolCallId(`call-${name}`),
     name,

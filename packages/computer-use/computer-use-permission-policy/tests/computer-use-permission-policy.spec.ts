@@ -2,7 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
-import type { PreToolDecision, ToolExecution, ToolGuard } from '@deepseek-ai/dsh-tools'
+import type { PreToolDecision, ToolExecution, ToolExecutionResult, ToolGuard } from '@deepseek-ai/dsh-tools'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Policy from '../src/index.ts'
 import {
@@ -93,6 +93,17 @@ describe('Computer Use permission decisions', () => {
 })
 
 describe('Computer Use monotonic guard', () => {
+  /** Run one model-shaped call through the batch executor and return its settled result. */
+  async function executeCall(ctx: Context, name: string): Promise<ToolExecutionResult> {
+    const batch = await ctx.tools.execute({
+      calls: [{ type: 'tool-call', id: ToolCallId(`policy-${name}`), name, arguments: '{}' }],
+      signal: new AbortController().signal,
+    })
+    const outcome = batch.results[0]
+    if (outcome === undefined) throw new Error('Executor omitted the policy tool result')
+    return outcome.result
+  }
+
   async function runtimeHarness(config: Policy.Config) {
     const ctx = new Context()
     contexts.push(ctx)
@@ -119,9 +130,7 @@ describe('Computer Use monotonic guard', () => {
     ['cua_driver_native__future_tool', COMPUTER_NATIVE_APPROVAL_REASON],
   ])('blocks prepended allow from bypassing ask policy for %s', async (name, reason) => {
     const { ctx, body } = await runtimeHarness({})
-    const result = await ctx.tools.execute({
-      callId: ToolCallId(`policy-${name}`), name, arguments: {}, signal: new AbortController().signal,
-    })
+    const result = await executeCall(ctx, name)
     expect(result).toMatchObject({ isError: true, content: [{ type: 'text', text: `Error: ${reason}` }] })
     expect(body).not.toHaveBeenCalled()
   })
@@ -130,9 +139,7 @@ describe('Computer Use monotonic guard', () => {
     const { ctx, body } = await runtimeHarness({
       observe: 'allow', pointer: 'allow', keyboard: 'allow', accessibilityAction: 'allow',
     })
-    const result = await ctx.tools.execute({
-      callId: ToolCallId('policy-allow'), name: 'computer_pointer', arguments: {}, signal: new AbortController().signal,
-    })
+    const result = await executeCall(ctx, 'computer_pointer')
     expect(result.isError).toBe(false)
     expect(body).toHaveBeenCalledOnce()
   })

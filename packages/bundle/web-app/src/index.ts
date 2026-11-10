@@ -69,14 +69,6 @@ export interface Config {
    * non-interactive layer can turn it off when its user is not in the GUI.
    */
   surfaceContext: boolean
-  /**
-   * Canonical HTTP(S) root to advertise in the printed and opened URL,
-   * `DSH_WEB_URL`, and `webApp.getAdvertisedUrl()`, which supplies the Web GUI
-   * URL in agent runtime context, e.g. `https://app.example/ui/`, normalized to end in `/`. Configures no routing
-   * or authentication; see [public deployments](../README.md#public-deployments).
-   * Absent or YAML `null` advertises the bind-address URL.
-   */
-  publicUrl?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -84,7 +76,6 @@ export const Config: z<Config> = z.object({
   openBrowser: z.boolean().default(true),
   printUrl: z.boolean().default(true),
   surfaceContext: z.boolean().default(true),
-  publicUrl: z.transform(z.string(), value => parsePublicUrl(value).href),
 })
 
 /** Environment variable naming the advertised URL of this Web GUI. */

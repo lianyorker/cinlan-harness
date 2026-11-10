@@ -15,12 +15,27 @@ function validateArtifact(artifact: SessionFormatArtifact): SessionFormatArtifac
   return artifact
 }
 
+/** Brand one restored current logical header into the installed Session surface. */
+function sessionHeader(header: SessionFormatArtifact['header']): SessionHeader {
+  return {
+    version: SESSION_FORMAT_VERSION,
+    id: SessionId(header.id),
+    createdAt: header.createdAt,
+    ...(header.cwd === undefined ? {} : { cwd: header.cwd }),
+    ...(header.parentSession === undefined ? {} : { parentSession: SessionId(header.parentSession) }),
+    isSeeded: header.isSeeded,
+    ...(header.origin === undefined ? {} : { origin: header.origin }),
+    ...(header.delegationDepth === undefined ? {} : { delegationDepth: header.delegationDepth }),
+    ...(header.agentPreset === undefined ? {} : { agentPreset: header.agentPreset }),
+  }
+}
+
 /** Adopt a validated V4 fixture through the actual installed migration chain. */
 export function adoptV4Artifact(artifact: SessionFormatArtifact, projections?: Parameters<typeof Session.fromRestore>[5]): Session {
   const reader = installedCatalog.createRestore(releasedV4SessionFormatCodec.encodeHeader(artifact.header, artifact.inheritedEventCount), { recovery: 'strict', validation: 'current' })
   for (const event of artifact.events) reader.decodeRow(releasedV4SessionFormatCodec.encodeEvent(event))
   const current = reader.finish()
-  return Session.fromRestore(SessionId(current.header.id), current.events as SessionEvent[], current.header as SessionHeader,
+  return Session.fromRestore(SessionId(current.header.id), current.events as SessionEvent[], sessionHeader(current.header),
     SessionLogOffset(current.inheritedEventCount), 'detached', projections)
 }
 
@@ -43,5 +58,8 @@ export const sessionFormatCatalog = createSessionFormatCatalog(options)
 
 export function createSessionFormatCatalogWithChildren(children: readonly SessionFormatJsonValue[]) {
   const migration = createSessionFormatV3ToV4(children)
-  return createSessionFormatCatalog({ ...options, migrations: options.migrations.map(edge => edge === sessionFormatV3ToV4 ? migration : edge) })
+  return createSessionFormatCatalog({
+    ...options,
+    migrations: options.migrations.map(edge => edge === sessionFormatV3ToV4 ? migration : edge),
+  })
 }

@@ -35,8 +35,8 @@ function resolveConfig(config: Config): Config {
   for (const key of Object.keys(config)) {
     if (!CONFIG_KEYS.has(key)) throw new Error("work-items: unsupported config key '" + key + "'")
   }
-  if (config.provider !== undefined && !['github', 'gitlab', 'jira', 'linear'].includes(config.provider)) {
-    throw new Error('work-items: provider must be github, gitlab, jira, or linear')
+  if (config.provider !== undefined && !['github', 'gitlab', 'jira', 'linear', 'gitee'].includes(config.provider)) {
+    throw new Error('work-items: provider must be github, gitlab, jira, linear, or gitee')
   }
   if (config.writeApprovalTtlMs !== undefined && (!Number.isSafeInteger(config.writeApprovalTtlMs) || config.writeApprovalTtlMs < 1)) {
     throw new Error('work-items: writeApprovalTtlMs must be a positive safe integer')
@@ -229,7 +229,7 @@ function assertNotAborted(signal?: AbortSignal): void {
 /** Registry and dispatch facade for Work Items providers. */
 export class WorkItemsRuntime extends Service {
   static Config: z<Config> = z.object({
-    provider: z.union(['github', 'linear', 'gitlab', 'jira'] as const),
+    provider: z.union(['github', 'linear', 'gitlab', 'jira', 'gitee'] as const),
     writeApprovalTtlMs: z.number().step(1).min(1).default(300_000),
   })
   private readonly writeLedger: WorkItemsWriteLedger
@@ -253,7 +253,7 @@ export class WorkItemsRuntime extends Service {
    * @returns disposer for this exact provider contribution.
    */
   registerProvider(provider: WorkItemsProvider): () => void {
-    if (!['github', 'linear', 'gitlab', 'jira'].includes(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider id must be github, linear, gitlab, or jira')
+    if (!['github', 'linear', 'gitlab', 'jira', 'gitee'].includes(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider id must be github, linear, gitlab, jira, or gitee')
     if (this.providers.has(provider.id)) throw new WorkItemsError('invalid-request', 'Work Items provider ' + provider.id + ' is already registered')
     const dispose = this.ctx.effect(function* (this: WorkItemsRuntime) {
       this.providers.set(provider.id, provider)

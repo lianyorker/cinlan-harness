@@ -46,14 +46,33 @@ export const ConfigSchema = z.object({
 /** Input configuration; defaults are resolved before opening any socket. */
 export type Config = z.input<typeof ConfigSchema>
 const DeviceRecordSchema = DeviceSchema.extend({ tokenHash: z.string().length(86), relayHash: z.string().length(86) }).strict()
-const StateSchema = z.object({ v: z.literal(1), signingKey: z.string(), boxKey: z.string(), settings: HostSettingsSchema, devices: z.array(DeviceRecordSchema) }).strict()
+const StateSchema = z
+  .object({
+    v: z.literal(1),
+    signingKey: z.string(),
+    boxKey: z.string(),
+    settings: HostSettingsSchema,
+    devices: z.array(DeviceRecordSchema),
+  })
+  .strict()
 const AdminRequestSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('state') }).strict(),
   z.object({ operation: z.literal('save'), settings: HostSettingsSchema }).strict(),
   z.object({ operation: z.literal('pair') }).strict(),
   z.object({ operation: z.literal('revoke'), deviceId: z.string().max(128) }).strict(),
 ])
-interface Peer { socket: WebSocket; channel?: EncryptedChannel; deviceId?: DeviceId; relayDeviceId?: DeviceId; subscription?: AbortController; controller: AbortController; queue: Promise<void>; queued: number; requests: number; rateExpiresAt: number }
+interface Peer {
+  socket: WebSocket
+  channel?: EncryptedChannel
+  deviceId?: DeviceId
+  relayDeviceId?: DeviceId
+  subscription?: AbortController
+  controller: AbortController
+  queue: Promise<void>
+  queued: number
+  requests: number
+  rateExpiresAt: number
+}
 interface PendingApproval { request: Approval; resolve(outcome: ApprovalOutcome): void; abort(): void }
 
 declare module '@deepseek-ai/cordis' { interface Context { remoteTunnel: CinlanMobileHost } }
@@ -132,7 +151,9 @@ export class CinlanMobileHost extends Service {
   }
   private track(task: Promise<unknown>): void {
     this.tasks.add(task)
-    void task.catch(() => { /* State and callers report operation failures; payloads never enter logs. */ }).finally(() => this.tasks.delete(task))
+    void task
+      .catch(() => { /* State and callers report operation failures; payloads never enter logs. */ })
+      .finally(() => this.tasks.delete(task))
   }
   private saveState(): void { writePrivateState(this.stateFile, this.state) }
   private get hostId(): HostId { return hostIdentity(base64(nacl.sign.keyPair.fromSecretKey(this.signingKey).publicKey)) }
@@ -178,7 +199,9 @@ export class CinlanMobileHost extends Service {
         const settings = request.settings
         if (settings.directorUrl) settings.directorUrl = validateOrigin(settings.directorUrl, this.config.allowInsecureNetwork)
         if (settings.mode === 'relay' && !settings.directorUrl) throw new Error('director_url_required')
-        const relayChanged = settings.directorUrl !== this.state.settings.directorUrl || settings.preferredRegion !== this.state.settings.preferredRegion || settings.mode !== this.state.settings.mode
+        const relayChanged = settings.directorUrl !== this.state.settings.directorUrl
+          || settings.preferredRegion !== this.state.settings.preferredRegion
+          || settings.mode !== this.state.settings.mode
         const previous = this.state.settings
         this.state.settings = settings
         this.tickets.clear()
@@ -218,12 +241,27 @@ export class CinlanMobileHost extends Service {
       }
     }
   }
-  private addresses(): string[] { return [...new Set(Object.values(networkInterfaces()).flat().filter(item => item && !item.internal && item.family === 'IPv4').map(item => item!.address))] }
+  private addresses(): string[] {
+    return [
+      ...new Set(
+        Object.values(networkInterfaces())
+          .flat()
+          .flatMap(item => item && !item.internal && item.family === 'IPv4' ? [item.address] : []),
+      ),
+    ]
+  }
   private async createPairing(): Promise<{ pairingUrl: string; expiresAt: number }> {
     if (this.state.devices.length >= this.config.maxDevices) throw new Error('device_capacity_reached')
     this.tickets.clear()
     const ticket = randomSecret(); const deviceId = brandString<DeviceId>(randomUUID()); let expiresAt = Date.now() + this.config.pairingMs
-    const offer: PairingOffer = { v: 1, hostId: this.hostId, name: this.state.settings.name, publicKey: base64(this.boxKey.publicKey), ticket, expiresAt }
+    const offer: PairingOffer = {
+      v: 1,
+      hostId: this.hostId,
+      name: this.state.settings.name,
+      publicKey: base64(this.boxKey.publicKey),
+      ticket,
+      expiresAt,
+    }
     const settings = this.state.settings
     if (settings.mode !== 'relay') {
       const address = settings.mode === 'local' ? '127.0.0.1' : settings.address || this.addresses()[0]
@@ -243,11 +281,15 @@ export class CinlanMobileHost extends Service {
     if (this.disposed || this.state.settings.mode !== 'relay' || !this.state.settings.directorUrl) return
     const settings = this.state.settings
     this.relayStatus = 'connecting'
-    const relay = new RelayClient(settings.directorUrl, settings.preferredRegion, this.signingKey, this.config.handshakeMs, this.config.maxPayloadBytes, this.config.maxBufferedBytes, (socket, deviceId) => this.accept(socket, deviceId), () => {
-      if (this.relay !== relay || this.disposed) return
-      this.relayStatus = 'offline'; this.relay = undefined
-      this.scheduleRelayReconnect()
-    }, this.config.enrollmentToken)
+    const relay = new RelayClient(
+      settings.directorUrl, settings.preferredRegion, this.signingKey,
+      this.config.handshakeMs, this.config.maxPayloadBytes, this.config.maxBufferedBytes,
+      (socket, deviceId) => this.accept(socket, deviceId),
+      () => {
+        if (this.relay !== relay || this.disposed) return
+        this.relayStatus = 'offline'; this.relay = undefined
+        this.scheduleRelayReconnect()
+      }, this.config.enrollmentToken)
     this.relay = relay
     try {
       await relay.connect()
@@ -274,7 +316,15 @@ export class CinlanMobileHost extends Service {
   }
   private accept(socket: WebSocket, relayDeviceId?: DeviceId): void {
     if (this.disposed || this.peers.size >= this.config.maxConnections) { socket.close(4429, 'connection_capacity_reached'); return }
-    const peer: Peer = { socket, controller: new AbortController(), queue: Promise.resolve(), queued: 0, requests: 0, rateExpiresAt: Date.now() + 60000, ...(relayDeviceId ? { relayDeviceId } : {}) }
+    const peer: Peer = {
+      socket,
+      controller: new AbortController(),
+      queue: Promise.resolve(),
+      queued: 0,
+      requests: 0,
+      rateExpiresAt: Date.now() + 60000,
+      ...(relayDeviceId ? { relayDeviceId } : {}),
+    }
     this.peers.add(peer); this.ctx.emit('mobile-host/socket', socket)
     const deadline = setTimeout(() => { if (!peer.deviceId) socket.close(4401, 'authentication_timeout') }, this.config.handshakeMs)
     socket.on('message', (raw, binary) => {
@@ -339,7 +389,18 @@ export class CinlanMobileHost extends Service {
           peer.controller.signal.throwIfAborted()
           if (relay && this.relay !== relay) throw new Error('relay_generation_changed')
           const previous = this.state.devices
-          this.state.devices = [...previous, { id: ticket.deviceId, name: params.name, tokenHash: digest(token), relayHash: digest(relayToken), createdAt: now, lastSeenAt: now }]
+          this.state.devices = [
+            ...previous,
+            {
+              id: ticket.deviceId,
+              name: params.name,
+              tokenHash: digest(token),
+              relayHash: digest(relayToken),
+              createdAt: now,
+              lastSeenAt: now,
+              workItemSources: [],
+            },
+          ]
           try { this.saveState() } catch (error) { this.state.devices = previous; throw error }
           peer.deviceId = ticket.deviceId
           return { deviceId: ticket.deviceId, token, relayToken, desktop }
@@ -384,7 +445,8 @@ export class CinlanMobileHost extends Service {
         return this.ctx.sessionController.prompt({ sessionId, requestId: brandString<SessionRequestId>(request.params.requestId), mode: request.params.mode, content: [{ type: 'text', text: request.params.text }] }, peer.controller.signal)
       }
       case 'create': {
-        const workspace = request.params.workspaceId ? this.ctx.workspaceRegistry.list().find(item => item.id === request.params.workspaceId) : undefined
+        const workspace = request.params.workspaceId === undefined ? undefined
+          : this.ctx.workspaceRegistry.list().find(item => item.id === request.params.workspaceId)
         if (request.params.workspaceId && !workspace) throw new Error('workspace_not_available')
         const result = await this.ctx.sessionController.create({ ...(workspace ? { workspaceId: workspace.id } : {}) })
         let titleError: string | undefined
@@ -408,7 +470,14 @@ export class CinlanMobileHost extends Service {
     return { hostId: this.hostId, name: this.state.settings.name, os: platform(), sessions: list.items.map((item) => {
       const title = item.projections?.values.title
       return { id: item.sessionId, title: typeof title === 'string' ? title : basename(item.cwd ?? '') || item.sessionId, cwd: item.cwd ?? '', running: item.running, updatedAt: item.updatedAt }
-    }), workspaces: this.ctx.workspaceRegistry.list().map(item => ({ id: item.id, name: basename(item.path), path: item.path, sessionIds: [...item.sessionIds] })) }
+    }),
+    workspaces: this.ctx.workspaceRegistry.list().map(item => ({
+      id: item.id,
+      name: basename(item.path),
+      path: item.path,
+      sessionIds: [...item.sessionIds],
+    })),
+    }
   }
   private async publishDesktop(): Promise<void> {
     if (this.disposed || ![...this.peers].some(peer => peer.deviceId)) return

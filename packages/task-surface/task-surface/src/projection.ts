@@ -22,8 +22,8 @@ const taskSurfaceStateSchema = z.object({
 /**
  * Pure projection unit maintaining the active Task Surface occurrence for one session.
  */
-export const taskSurfaceProjectionDefinition: Omit<ProjectionDefinition<'taskSurface'>, 'wire'> & {
-  wire: NonNullable<ProjectionDefinition<'taskSurface'>['wire']>
+export const taskSurfaceProjectionDefinition: Omit<ProjectionDefinition<'taskSurface', TaskSurfaceProjection>, 'wire'> & {
+  wire: NonNullable<ProjectionDefinition<'taskSurface', TaskSurfaceProjection>['wire']>
 } = {
   key: 'taskSurface',
   stateVersion: 1,

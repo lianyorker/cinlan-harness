@@ -7,6 +7,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { MessageId } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionId } from '@deepseek-ai/dsh-session'
+import type { ProjectionHandle } from '@deepseek-ai/dsh-session-projection'
 import { formatSubmissionMessage, validateSubmission } from './model.ts'
 import { taskSurfaceProjectionDefinition } from './projection.ts'
 import type {
@@ -18,6 +19,7 @@ import type {
   TaskSurfaceId,
   TaskSurfacePendingSubmission,
   TaskSurfacePresentationMeta,
+  TaskSurfaceProjection,
   TaskSurfaceService,
   TaskSurfaceUserMessageSource,
 } from './types.ts'
@@ -31,11 +33,10 @@ export class TaskSurfaceServiceImpl extends Service implements TaskSurfaceServic
   private readonly pendingSubmissions = new Map<string, TaskSurfacePendingSubmission>()
   private readonly submissions = new Map<string, MessageId>()
   private readonly dismissals = new Map<string, number>()
+  private projectionHandle: ProjectionHandle<TaskSurfaceProjection> | undefined
 
   constructor(ctx: Context) {
     super(ctx, 'taskSurface')
-
-    ctx.sessionProjections.register(taskSurfaceProjectionDefinition)
 
     ctx.on('session/event', (session: Session, event) => {
       if (event.type === 'user/message' || event.type === 'task-surface/dismissed') {
@@ -49,6 +50,10 @@ export class TaskSurfaceServiceImpl extends Service implements TaskSurfaceServic
     })
   }
 
+  protected async [Service.init](): Promise<void> {
+    this.projectionHandle = await this.ctx.sessionProjections.register(taskSurfaceProjectionDefinition)
+  }
+
   private resolveSession(sessionId: SessionId): Session | undefined {
     return this.ctx.sessions.get(sessionId)
   }
@@ -59,7 +64,7 @@ export class TaskSurfaceServiceImpl extends Service implements TaskSurfaceServic
       return Promise.resolve({ active: false, reason: 'not-open' })
     }
 
-    const projection = this.ctx.sessionProjections.stateOf(session, 'taskSurface')
+    const projection = this.projectionHandle?.stateOf(session)
     if (!projection || projection.active === null) {
       return Promise.resolve({ active: false, reason: 'not-open' })
     }

@@ -9,6 +9,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ToolExecutionResult, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Consumer from '../src/index.ts'
 
@@ -89,7 +90,7 @@ async function execute(
   signal: AbortSignal = new AbortController().signal,
 ): Promise<ToolExecutionResult> {
   callNumber += 1
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     callId: ToolCallId(`capture-call-${callNumber}`),
     name,
     arguments: arguments_,

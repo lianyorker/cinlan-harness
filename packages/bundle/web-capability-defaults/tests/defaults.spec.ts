@@ -7,9 +7,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { expect, it, onTestFinished } from 'vitest'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import {
-  boot, composeEntries, initProfile, loadOverlayPatches, PROFILE_TEMPLATES, readProfilePatches,
+  boot, composeEntries, initProfile, loadOverlayPatches, readProfilePatches,
   type ProfileContext,
 } from '@deepseek-ai/dsh-app-boot'
+import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import PluginManager from '@deepseek-ai/dsh-plugin-manager'
 import { load } from 'js-yaml'
 

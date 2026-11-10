@@ -26,6 +26,7 @@ import type {
   ComputerObservationId as ComputerObservationIdValue,
   ComputerObserveRequest,
   ComputerPasteTextRequest,
+  ComputerPermissionStatus,
   ComputerPressKeyRequest,
   ComputerScrollRequest,
   ComputerSecondaryActionRequest,
@@ -36,6 +37,13 @@ import type {
   ComputerWindowId as ComputerWindowIdValue,
   Config,
 } from './types.ts'
+
+/** The provider's native permission controls with their optional wrapper resolved. */
+type ComputerPermissionControls = {
+  permissionStatus: (signal?: AbortSignal) => Promise<ComputerPermissionStatus>
+  requestPermissions: (signal?: AbortSignal) => Promise<ComputerPermissionStatus>
+  openScreenRecordingSettings: (signal?: AbortSignal) => Promise<boolean>
+}
 
 export { ComputerUseProviderName } from './brand.ts'
 
@@ -59,6 +67,7 @@ export type {
   ComputerObservationTruncation,
   ComputerObserveRequest,
   ComputerPasteTextRequest,
+  ComputerPermissionStatus,
   ComputerPointerTarget,
   ComputerPressKeyRequest,
   ComputerScreenshot,
@@ -264,6 +273,52 @@ export class ComputerUseRuntime extends Service {
    */
   capabilities(signal?: AbortSignal): Promise<ComputerCapabilities> {
     return this.provider().capabilities(signal)
+  }
+
+  /** Resolve the selected provider's native permission controls.
+   * @param control - Provider control to resolve.
+   * @returns The control callable; providers without native permission controls fail loud.
+   */
+  private permissionControl<K extends keyof ComputerPermissionControls>(control: K): ComputerPermissionControls[K] {
+    const provider = this.provider()
+    const callable = provider[control]
+    if (callable === undefined) {
+      throw new ComputerUseError(
+        `computer-use provider '${provider.id}' does not implement native permission controls`,
+        'COMPUTER_PROVIDER_PERMISSIONS_UNSUPPORTED',
+      )
+    }
+    return callable as ComputerPermissionControls[K]
+  }
+
+  /**
+   * Read the desktop OS permission state from the selected provider.
+   * @param signal Cooperative cancellation signal.
+   * @returns Current OS permission facts.
+   */
+  async permissionStatus(signal?: AbortSignal): Promise<ComputerPermissionStatus> {
+    signal?.throwIfAborted()
+    return await this.permissionControl('permissionStatus')(signal)
+  }
+
+  /**
+   * Request a desktop OS privilege through the selected provider's dialog flow.
+   * @param signal Cooperative cancellation signal.
+   * @returns Permission state after the native request settles.
+   */
+  async requestPermissions(signal?: AbortSignal): Promise<ComputerPermissionStatus> {
+    signal?.throwIfAborted()
+    return await this.permissionControl('requestPermissions')(signal)
+  }
+
+  /**
+   * Open the OS screen-recording settings pane.
+   * @param signal Cooperative cancellation signal.
+   * @returns Whether the OS accepted the open request.
+   */
+  async openScreenRecordingSettings(signal?: AbortSignal): Promise<boolean> {
+    signal?.throwIfAborted()
+    return await this.permissionControl('openScreenRecordingSettings')(signal)
   }
 
   /**

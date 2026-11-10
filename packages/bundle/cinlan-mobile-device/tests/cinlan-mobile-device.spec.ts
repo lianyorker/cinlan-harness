@@ -18,6 +18,7 @@ import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as ToolMobileDevice from '@deepseek-ai/dsh-tool-mobile-device'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import * as yaml from 'js-yaml'
 import { afterEach, expect, it, vi } from 'vitest'
 
@@ -91,7 +92,7 @@ it('observes an exact transport through Loader and consumes the model input toke
   const observed = await b.ctx.mobileDevice.observe({ captureScreenshot: false })
   expect(observed.tree).toContain('Controlled Android fixture')
   expect(observed.device.id).toBe('android:fixture-serial')
-  const result = await b.ctx.tools.execute({
+  const result = await executeModelToolFixture(b.ctx, {
     callId: ToolCallId('native-adb-type'), name: 'mobile_type',
     arguments: { device_id: observed.device.id, observation_id: observed.observationId, text: 'private text' },
     signal: new AbortController().signal,
@@ -106,7 +107,7 @@ it('observes an exact transport through Loader and consumes the model input toke
 }, timeoutMs)
 it('keeps denied tool observation from starting any native command', async () => {
   const b = await boot('deny')
-  const result = await b.ctx.tools.execute({ callId: ToolCallId('native-adb-denied'), name: 'mobile_list_devices', arguments: {}, signal: new AbortController().signal })
+  const result = await executeModelToolFixture(b.ctx, { callId: ToolCallId('native-adb-denied'), name: 'mobile_list_devices', arguments: {}, signal: new AbortController().signal })
   expect(result.isError).toBe(true)
   expect(await b.calls()).toEqual([])
 }, timeoutMs)

@@ -123,8 +123,6 @@ export interface SubagentRunEndInfo {
 export interface SubagentCapabilities {
   readonly agentOptions: boolean
   /** Supports selecting a preset independently of the parent's composition. */
-  readonly agentPreset?: boolean
-  /** Supports selecting a preset independently of the parent's composition. */
   readonly agentPreset: boolean
   readonly outputSchema: boolean
   readonly depthLimit: boolean

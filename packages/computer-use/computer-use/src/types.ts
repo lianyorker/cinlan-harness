@@ -291,6 +291,22 @@ export interface ComputerUseProvider {
   hotkey(request: ComputerHotkeyRequest, signal?: AbortSignal): Promise<ComputerActionResult>
   pasteText(request: ComputerPasteTextRequest, signal?: AbortSignal): Promise<ComputerActionResult>
   setValue(request: ComputerSetValueRequest, signal?: AbortSignal): Promise<ComputerActionResult>
+  /** Read OS permission state; providers without native permission controls omit this. */
+  permissionStatus?(signal?: AbortSignal): Promise<ComputerPermissionStatus>
+  /** Request an OS privilege through the provider's native dialog flow. */
+  requestPermissions?(signal?: AbortSignal): Promise<ComputerPermissionStatus>
+  /** Open the OS screen-recording settings pane. */
+  openScreenRecordingSettings?(signal?: AbortSignal): Promise<boolean>
+}
+
+/** OS permission facts a provider's native permission controls report. */
+export interface ComputerPermissionStatus {
+  /** Provider platform descriptor, such as the native driver's OS facet. */
+  readonly kind: string
+  /** Whether the OS currently grants the accessibility privilege. */
+  readonly accessibility: boolean
+  /** Whether the OS currently grants the screen-recording privilege. */
+  readonly screenRecording: boolean
 }
 
 /** Provider-selection configuration for the Computer Use runtime. */

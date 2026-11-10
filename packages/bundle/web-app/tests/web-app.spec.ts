@@ -10,6 +10,9 @@ import { afterEach, beforeEach, describe, expect, it, vi, onTestFinished } from 
 import { Context } from '@deepseek-ai/cordis'
 import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
 import { bindUrlHost, type WebServer } from '@deepseek-ai/dsh-host-webserver'
+import Loader from '@deepseek-ai/cordis-plugin-loader'
+import * as AppBoot from '@deepseek-ai/dsh-app-boot'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import { apply, Config, internals } from '../src/index.ts'
 
 vi.mock('node:child_process', async importOriginal => ({
@@ -165,45 +168,6 @@ describe('web-app runtime glue', () => {
       printUrl: true,
       surfaceContext: true,
       publicUrl: 'https://proxy.example:8443/web',
-    }))
-    await vi.waitFor(() => { expect(openBrowser).toHaveBeenCalled() })
-
-    expect(lifecycle).toEqual([
-      'dsh web: https://proxy.example:8443/web/?token=test-token',
-      'dsh web: opening the default browser; pass --no-open to disable',
-      'open:https://proxy.example:8443/web/?token=test-token',
-    ])
-    const urlContribution = contributions.find(contribution => contribution.name === 'web-runtime')
-    expect(urlContribution?.resolve()).toEqual({ DSH_WEB_URL: 'https://proxy.example:8443/web/' })
-    // The service advertises the row's effective publicUrl, whether it came from --public-url or a profile override.
-    expect(ctx.webApp.getAdvertisedUrl()).toBe('https://proxy.example:8443/web/')
-  })
-
-  it('advertises and opens the configured public root behind a prefix-stripping proxy', async () => {
-    stageDist()
-    const ctx = new Context()
-    onTestFinished(() => ctx.fiber.dispose())
-    const { server } = fakeHttpServer()
-    ctx.provide('webServer', server)
-    provideConnection(ctx)
-    const contributions: BashContribution[] = []
-    ctx.provide('shellEnv', {
-      register: (contribution: BashContribution) => {
-        contributions.push(contribution)
-        return () => {}
-      },
-    } as never)
-    provideLoader(ctx)
-    const lifecycle: string[] = []
-    vi.spyOn(console, 'log').mockImplementation((message) => { lifecycle.push(String(message)) })
-    const openBrowser = vi.fn(async (url: string) => { lifecycle.push(`open:${url}`) })
-    internals.openBrowser = openBrowser
-    apply(ctx, new Config({
-      openBrowser: true,
-      printUrl: true,
-      surfaceContext: true,
-      publicUrl: 'https://proxy.example:8443/web',
-      trustedHosts: ['proxy.example:8443'],
     }))
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await vi.waitFor(() => { expect(openBrowser).toHaveBeenCalled() })
@@ -465,11 +429,13 @@ describe('web-app runtime glue', () => {
     Object.defineProperty(server, 'port', { get: () => undefined })
     ctx.provide('webServer', server)
     provideConnection(ctx)
-    apply(ctx, new Config({ openBrowser: false, printUrl: false, surfaceContext: true, trustedHosts: [] }))
+    apply(ctx, new Config({ openBrowser: false, printUrl: false, surfaceContext: true }))
     await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await new Promise(resolve => setTimeout(resolve, 0))
     await expect(ctx.systemPrompt.assemble()).rejects.toThrow('webServer service missing')
     await ctx.fiber.dispose()
+  })
+
   it.each([
     { id: 'webserver', announces: false },
     { id: 'modules', announces: false },

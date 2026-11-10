@@ -1,6 +1,6 @@
 /** V5 header validation and unchanged tool-role body invariants. */
 import { SessionFormatError, isSessionFormatJsonObject } from '@deepseek-ai/dsh-session-format'
-import type { SessionFormatArtifact } from '@deepseek-ai/dsh-session-format'
+import type { SessionFormatArtifact, SessionFormatEvent } from '@deepseek-ai/dsh-session-format'
 import { assertReleasedV4Header, assertNativeToolRoleBody } from '@deepseek-ai/dsh-session-format-v3-to-v4'
 
 /**
@@ -20,6 +20,9 @@ export function assertReleasedV5Header(header: unknown): void {
  */
 export function restoreReleasedV5Artifact(artifact: SessionFormatArtifact, knownEventTypes: ReadonlySet<string>): SessionFormatArtifact {
   assertReleasedV5Header(artifact.header)
-  assertNativeToolRoleBody(artifact, knownEventTypes, 5)
+  for (const event of artifact.events) {
+    if (!knownEventTypes.has(event.type)) continue
+    assertNativeToolRoleBody(event as SessionFormatEvent)
+  }
   return artifact
 }

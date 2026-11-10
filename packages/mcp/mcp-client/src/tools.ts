@@ -30,6 +30,8 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Raw tool names eligible for registration; omission registers every listed tool. */
+  toolFilter?: readonly string[]
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -120,6 +122,7 @@ export async function syncTools(
     ? { tools: [] }
     : await client.listTools(undefined, { cacheMode: 'refresh' })
   for (const tool of response.tools) {
+    if (opts.toolFilter !== undefined && !opts.toolFilter.includes(tool.name)) continue
     const publicName = publicToolName(opts.serverName, tool.name)
     if (definitions.has(publicName)) {
       throw new Error(

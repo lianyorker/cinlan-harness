@@ -29,6 +29,7 @@ import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ToolExecutionResult, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as ToolBrowser from '../src/index.ts'
 import {
@@ -159,7 +160,7 @@ function agent(
 
 async function execute(ctx: Context, name: string, args: unknown, selectedAgent?: Agent): Promise<ToolExecutionResult> {
   call += 1
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     callId: ToolCallId(`browser-${call}`),
     name,
     arguments: args,

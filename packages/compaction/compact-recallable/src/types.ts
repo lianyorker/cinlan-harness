@@ -4,6 +4,12 @@
  * @module @deepseek-ai/dsh-compact-recallable/types
  */
 
+declare module '@deepseek-ai/dsh-llm/types' {
+  interface LlmRequestPurposeMap {
+    'compaction': true
+  }
+}
+
 import type { ContentBlock, TokenUsage } from '@deepseek-ai/dsh-llm'
 import type { SessionSeq } from '@deepseek-ai/dsh-session'
 

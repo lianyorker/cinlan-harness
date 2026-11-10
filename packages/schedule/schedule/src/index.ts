@@ -388,8 +388,6 @@ export class ScheduleService extends TypertRemoteService {
     const record = createScheduleRecord(id, request.title, request.prompt, request.timing, now)
     const target = await this.resolveTarget(request.target ?? { kind: 'new_once' }, signal)
     return this.serialize(async () => {
-      const refusal = this.reminderTargetRefusal(sessionId)
-      if (refusal !== undefined) throw new ScheduleInputError('subagent_session', refusal.message)
       const domain = await this.getDomain()
       signal?.throwIfAborted()
       await this.validateTarget(target, signal)

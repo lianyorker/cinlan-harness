@@ -3,7 +3,7 @@ import { createAssistantMessage } from '@deepseek-ai/dsh-llm'
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, SessionLogOffset, SessionSeq, SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
 import type { SessionEvent, SessionEventMap, SessionEventType, SessionHeader } from '@deepseek-ai/dsh-session'
-import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import SqliteSessionQueryEngine from '@deepseek-ai/dsh-session-query-sqlite'
 import { RetryId } from '@deepseek-ai/dsh-llm-retry'
 import UsageQueryService from '../src/index.ts'
@@ -41,7 +41,7 @@ export function retryTurn(): SessionEvent[] {
   return [
     event(0, 'turn/start', { turn: 1 }),
     event(1, 'step/start', { turn: 1, step: 1 }),
-    event(2, 'request/header', { header: { config: { provider: 'fixture', model: 'mock' } } as any, reason: 'initial' }),
+    event(2, 'request/header', { header: { config: { provider: 'fixture', model: 'mock' } }, reason: 'initial' }),
     event(3, 'assistant/attempt', {
       turn: 1, step: 1, stream: [
         { type: 'chunk', time: 1003, chunk: { type: 'usage', usage: usage() } },

@@ -205,14 +205,6 @@ describe('HttpFetchProvider success', () => {
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_ABORTED' }))
   })
 
-  it('uses an explicitly injected validated-address resolver', async () => {
-    const resolveAddresses = vi.fn<HttpFetchResolver>(async () => [{ address: '127.0.0.1', family: 4 }])
-    const result = await new HttpFetchProvider(limits, resolveAddresses).fetch({ url: base })
-    expect(result.statusCode).toBe(200)
-    expect(resolveAddresses).toHaveBeenCalledWith('127.0.0.1', expect.any(AbortSignal))
-    expect(publicHttpNetwork.resolve).not.toHaveBeenCalled()
-  })
-
   it('sends the configured user agent', async () => {
     let seen: string | undefined
     handler = (req, res) => { seen = req.headers['user-agent']; res.writeHead(200, { 'content-type': 'text/plain' }); res.end('ok') }

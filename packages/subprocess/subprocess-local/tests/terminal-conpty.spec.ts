@@ -8,7 +8,11 @@ afterEach(() => { vi.useRealTimers() })
 
 it('captures the asynchronously assigned ConPTY PID before cleanup', async () => {
   vi.useFakeTimers()
-  const pty = { pid: 0, kill: vi.fn(), onData: () => ({ dispose() {} }), onExit: () => ({ dispose() {} }) } as IPty
+  const pty: IPty = {
+    pid: 0, cols: 80, rows: 24, process: 'fixture', handleFlowControl: false,
+    kill: vi.fn(), onData: () => ({ dispose() {} }), onExit: () => ({ dispose() {} }),
+    resize: () => {}, clear: () => {}, write: () => {}, pause: () => {}, resume: () => {},
+  }
   let alive = true
   const taskkill = vi.fn(() => { alive = false })
   const inspector = createWindowsProcessInspector({

@@ -92,14 +92,26 @@ const JIRA_SCOPE_SCHEMA = {
   },
 } as const
 
-const SCOPE_SCHEMA = { oneOf: [GITHUB_SCOPE_SCHEMA, LINEAR_SCOPE_SCHEMA, GITLAB_SCOPE_SCHEMA, JIRA_SCOPE_SCHEMA] } as const
+const GITEE_SCOPE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    source: { type: 'string', const: 'gitee', required: true },
+    owner: { type: 'string', required: true, description: 'Configured Gitee repository owner.' },
+    repository: { type: 'string', required: true, description: 'Configured Gitee repository path.' },
+  },
+} as const
+
+const SCOPE_SCHEMA = {
+  oneOf: [GITHUB_SCOPE_SCHEMA, LINEAR_SCOPE_SCHEMA, GITLAB_SCOPE_SCHEMA, JIRA_SCOPE_SCHEMA, GITEE_SCOPE_SCHEMA],
+} as const
 
 const ITEM_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
     id: { type: 'string', required: true },
-    source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira'] },
+    source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira', 'gitee'] },
     externalId: { type: 'string', required: true },
     key: { type: 'string' },
     title: { type: 'string', required: true },
@@ -223,7 +235,7 @@ const MUTATION_SCHEMA = {
       additionalProperties: false,
       properties: {
         kind: { type: 'string', const: 'create', required: true },
-        source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira'] },
+        source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira', 'gitee'] },
         title: { type: 'string', required: true, description: 'New Work Item title.' },
         body: { type: 'string', required: true, description: 'New Work Item body.' },
       },
@@ -263,7 +275,7 @@ const OPERATION_SCHEMA = {
   additionalProperties: false,
   properties: {
     operationId: { type: 'string', required: true },
-    source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira'] },
+    source: { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira', 'gitee'] },
     mutation: { ...MUTATION_SCHEMA, required: true },
     status: {
       type: 'string',
@@ -301,7 +313,7 @@ const OPERATION_SCHEMA = {
   },
 } as const
 
-const SOURCE_SCHEMA = { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira'] } as const
+const SOURCE_SCHEMA = { type: 'string', required: true, enum: ['github', 'linear', 'gitlab', 'jira', 'gitee'] } as const
 
 function resolveConfig(config: Config): ResolvedConfig {
   for (const key of Object.keys(config)) {
@@ -330,13 +342,13 @@ function nonEmpty(value: string, field: string, maximum = MAX_SCOPE_LENGTH): str
 
 function source(value: string): WorkItemSource {
   /* v8 ignore next 1 -- every caller sits behind an enum-validated parameter, so the guard is defensive. */
-  if (value !== 'github' && value !== 'linear' && value !== 'gitlab' && value !== 'jira') throw new Error('source must be github, linear, gitlab, or jira')
+  if (value !== 'github' && value !== 'linear' && value !== 'gitlab' && value !== 'jira' && value !== 'gitee') throw new Error('source must be github, linear, gitlab, jira, or gitee')
   return value
 }
 
 function itemId(value: string): WorkItemIdType {
   const id = nonEmpty(value, 'id')
-  if (!id.startsWith('github:') && !id.startsWith('linear:') && !id.startsWith('gitlab:') && !id.startsWith('jira:')) throw new Error('id must start with github:, linear:, gitlab:, or jira:')
+  if (!id.startsWith('github:') && !id.startsWith('linear:') && !id.startsWith('gitlab:') && !id.startsWith('jira:') && !id.startsWith('gitee:')) throw new Error('id must start with github:, linear:, gitlab:, jira:, or gitee:')
   return WorkItemId(id)
 }
 
@@ -356,6 +368,7 @@ type ModelScope =
   | { readonly source: 'linear'; readonly team?: string; readonly project?: string }
   | { readonly source: 'gitlab'; readonly owner: string; readonly repository: string }
   | { readonly source: 'jira'; readonly project: string }
+  | { readonly source: 'gitee'; readonly owner: string; readonly repository: string }
 
 type ModelMutation =
   | { readonly kind: 'create'; readonly source: WorkItemSource; readonly title: string; readonly body: string }
@@ -374,6 +387,13 @@ function normalizeScope(value: ModelScope): WorkItemScope {
   if (value.source === 'gitlab') {
     return {
       source: 'gitlab',
+      owner: nonEmpty(value.owner, 'scope.owner'),
+      repository: nonEmpty(value.repository, 'scope.repository'),
+    }
+  }
+  if (value.source === 'gitee') {
+    return {
+      source: 'gitee',
       owner: nonEmpty(value.owner, 'scope.owner'),
       repository: nonEmpty(value.repository, 'scope.repository'),
     }
@@ -647,7 +667,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'work_items_list',
     description: 'List normalized Work Items from the configured GitHub, GitLab, Jira, or Linear provider.',
     parameters: {
-      source: { type: 'string', enum: ['github', 'linear', 'gitlab', 'jira'], description: 'Optional provider family; omit only when exactly one provider is usable.' },
+      source: { type: 'string', enum: ['github', 'linear', 'gitlab', 'jira', 'gitee'], description: 'Optional provider family; omit only when exactly one provider is usable.' },
       scope: { ...SCOPE_SCHEMA, description: 'Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project; GitLab requires owner and repository; Jira requires project.' },
       query: { type: 'string', description: 'Optional bounded title/body text filter.' },
       state: { type: 'string', enum: ['open', 'closed', 'all'], description: 'Optional provider-neutral state filter; defaults to open.' },
@@ -667,7 +687,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'work_items_boards',
     description: 'Read bounded normalized boards with ordered columns and item ids from the configured provider; only providers exposing a native board surface answer.',
     parameters: {
-      source: { type: 'string', enum: ['github', 'linear', 'gitlab', 'jira'], description: 'Optional provider family; omit only when exactly one provider is usable.' },
+      source: { type: 'string', enum: ['github', 'linear', 'gitlab', 'jira', 'gitee'], description: 'Optional provider family; omit only when exactly one provider is usable.' },
       board: { type: 'string', description: 'Optional provider board id or title selecting one board.' },
       limit: { type: 'integer', description: 'Maximum item ids retained per column, from 1 through 100.' },
     },

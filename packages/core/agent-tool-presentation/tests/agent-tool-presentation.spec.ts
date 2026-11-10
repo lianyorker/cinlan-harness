@@ -86,6 +86,18 @@ describe('the tool-presentation row', () => {
   })
 
   it('restores the deployment default when the agent unloads', async () => {
+    const ctx = await host()
+    const { agent, row } = await mount(ctx, { mode: 'ptc' })
+
+    await row.dispose()
+
+    // HMR safety: the preset subtree is torn down with its agent, and the
+    // presentation must go with it rather than outliving the composition.
+    const assembly = await ctx.systemPrompt.assemble({ scope: agent })
+    expect(assembly.tools.map(tool => tool.name)).toEqual(['echo'])
+    expect(assembly.sections.some(section => section.name === 'tools:sdk')).toBe(false)
+  })
+
   it('rejects the selected scope after its provider unloads', async () => {
     const ctx = await host()
     const { agent, row } = await mount(ctx, { mode: 'ptc' })

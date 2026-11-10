@@ -28,6 +28,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as ToolBrowser from '@deepseek-ai/dsh-tool-browser'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { chromium } from 'playwright-core'
 import type { BrowserContext, ElementHandle, Locator, Page } from 'playwright-core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -163,7 +164,7 @@ function execute(
   agent?: unknown,
 ): Promise<ToolExecutionResult> {
   callNumber += 1
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     callId: ToolCallId(`loader-capture-${callNumber}`),
     name,
     arguments: arguments_,

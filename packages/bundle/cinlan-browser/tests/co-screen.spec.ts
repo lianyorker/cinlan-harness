@@ -39,6 +39,7 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as ToolBrowser from '@deepseek-ai/dsh-tool-browser'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import * as yaml from 'js-yaml'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -205,7 +206,7 @@ describe('Desktop co-screen live integration with CDP bridge', () => {
     expect(pages[0]?.url).toBe('https://cinlan.test/dashboard')
 
     // 4. Agent queries browser state via model tool browser_list
-    const listResult = await context.tools.execute({
+    const listResult = await executeModelToolFixture(context, {
       callId: ToolCallId('agent-call-1'),
       name: 'browser_list',
       arguments: {},

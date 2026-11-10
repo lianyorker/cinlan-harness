@@ -155,3 +155,20 @@ export interface DeleteTaskResult {
   /** The provider retains this receipt after the task record is deleted. */
   readonly cleanupReceipt?: WorktreeTaskCleanupReceipt
 }
+
+/** Committed lifecycle transitions a task passes through; providers publish them after each commit point. */
+export type WorktreeTaskTransition =
+  | 'created'
+  | 'activated'
+  | 'bound'
+  | 'unbound'
+  | 'hibernated'
+  | 'archived'
+  | 'deleted'
+
+/** One committed task transition; `sessionId` accompanies only `bound` and `unbound`. */
+export interface WorktreeTaskChange {
+  readonly transition: WorktreeTaskTransition
+  readonly task: WorktreeTask
+  readonly sessionId?: SessionId | undefined
+}

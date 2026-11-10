@@ -10,6 +10,7 @@ import type { WorkItem, WorkItemsProvider } from '@cinlan/work-items/types'
 import WorkItemsRuntime, { WorkItemId } from '@cinlan/work-items'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as ToolWorkItems from '../src/index.ts'
 
@@ -110,7 +111,7 @@ describe('dsh-tool-work-items through a real cordis.yml Loader composition', () 
       name: 'tool:work-items', text: ToolWorkItems.WORK_ITEMS_SYSTEM_PROMPT,
     })
 
-    const listed = await context.tools.execute({
+    const listed = await executeModelToolFixture(context, {
       callId: ToolCallId('loader-work-items-list'),
       name: 'work_items_list',
       arguments: { source: 'github', limit: 1 },
@@ -120,7 +121,7 @@ describe('dsh-tool-work-items through a real cordis.yml Loader composition', () 
     if (listed.isError) throw new Error('expected a successful Work Items list')
     expect(listed.value).toEqual({ items: [item], truncated: false })
 
-    const detail = await context.tools.execute({
+    const detail = await executeModelToolFixture(context, {
       callId: ToolCallId('loader-work-items-get'),
       name: 'work_items_get',
       arguments: { id: item.id },

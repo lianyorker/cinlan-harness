@@ -46,15 +46,16 @@ export function bootstrapArgs(fs: Pick<FileSystem, 'processPathFromHostPath'>, c
     case 'embedded':
       if (persistent) throw new Error('Persistent PTC requires a node-script launch')
       return [String(maxMessageBytes)]
-    case 'node-script': return scriptBootstrapArgs(fs, config.bootstrapPath, maxMessageBytes)
+    case 'node-script': return scriptBootstrapArgs(fs, config.bootstrapPath, maxMessageBytes, persistent)
     /* v8 ignore next -- Callers supply the resolved, closed LaunchConfig union. */
     default: return assertNever(config)
   }
 }
 
 function scriptBootstrapArgs(
-  fs: Pick<FileSystem, 'processPathFromHostPath'>, bootstrapPath: string | undefined, maxMessageBytes: number,
+  fs: Pick<FileSystem, 'processPathFromHostPath'>, bootstrapPath: string | undefined, maxMessageBytes: number, persistent: boolean,
 ): string[] {
+  const moduleName = persistent ? 'persistent-process' : 'process'
   if (bootstrapPath !== undefined) return [bootstrapPath, String(maxMessageBytes)]
   const mapped = (path: string): string => {
     const result = fs.processPathFromHostPath(path)

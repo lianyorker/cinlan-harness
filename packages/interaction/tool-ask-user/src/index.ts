@@ -9,7 +9,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import z from '@deepseek-ai/schemastery'
-import { registerTimedAskUser } from './timed.ts'
 import { registerTimedAskUser, skippedAnswerGuidance } from './timed.ts'
 import '@deepseek-ai/dsh-user-questions'
 

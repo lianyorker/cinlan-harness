@@ -1151,9 +1151,6 @@ export function parseCronInput(cron: CronInput): { readonly expression: string; 
 /** Fixed model-facing origin line shared by one-shot and recurring reminder delivery. */
 const SCHEDULED_MESSAGE_FRAMING = 'This is a scheduled message from the user'
 
-/** Fixed model-facing origin line shared by one-shot and recurring reminder delivery. */
-const SCHEDULED_MESSAGE_FRAMING = 'This is a scheduled message from the user'
-
 /**
  * Render the fixed model framing for one due reminder.
  * @param record - Due task identity, instruction, and delivered occurrence.

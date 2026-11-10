@@ -15,6 +15,7 @@ import {
   ToolCallId,
 } from '@deepseek-ai/dsh-llm'
 import { Session, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import * as toolRecall from '../src/index.ts'
 
@@ -34,7 +35,7 @@ async function setupContext(config: toolRecall.Config = {}): Promise<Context> {
 
 let callSeq = 0
 function execTool(ctx: Context, name: string, args: unknown, agent?: Agent) {
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     signal: testSignal,
     callId: ToolCallId(`call-${++callSeq}`),
     name,

@@ -138,11 +138,14 @@ function routedAgent(
 
 async function execute(ctx: Context, name: string, args: unknown, selectedAgent?: Agent): Promise<ToolExecutionResult> {
   call += 1
-  return ctx.tools.execute({
-    callId: ToolCallId(`computer-${call}`), name, arguments: args,
+  const batch = await ctx.tools.execute({
+    calls: [{ type: 'tool-call', id: ToolCallId(`computer-${call}`), name, arguments: JSON.stringify(args) }],
     signal: new AbortController().signal,
     ...(selectedAgent === undefined ? {} : { agent: selectedAgent }),
   })
+  const outcome = batch.results[0]
+  if (outcome === undefined) throw new Error('Executor omitted the computer-use tool result')
+  return outcome.result
 }
 
 function expectSuccess(result: ToolExecutionResult): asserts result is Extract<ToolExecutionResult, { isError: false }> {

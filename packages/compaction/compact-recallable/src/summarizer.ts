@@ -17,6 +17,8 @@ import type {
   Message,
 } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+// Type-only: pulls the 'compaction' LlmRequestPurposeMap augmentation into this program.
+import type {} from './types.ts'
 import { INDEX_STUB_INSTRUCTION, STATE_SUMMARIZATION_INSTRUCTION } from './prompts.ts'
 import type { ChunkSlice, StateSummaryResult, StubSummaryResult } from './types.ts'
 

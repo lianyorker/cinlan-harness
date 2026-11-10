@@ -252,13 +252,11 @@ function bindingFailure(errorClass: BindingErrorConstructor | undefined, memberN
  * @param host - Evaluation-scoped remote binding calls.
  * @param errorClasses - Constructors shared with program globals, resolved per invocation.
  * @returns One namespace object per declaration; arguments and results must be lossless JSON.
- * @param errorClasses - Namespace constructors shared with program globals, resolved for each invocation.
  */
 export function makeNamespaces(
   data: Pick<ProgramBootData, 'namespaces'>,
   host: Pick<HostMethods, 'invoke'>,
   errorClasses: Pick<ReadonlyMap<string, BindingErrorConstructor>, 'get'>,
-  errorClasses: Pick<ReadonlyMap<string, BindingErrorConstructor>, 'get'> = makeBindingErrorClasses(data),
 ): Record<string, unknown>[] {
   return data.namespaces.map(({ global, names }) => {
     const namespace = Object.create(null) as Record<string, unknown>
@@ -267,15 +265,11 @@ export function makeNamespaces(
         enumerable: true,
         value: async (args: unknown): Promise<unknown> => {
           const errorClass = errorClasses.get(global)
-          const errorClass = errorClasses.get(global)
           try {
             let detached: ReturnType<typeof snapshotPtcJsonValue>
             try { detached = snapshotPtcJsonValue(args) } catch {
               // Model-defined getters can fail while arguments are detached.
               detached = undefined
-            const id = nextId.value
-              nextId.value += 1
-              const message = `binding call could not be sent: ${error instanceof CapturedError ? error.message : String(error)}`
             }
             if (detached === undefined) throw new CapturedError('binding arguments must be lossless JSON')
             const result = decodePtcJsonWire(await host.invoke(global, name, encodePtcJsonWire(detached)))

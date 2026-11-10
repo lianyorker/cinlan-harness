@@ -6,10 +6,8 @@ import type { TaskOutcome, TaskSnapshot } from '@cinlan/coordination'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { assertNever, snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
-import {
-  assertSubagentMaxDepth, settleRun,
-} from '@deepseek-ai/dsh-subagent'
-import type { SubagentProvider } from '@deepseek-ai/dsh-subagent'
+import { assertSubagentMaxDepth } from '@deepseek-ai/dsh-subagent'
+import type { SubagentResult, SubagentProvider } from '@deepseek-ai/dsh-subagent'
 
 export const name = 'coordination-subagent-executor'
 export const inject = ['agents', 'coordination', 'subagents']
@@ -121,6 +119,39 @@ function assertProviderCapabilities(provider: SubagentProvider, config: Config, 
   }
 }
 
+/**
+ * Await one activation's terminal result, release it, and map the outcome the way the
+ * coordination Task seam expects: completed carries final text, local cancellation is
+ * killed, and provider-diagnosed aborts plus every other stop reason are failures.
+ * @param activation - live activation to settle and release.
+ * @returns outcome after the child's resources are released.
+ */
+async function settleActivation(
+  activation: { result: Promise<SubagentResult>; dispose(): Promise<void> },
+): Promise<{ status: 'completed'; result: string } | { status: 'killed' } | { status: 'failed'; detail: string }> {
+  let result: SubagentResult
+  try {
+    result = await activation.result
+  } finally {
+    await activation.dispose()
+  }
+  const detail = result.diagnostic === undefined ? result.stopReason : `${result.stopReason}; diagnostic: ${result.diagnostic}`
+  switch (result.stopReason) {
+    case 'completed':
+      return {
+        status: 'completed',
+        result: result.output
+          .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
+          .map(block => block.text)
+          .join(''),
+      }
+    case 'aborted':
+      return result.diagnostic === undefined ? { status: 'killed' } : { status: 'failed', detail }
+    default:
+      return { status: 'failed', detail }
+  }
+}
+
 async function executeTask(
   ctx: Context,
   provider: string,
@@ -137,28 +168,32 @@ async function executeTask(
     throw new Error(`coordination task ${String(task.id)} parent agent ${input.parentAgentId} is unavailable`)
   }
   const prompt = appendDependencyContext(ctx, task, input.prompt, maxDependencyContextChars)
-  const run = await ctx.subagents.start(provider, {
+  const activation = await ctx.subagents.startActivation({
+    provider,
     label: task.label,
-    prompt: [{ type: 'text', text: prompt }] as ContentBlock[],
-    parent,
+    delivery: 'caller',
     signal,
-    ...config.agentOptions !== undefined ? { agentOptions: config.agentOptions } : {},
-    ...config.persona !== undefined ? { persona: config.persona } : {},
-    ...config.toolFilter !== undefined ? { toolFilter: config.toolFilter } : {},
-    ...maxDepth !== undefined ? { maxDepth } : {},
+    request: {
+      prompt: [{ type: 'text', text: prompt }] as ContentBlock[],
+      parent,
+      ...config.agentOptions !== undefined ? { agentOptions: config.agentOptions } : {},
+      ...config.persona !== undefined ? { persona: config.persona } : {},
+      ...config.toolFilter !== undefined ? { toolFilter: config.toolFilter } : {},
+      ...maxDepth !== undefined ? { maxDepth } : {},
+    },
   })
-  const subagentId = String(run.id)
-  const outcome = await settleRun(run)
+  const subagentId = String(activation.childId)
+  const outcome = await settleActivation(activation)
   switch (outcome.status) {
     case 'completed':
-      return { status: 'succeeded', output: { subagentId, text: outcome.result ?? '' } }
+      return { status: 'succeeded', output: { subagentId, text: outcome.result } }
     case 'killed':
-      return { status: 'cancelled', ...outcome.detail === undefined ? {} : { error: outcome.detail } }
+      return { status: 'cancelled' }
     case 'failed':
       return { status: 'failed', error: outcome.detail ?? 'subagent run failed' }
-    /* v8 ignore next 2 -- JobOutcome.status is closed and every member is handled above. */
+    /* v8 ignore next 2 -- settleActivation's union is closed and every member is handled above. */
     default:
-      return assertNever(outcome.status)
+      return assertNever(outcome)
   }
 }
 

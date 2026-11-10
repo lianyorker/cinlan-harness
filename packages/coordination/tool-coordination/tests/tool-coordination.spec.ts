@@ -13,6 +13,7 @@ import type {
   ResolvedSubagentStartRequest, SubagentCapabilities, SubagentProvider, SubagentRun,
 } from '@deepseek-ai/dsh-subagent'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import * as tool from '@deepseek-ai/dsh-tool-coordination'
@@ -45,7 +46,7 @@ async function setup(config: Partial<tool.Config> = {}, coordinationConfig: Coor
 
 let callCounter = 0
 function call(ctx: Context, agent: Agent, name: string, args: unknown, callSignal = signal) {
-  return ctx.tools.execute({
+  return executeModelToolFixture(ctx, {
     callId: ToolCallId(`coordination-${++callCounter}`),
     name,
     arguments: args,
@@ -503,7 +504,7 @@ describe('tool-coordination', () => {
     await ctx.plugin(LocalCoordinationService, { maxConcurrency: 2 })
     const requests: ResolvedSubagentStartRequest[] = []
     const capabilities: SubagentCapabilities = {
-      agentOptions: true, outputSchema: true, depthLimit: true,
+      agentOptions: true, agentPreset: true, outputSchema: true, depthLimit: true,
       toolFilter: true, persona: true,
     }
     const provider: SubagentProvider = {
@@ -514,7 +515,6 @@ describe('tool-coordination', () => {
         requests.push(request)
         return {
           id: SessionId(`child-${requests.length}`),
-          localAgent: undefined,
           result: Promise.resolve({ output: [{ type: 'text', text: `done:${request.label}` }], stopReason: 'completed' }),
           async dispose() {},
         }

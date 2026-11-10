@@ -2,6 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { PreToolDecision, ToolExecution, ToolGuard } from '@deepseek-ai/dsh-tools'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as BrowserPermissionPolicy from '../src/index.ts'
@@ -160,7 +161,7 @@ describe('browser permission monotonic guard', () => {
     ['browser_save_download', BROWSER_INTERACT_APPROVAL_REASON],
   ])('blocks a prepended allow from bypassing ask policy for %s', async (name, reason) => {
     const { ctx, body } = await runtimeHarness({ observe: 'ask', navigate: 'ask', interact: 'ask' })
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: ToolCallId(`bypass-${name}`), name, arguments: {}, signal: new AbortController().signal,
     })
     expect(result).toMatchObject({ isError: true, content: [{ type: 'text', text: `Error: ${reason}` }] })
@@ -169,7 +170,7 @@ describe('browser permission monotonic guard', () => {
 
   it('blocks a prepended allow from bypassing deny policy', async () => {
     const { ctx, body } = await runtimeHarness({ observe: 'deny', navigate: 'deny', interact: 'deny' })
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: ToolCallId('deny-bypass'), name: 'browser_open', arguments: {}, signal: new AbortController().signal,
     })
     expect(result).toMatchObject({
@@ -181,18 +182,18 @@ describe('browser permission monotonic guard', () => {
 
   it('allows configured calls and removes both policy layers on HMR disposal', async () => {
     const { ctx, fiber, body } = await runtimeHarness({ observe: 'allow', navigate: 'ask', interact: 'ask' })
-    const allowed = await ctx.tools.execute({
+    const allowed = await executeModelToolFixture(ctx, {
       callId: ToolCallId('observe-allow'), name: 'browser_list', arguments: {}, signal: new AbortController().signal,
     })
     expect(allowed.isError).toBe(false)
     expect(body).toHaveBeenCalledOnce()
 
-    const before = await ctx.tools.execute({
+    const before = await executeModelToolFixture(ctx, {
       callId: ToolCallId('navigate-before-dispose'), name: 'browser_open', arguments: {}, signal: new AbortController().signal,
     })
     expect(before.isError).toBe(true)
     await fiber.dispose()
-    const after = await ctx.tools.execute({
+    const after = await executeModelToolFixture(ctx, {
       callId: ToolCallId('navigate-after-dispose'), name: 'browser_open', arguments: {}, signal: new AbortController().signal,
     })
     expect(after.isError).toBe(false)

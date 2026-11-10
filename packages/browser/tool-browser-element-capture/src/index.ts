@@ -26,7 +26,7 @@ declare module '@deepseek-ai/dsh-llm' {
     'tool-browser-element-capture': { kind: 'tool-browser-element-capture' }
   }
 }
-import type { PromptAssembly } from '@deepseek-ai/dsh-system-prompt'
+import type { PromptPresentation } from '@deepseek-ai/dsh-system-prompt'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
@@ -303,24 +303,26 @@ async function awaitRun(
 
 async function filterCaptureForRoute(
   ctx: Context,
-  assembly: PromptAssembly,
+  presentation: PromptPresentation,
   signal: AbortSignal | undefined,
-): Promise<PromptAssembly> {
-  if (!assembly.tools.some(tool => tool.name === 'browser_capture_element')) return assembly
-  const provider = assembly.variables.provider
-  const model = assembly.variables.model
+): Promise<PromptPresentation> {
+  // The waterfall's payload is the presentation; the tool's own section is the
+  // only reliable marker that this composition registered the capture tool.
+  if (!presentation.sections.some(section => section.name === 'tool:browser-element-capture')) return presentation
+  const provider = presentation.variables.provider
+  const model = presentation.variables.model
   const llm = ctx.get('llm')
   if (provider === undefined || model === undefined || llm === undefined) {
-    return { ...assembly, tools: assembly.tools.filter(tool => tool.name !== 'browser_capture_element') }
+    return presentation
   }
   try {
     const info = await llm.resolveModelInfo(provider, model, signal)
-    if (info.inputModalities?.includes('image') === true) return assembly
+    if (info.inputModalities?.includes('image') === true) return presentation
   } catch (error: unknown) {
     signal?.throwIfAborted()
     ctx.logger.debug(`tool-browser-element-capture: hiding image tool because model capability resolution failed: ${errorMessage(error)}`)
   }
-  return { ...assembly, tools: assembly.tools.filter(tool => tool.name !== 'browser_capture_element') }
+  return presentation
 }
 
 async function assertImageCapableRoute(ctx: Context, exec: ToolExecution): Promise<void> {

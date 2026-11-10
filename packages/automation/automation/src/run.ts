@@ -71,7 +71,9 @@ export class AutomationExecution {
           localWorkspace(this.ctx, spec.workspaceId, spec.workspacePath)
           if (await realpath(spec.workspacePath) !== spec.workspacePath) throw new Error('saved workspace changed during setup')
           this.ctx.permissionPresets.set(agent.session, spec.permissionPresetId)
-          installModelSelection(agentCtx, { current: spec.model, assembled: undefined })
+          // The run's fixed route rides agentOptions at creation; this only installs
+          // the pre-step switch-notice listener.
+          installModelSelection(agentCtx)
           agentCtx.on('agent/inbox/claimed', ({ message, turn }) => {
             if (message.id !== this.message.id) return
             try {

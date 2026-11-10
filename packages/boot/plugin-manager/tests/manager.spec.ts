@@ -459,15 +459,15 @@ it('projects each bundle\'s default GUI listing without changing its selection, 
   const path = join(dir, 'node_modules', 'extra', 'package.json')
   const manifest = JSON.parse(readFileSync(path, 'utf8')) as { dsh: { bundle: { patch: string; listedByDefault?: boolean | string } } }
   for (const listedByDefault of [false, true, undefined]) {
-    if (listedByDefault === undefined) delete manifest.clh.bundle.listedByDefault
-    else manifest.clh.bundle.listedByDefault = listedByDefault
+    if (listedByDefault === undefined) delete manifest.dsh.bundle.listedByDefault
+    else manifest.dsh.bundle.listedByDefault = listedByDefault
     writeFileSync(path, JSON.stringify(manifest))
     const entry = (await manager.listBundles()).find(row => row.name === 'extra')
     expect(entry?.listedByDefault).toBe(listedByDefault)
     expect(entry?.enabled).toBe(true)
     expect(entry?.error).toBeUndefined()
   }
-  manifest.clh.bundle.listedByDefault = 'hidden'
+  manifest.dsh.bundle.listedByDefault = 'hidden'
   writeFileSync(path, JSON.stringify(manifest))
   expect((await manager.listBundles()).find(row => row.name === 'extra')).toMatchObject({ enabled: true,
     error: { diagnostic: 'dsh.bundle.listedByDefault must be a boolean' } })
@@ -594,7 +594,7 @@ it('correlates diagnostic operation starts with persisted toggle results', async
   const facts: PluginOperation[] = []
   ctx.on('plugin-manager/operation', (event) => { facts.push(event) })
   await manager.setBundleEnabled('extra', false)
-  expect(readProfileManifest('test', dir).clh?.profile?.bundles).not.toContain('extra')
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).not.toContain('extra')
   expect(facts).toHaveLength(2)
   expect(facts[0]).toMatchObject({ phase: 'started', reason: 'bundle', target: 'extra', enabled: false, version: '1.0.0' })
   expect(facts[1]).toMatchObject({ id: facts[0]!.id, phase: 'settled', changed: true, application: 'restart-required', version: '1.0.0' })
@@ -690,7 +690,7 @@ it.each(['throw', 'reject'])('delivers diagnostics to later subscribers when an 
   const facts: PluginOperation[] = []
   ctx.on('plugin-manager/operation', (event) => { facts.push(event) })
   expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ changed: true, application: 'restart-required' })
-  expect(readProfileManifest('test', dir).clh?.profile?.bundles).not.toContain('extra')
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).not.toContain('extra')
   expect(facts.map(event => event.phase)).toEqual(['started', 'settled'])
   await vi.waitFor(() => { expect(errors).toHaveBeenCalledWith('clh plugin-manager: operation diagnostic delivery failed') })
 })
@@ -1832,7 +1832,7 @@ it.each([false, true])('applies offline platform admission to an uninstalled Off
   const { manager, dir } = await fixture('startup')
   if (selected) {
     const manifest = readProfileManifest('test', dir)
-    manifest.clh!.profile!.bundles!.push(entry.packageName)
+    manifest.dsh!.profile!.bundles!.push(entry.packageName)
     writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
   }
   expect((await manager.listBundles()).find(bundle => bundle.name === entry.packageName)).toMatchObject({
@@ -1841,7 +1841,7 @@ it.each([false, true])('applies offline platform admission to an uninstalled Off
   })
   if (selected) {
     expect(await manager.setBundleEnabled(entry.packageName, false)).toMatchObject({ changed: true, enabled: false })
-    expect(readProfileManifest('test', dir).clh?.profile?.bundles).not.toContain(entry.packageName)
+    expect(readProfileManifest('test', dir).dsh?.profile?.bundles).not.toContain(entry.packageName)
   }
 })
 
@@ -1896,7 +1896,7 @@ it('restores dependency and selection after an exact version is unavailable', as
   bundle(name, [], profile.home)
   const manifest = readProfileManifest('test', dir)
   manifest.dependencies = { ...manifest.dependencies, [name]: '1.0.0' }
-  manifest.clh!.profile!.bundles!.push(name)
+  manifest.dsh!.profile!.bundles!.push(name)
   writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
   const before = readFileSync(join(dir, 'package.json'), 'utf8')
   const pnpm = vi.spyOn(operations, 'runProfilePnpm').mockImplementation(async () => {
@@ -1920,7 +1920,7 @@ it('retains a successful installation and saved selection when Official activati
   })
   onTestFinished(() => { pnpm.mockRestore() })
   expect(await manager.installBundle(`${name}@${getDshRuntimeVersion()}`, { saveExact: true })).toMatchObject({ application: 'failed', stage: 'enable' })
-  expect(readProfileManifest('test', dir).clh?.profile?.bundles).toContain(name)
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toContain(name)
   expect(readProfileManifest('test', dir).dependencies?.[name]).toBe(getDshRuntimeVersion())
 })
 
@@ -1928,7 +1928,7 @@ it('reports and removes a saved Official selection whose dependency is absent', 
   const { manager, dir } = await fixture()
   const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
   const manifest = readProfileManifest('test', dir)
-  manifest.clh!.profile!.bundles!.push(name)
+  manifest.dsh!.profile!.bundles!.push(name)
   writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
   expect((await manager.listBundles()).find(bundle => bundle.name === name)).toMatchObject({
     official: true, installed: false, availability: 'missing', enabled: true, removable: true, error: { code: 'not-bundle' },

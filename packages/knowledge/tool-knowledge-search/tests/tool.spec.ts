@@ -6,9 +6,11 @@ import { Context } from '@deepseek-ai/cordis'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageSqlite from '@deepseek-ai/dsh-storage-sqlite'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import KnowledgeBaseService from '@cinlan/knowledge-base'
 import * as tool from '../src/index.ts'
 
@@ -41,17 +43,22 @@ async function setup() {
 }
 
 async function call(ctx: Context, name: string, args: unknown) {
-  const batch = await ctx.tools.execute({
-    calls: [{
-      type: 'tool-call',
-      id: ToolCallId(`knowledge-${++counter}`),
-      name,
-      arguments: JSON.stringify(args),
-    }],
+  return executeModelToolFixture(ctx, {
+    callId: ToolCallId(`knowledge-${++counter}`),
+    name,
+    arguments: args,
     agent: { id: 'agent-test', ctx } as never,
     signal: new AbortController().signal,
   })
-  return batch.results[0]!
+}
+
+/** Assert one success outcome and return its object canonical value for field checks. */
+function valueOf(result: Awaited<ReturnType<typeof call>>): Record<string, JsonValue> {
+  if (result.isError) throw new Error(`expected tool success: ${result.error.message}`)
+  if (typeof result.value !== 'object' || result.value === null || Array.isArray(result.value)) {
+    throw new Error('expected an object canonical value')
+  }
+  return result.value
 }
 
 describe('tool-knowledge-search', () => {
@@ -64,21 +71,23 @@ describe('tool-knowledge-search', () => {
   it('answers search queries through the tool channel', async () => {
     const ctx = await setup()
     const result = await call(ctx, 'knowledge_search', { query: '重启 服务' })
-    expect(result.result.value.hits).toHaveLength(1)
-    expect(result.result.value.hits[0]!.heading).toBe('操作指南')
+    const hits = valueOf(result).hits as JsonValue[]
+    expect(hits).toHaveLength(1)
+    expect(hits[0]).toMatchObject({ heading: '操作指南' })
     // An empty query still answers (empty page), not an error.
     const empty = await call(ctx, 'knowledge_search', { query: '   ' })
-    expect(empty.result.value.hits).toEqual([])
+    expect(valueOf(empty).hits).toEqual([])
   })
 
   it('caps limit and lists documents', async () => {
     const ctx = await setup()
     const limited = await call(ctx, 'knowledge_search', { query: '服务', limit: 500 })
-    expect(limited.result.value.hits.length).toBeLessThanOrEqual(20)
+    expect((valueOf(limited).hits as JsonValue[]).length).toBeLessThanOrEqual(20)
 
     const list = await call(ctx, 'knowledge_list_documents', {})
-    expect(list.result.value.documents).toHaveLength(1)
-    expect(list.result.value.documents[0]!.path).toBe('guide.md')
-    expect(typeof list.result.value.documents[0]!.indexedAt).toBe('number')
+    const documents = valueOf(list).documents as JsonValue[]
+    expect(documents).toHaveLength(1)
+    expect(documents[0]).toMatchObject({ path: 'guide.md' })
+    expect(typeof (documents[0] as Record<string, JsonValue>).indexedAt).toBe('number')
   })
 })

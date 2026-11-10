@@ -11,6 +11,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
   WorktreeTaskId as WorktreeTaskIdBrand,
   WorktreeTask,
+  WorktreeTaskChange,
   CreateTaskRequest,
   ActivateTaskRequest,
   HibernateTaskRequest,
@@ -26,9 +27,21 @@ import type {
   WorktreeTaskMergeResult,
 } from './types.ts'
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * One committed Worktree Task transition, published after its storage commit point.
+     * @mode emit
+     * @param change - the committed transition with the task's identities, status, and timestamps.k snapshot. */
+    'worktree-task/changed': (change: WorktreeTaskChange) => void
+  }
+}
+
 export {
   type WorktreeTaskStatus,
   type WorktreeTask,
+  type WorktreeTaskTransition,
+  type WorktreeTaskChange,
   type CreateTaskRequest,
   type ActivateTaskRequest,
   type HibernateTaskRequest,

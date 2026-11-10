@@ -18,7 +18,8 @@ import LocalAttachments from '@deepseek-ai/dsh-attachment-local'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import LocalSpillStore from '@deepseek-ai/dsh-spill-local'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { defineContentToolFixture, executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { createScope, scopeOf } from '@deepseek-ai/dsh-scope'
 import * as SpillPolicy from '../src/index.ts'
@@ -102,7 +103,7 @@ describe('spill-policy source Loader composition', () => {
       name: 'large', description: 'large', parameters: {},
       async execute(): Promise<ContentBlock[]> { return [{ type: 'text', text: payload }] },
     }))
-    const result = await policyEntry!.fiber!.ctx.tools.execute({
+    const result = await executeModelToolFixture(policyEntry!.fiber!.ctx, {
       name: 'large', arguments: {}, callId: ToolCallId('source-policy-call'),
       agent,
       signal: new AbortController().signal,

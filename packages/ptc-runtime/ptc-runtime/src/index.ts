@@ -6,6 +6,7 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { PtcRunRequest, PtcRunResult, PtcRunSpec } from './types.ts'
+import type { PtcProgramFormat } from './types.ts'
 import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 
 export type {
@@ -123,7 +124,7 @@ export abstract class PtcRuntime extends Service {
   abstract readonly isolation: string
 
   /** Source evaluation form, independent of whether the provider retains state for an owner. */
-  get programFormat(): 'function-body' | 'repl' { return 'function-body' }
+  get programFormat(): PtcProgramFormat { return 'function-body' }
 
   /** Whether this provider retains program memory across runs for the same stateOwner. */
   get retainsState(): boolean { return false }

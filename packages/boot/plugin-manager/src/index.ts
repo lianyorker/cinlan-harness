@@ -238,7 +238,7 @@ type Reload = Pick<ChangeResult, 'warnings' | 'restartReason'>
 
 /** The bundles a profile manifest selects. */
 function bundleSelection(manifest: ProfileManifest): readonly string[] {
-  return manifest.clh?.profile?.bundles ?? []
+  return manifest.dsh?.profile?.bundles ?? []
 }
 
 /**
@@ -547,7 +547,7 @@ export class PluginManager extends TypertRemoteService {
           continue
         }
         version = info.version
-        const listedByDefault = info.clh?.bundle?.listedByDefault
+        const listedByDefault = info.dsh?.bundle?.listedByDefault
         if (listedByDefault !== undefined) {
           if (typeof listedByDefault !== 'boolean') throw new Error('dsh.bundle.listedByDefault must be a boolean')
           listing = { listedByDefault }
@@ -557,7 +557,7 @@ export class PluginManager extends TypertRemoteService {
         const dir = resolveBundleDir('dsh', name, this.profile.installAnchor, this.profile.dir)
         const meta = offered?.meta ?? readPluginMeta(info.name ?? name, pathToFileURL(join(dir, 'package.json')).href)
         let platformError: ManagementError | undefined
-        try { assertBundlePlatform(info.clh?.bundle?.platforms, process.platform) }
+        try { assertBundlePlatform(info.dsh?.bundle?.platforms, process.platform) }
         catch (error) { platformError = managementError(error) }
         if (platformError?.code === 'unsupported-platform') listing = { listedByDefault: false }
         const error = platformError ?? targetError

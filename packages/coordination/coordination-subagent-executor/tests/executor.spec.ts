@@ -1,11 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { TaskId } from '@cinlan/coordination'
 import LocalCoordinationService from '@deepseek-ai/dsh-coordination-local'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
-import * as subagent from '@deepseek-ai/dsh-subagent'
 import type {
   ResolvedSubagentStartRequest, SubagentCapabilities, SubagentProvider, SubagentResult, SubagentRun,
 } from '@deepseek-ai/dsh-subagent'
@@ -13,6 +14,7 @@ import * as executor from '@deepseek-ai/dsh-coordination-subagent-executor'
 
 const ALL_CAPABILITIES: SubagentCapabilities = {
   agentOptions: true,
+  agentPreset: true,
   outputSchema: true,
   depthLimit: true,
   toolFilter: true,
@@ -49,7 +51,6 @@ class StubProvider implements SubagentProvider {
     const index = this.requests.length
     return {
       id: SessionId(`child-${index}`),
-      localAgent: undefined,
       result: this.resultFor(request),
       dispose: async () => { this.disposeCount += 1 },
     }
@@ -58,7 +59,9 @@ class StubProvider implements SubagentProvider {
 
 async function setup(provider = new StubProvider(), config: Partial<executor.Config> = {}) {
   const ctx = new Context()
+  provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(AgentRegistry)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SubagentRuntime)
   await ctx.plugin(LocalCoordinationService, { maxConcurrency: 4 })
   const removeProvider = ctx.subagents.registerProvider(provider)
@@ -163,7 +166,9 @@ describe('coordination subagent executor', () => {
 
   it('mirrors provider availability into executor registration and releases it on plugin disposal', async () => {
     const ctx = new Context()
+    provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(AgentRegistry)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SubagentRuntime)
     await ctx.plugin(LocalCoordinationService, { maxConcurrency: 1 })
     const parent = fakeAgent(ctx, 'parent')
@@ -258,22 +263,26 @@ describe('coordination subagent executor', () => {
     await ctx.fiber.dispose()
   })
 
-  it('maps optional settlement output and detail fields without inventing data', async () => {
-    const settle = vi.spyOn(subagent, 'settleRun')
-    const { ctx } = await setup()
-    for (const [id, outcome, expected] of [
-      ['empty-completed', { status: 'completed' }, { status: 'succeeded', output: { subagentId: 'child-1', text: '' } }],
-      ['killed-detail', { status: 'killed', detail: 'provider stopped' }, { status: 'cancelled', error: 'provider stopped' }],
-      ['failed-empty', { status: 'failed' }, { status: 'failed', error: 'subagent run failed' }],
+  it('maps settlement output and detail fields without inventing data', async () => {
+    const provider = new StubProvider(ALL_CAPABILITIES, (request) => {
+      if (request.label === 'empty-completed') return Promise.resolve({ output: [], stopReason: 'completed' })
+      if (request.label === 'aborted-diagnostic') {
+        return Promise.resolve({ output: [], stopReason: 'aborted', diagnostic: 'provider stopped' })
+      }
+      return Promise.resolve({ output: [], stopReason: 'error' })
+    })
+    const { ctx } = await setup(provider)
+    for (const [id, expected] of [
+      ['empty-completed', { status: 'succeeded', output: { subagentId: 'child-1', text: '' } }],
+      ['aborted-diagnostic', { status: 'failed', error: 'aborted; diagnostic: provider stopped' }],
+      ['error-empty', { status: 'failed', error: 'error' }],
     ] as const) {
-      settle.mockResolvedValueOnce(outcome)
       const run = ctx.coordination.start({ tasks: [
         { id: TaskId(id), label: id, executor: 'subagent', input: input('x') },
       ] })
       await run.result
       expect(ctx.coordination.getTask(TaskId(id))).toMatchObject(expected)
     }
-    settle.mockRestore()
     await ctx.fiber.dispose()
   })
 
@@ -285,7 +294,9 @@ describe('coordination subagent executor', () => {
     ]
     for (const [capabilities, config, message] of unsupported) {
       const current = new Context()
+      provideWorkingDirectoryFixture(current)
       await current.plugin(AgentRegistry)
+      await current.plugin(SessionProjectionRegistry)
       await current.plugin(SubagentRuntime)
       await current.plugin(LocalCoordinationService, { maxConcurrency: 1 })
       current.subagents.registerProvider(new StubProvider(capabilities))
@@ -294,7 +305,9 @@ describe('coordination subagent executor', () => {
     }
 
     const ctx = new Context()
+    provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(AgentRegistry)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SubagentRuntime)
     await ctx.plugin(LocalCoordinationService, { maxConcurrency: 1 })
     expect(() => { executor.apply(ctx, { provider: ' ' }) }).toThrow(/provider must be non-empty/)

@@ -74,16 +74,16 @@ export function apply(ctx: Context): void {
           }
         },
       },
-      execute(args, exec) {
+      async execute(args, exec) {
         if (!exec.agent) {
           throw new Error('show_task_surface requires an owning agent session')
         }
 
         const session = exec.agent.session
-        const projection = ctx.sessionProjections.stateOf(session, 'taskSurface')
-        if (projection && projection.active !== null) {
+        const active = await ctx.taskSurface.getActive({ sessionId: session.id })
+        if (active.active) {
           throw new Error(
-            `a task surface is already active for this session (${projection.active.surfaceId})`,
+            `a task surface is already active for this session (${active.surfaceId})`,
           )
         }
 

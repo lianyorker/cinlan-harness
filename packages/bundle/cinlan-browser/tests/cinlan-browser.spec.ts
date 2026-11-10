@@ -39,6 +39,7 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as ToolBrowser from '@deepseek-ai/dsh-tool-browser'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import * as yaml from 'js-yaml'
 
 const PACKAGE_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -221,7 +222,7 @@ describe('dsh-cinlan-browser bundle', () => {
     expect(context.browserRuntime.status().browserState).toBe('stopped')
     expect(installerSpawn).not.toHaveBeenCalled()
     expect(launch).not.toHaveBeenCalled()
-    const denied = await context.tools.execute({
+    const denied = await executeModelToolFixture(context, {
       callId: ToolCallId('bundle-browser-list'),
       name: 'browser_list',
       arguments: {},

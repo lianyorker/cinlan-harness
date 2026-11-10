@@ -2,6 +2,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
+import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import type { PreToolDecision, ToolExecution, ToolGuard } from '@deepseek-ai/dsh-tools'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Policy from '../src/index.ts'
@@ -116,7 +117,7 @@ describe('Mobile Device monotonic guard', () => {
     ['mobile_button', MOBILE_DEVICE_NAVIGATION_APPROVAL_REASON],
   ])('blocks prepended allow from bypassing ask policy for %s', async (name, reason) => {
     const { ctx, body } = await runtimeHarness({})
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: ToolCallId(`policy-${name}`), name, arguments: {}, signal: new AbortController().signal,
     })
     expect(result).toMatchObject({ isError: true, content: [{ type: 'text', text: `Error: ${reason}` }] })
@@ -127,7 +128,7 @@ describe('Mobile Device monotonic guard', () => {
     const { ctx, body } = await runtimeHarness({
       observe: 'allow', touch: 'allow', textInput: 'allow', deviceNavigation: 'allow',
     })
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: ToolCallId('policy-allow'), name: 'mobile_touch', arguments: {}, signal: new AbortController().signal,
     })
     expect(result.isError).toBe(false)
@@ -138,7 +139,7 @@ describe('Mobile Device monotonic guard', () => {
     const { ctx, body } = await runtimeHarness({
       observe: 'deny', touch: 'deny', textInput: 'deny', deviceNavigation: 'deny',
     })
-    const result = await ctx.tools.execute({
+    const result = await executeModelToolFixture(ctx, {
       callId: ToolCallId('policy-deny'), name: 'mobile_touch', arguments: {}, signal: new AbortController().signal,
     })
     expect(result).toMatchObject({
@@ -149,12 +150,12 @@ describe('Mobile Device monotonic guard', () => {
 
   it('removes decision and guard layers on HMR disposal', async () => {
     const { ctx, fiber, body } = await runtimeHarness({})
-    const before = await ctx.tools.execute({
+    const before = await executeModelToolFixture(ctx, {
       callId: ToolCallId('policy-before-dispose'), name: 'mobile_touch', arguments: {}, signal: new AbortController().signal,
     })
     expect(before.isError).toBe(true)
     await fiber.dispose()
-    const after = await ctx.tools.execute({
+    const after = await executeModelToolFixture(ctx, {
       callId: ToolCallId('policy-after-dispose'), name: 'mobile_touch', arguments: {}, signal: new AbortController().signal,
     })
     expect(after.isError).toBe(false)
