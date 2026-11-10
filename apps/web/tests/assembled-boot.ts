@@ -16,6 +16,8 @@ import { afterEach, beforeEach, vi } from 'vitest'
 import { bootInjections, orderByModuleGraph } from '@deepseek-ai/dsh-client-modules'
 import type { ClientModuleLoaderTarget, WebBootEntry, WebBootGraph } from '@deepseek-ai/dsh-client-modules/client'
 import { AppWebEntry } from '@deepseek-ai/dsh-client-web'
+import { createAssembledRemote } from './assembled-remote.ts'
+import type { AssembledRemote, AssembledRemoteOptions } from './assembled-remote.ts'
 
 interface AssembledPlugin extends WebBootEntry {
   /** Absolute path to the built client artifact declared by this package. */
@@ -25,6 +27,8 @@ interface AssembledPlugin extends WebBootEntry {
 interface AssembledBootOptions {
   /** Package ids omitted from this mounted composition. */
   readonly exclude?: readonly string[]
+  /** Fixture behavior for this mounted Host Remote. */
+  readonly remote?: AssembledRemoteOptions
 }
 
 interface ClientPackageManifest {
@@ -251,12 +255,19 @@ export function installAssembledBootEnv(): void {
 /**
  * Mount the assembled application on the fixture transport; the teardown
  * registered by installAssembledBootEnv disposes it.
- * @param search - fixture query string used to select deterministic host behavior.
- * @param options - composition changes applied to this mount.
+ * @param searchOrOptions - fixture query string or composition options.
+ * @param options - composition changes applied when a search string is supplied.
+ * @returns the isolated Host Remote fixture.
  */
-export function mountAssembledApp(search = '?fixture', options: AssembledBootOptions = {}): void {
-  const excluded = new Set(options.exclude)
+export function mountAssembledApp(
+  searchOrOptions: string | AssembledBootOptions = '?fixture',
+  options: AssembledBootOptions = {},
+): AssembledRemote {
+  const search = typeof searchOrOptions === 'string' ? searchOrOptions : '?fixture'
+  const config = typeof searchOrOptions === 'string' ? options : searchOrOptions
+  const excluded = new Set(config.exclude)
   const plugins = PLUGINS.filter(plugin => !excluded.has(plugin.id))
+  const remote = createAssembledRemote(config.remote)
   history.replaceState(null, '', `/${search}`)
   win.__DSH_FILE_UPLOAD__ = { fetch: remote.fileUpload }
   const root = document.createElement('div')
@@ -284,6 +295,7 @@ export function mountAssembledApp(search = '?fixture', options: AssembledBootOpt
     void entry.run()
     unmount = () => entry.dispose()
   })
+  return remote
 }
 
 /**

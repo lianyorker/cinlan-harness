@@ -7,7 +7,7 @@ import type {} from '@deepseek-ai/dsh-experimental-speech-to-text'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import { VoiceModelId } from '@cinlan/voice'
+import { VoiceModelId } from '@deepseek-ai/dsh-voice'
 import {
   captureStableAria, compareOrRefreshGolden, fixtureUserPrompts, launchWebScaffold, webSnapshotMode, watchConsole,
   type WebScaffold,

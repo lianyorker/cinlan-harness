@@ -80,6 +80,14 @@ it('ships a favicon that switches to a light mark under dark color scheme', asyn
   // stays black in light mode and only turns white under a dark scheme.
   expect(favicon).toMatch(/@media \(prefers-color-scheme: dark\)\s*{\s*path\s*{[^}]*fill:\s*#fff/i)
   expect(favicon).toContain('fill="#000"')
+})
+
+it('ships a phone-shaped manifest for standalone install', async () => {
+  const manifest: unknown = JSON.parse(await readFile(join(DIST_ROOT, 'manifest.webmanifest'), 'utf8'))
+  expect(manifest).toEqual({
+    id: '/',
+    name: 'DeepSeek Harness',
+    short_name: 'DSH',
     start_url: './',
     scope: './',
     // `standalone` keeps the phone's status bar; `fullscreen` hides it and the

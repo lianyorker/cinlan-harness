@@ -156,6 +156,7 @@ describe.skipIf(MODE === 'record')('web e2e: details panel follows the current S
     })
     await expect.poll(() => columns(page)).toEqual([0, 767, 0])
     // A preview the files page opened starts with its tree hidden; shown, the tree fills the viewport.
+    const blankColumn = page.locator('[data-rightbar-col]')
     const treeToggle = blankColumn.locator('[data-files-navigator-toggle]')
     await expect.poll(() => treeToggle.getAttribute('aria-expanded')).toBe('false')
     await treeToggle.click()

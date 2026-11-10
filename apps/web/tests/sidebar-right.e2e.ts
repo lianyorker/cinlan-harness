@@ -137,6 +137,16 @@ async function resetSidebar(page: Page): Promise<Locator> {
   return column
 }
 
+/** Open the seeded turn's produced-file chip in the turn tail (the product's own entry point). */
+function proseChip(page: Page): Locator {
+  return page.getByRole('button', { name: `Open ${SAMPLE_NAME}` })
+}
+
+/** The docked pane at `index` inside the right column's docked surface. */
+function paneAt(column: Locator, index: number): Locator {
+  return column.locator('[data-dockkit-pane]').nth(index)
+}
+
 /** Whether the element at the centre of `locator` is the locator's own element or a descendant. */
 async function hitsItself(locator: Locator): Promise<boolean> {
   const point = await centre(locator)
@@ -1104,7 +1114,6 @@ describe('web e2e: shipped right Sidebar', () => {
       expect(tripwire.warnings).toEqual([])
     }, 90_000)
 
-    it('§9.7 returns to the default surface after a reload', async () => {
     it('keeps a dragged tab when a middle click is chorded with the primary button', async () => {
       onTestFailed(() => saveFailureShot(page, 'web-e2e-sidebar-right-middle-drag'))
       const column = await resetSidebar(page)

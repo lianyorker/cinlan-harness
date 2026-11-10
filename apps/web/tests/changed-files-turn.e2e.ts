@@ -77,7 +77,6 @@ describe('web e2e: a git workspace turn ends with its changed files', () => {
     }
     scaffold = await launchWebScaffold({
       developerTools: false,
-      compareReplaySession: 'read-only',
       compareReplaySession: MODE === 'refresh' ? true : 'read-only',
       extraOverlayPath: fileURLToPath(new URL('./changed-files-turn.overlay.yml', import.meta.url)),
       ...(replayOverride === undefined ? {} : { replayFixture: FIXTURE, replayOverride }),

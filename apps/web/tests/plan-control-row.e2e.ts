@@ -188,14 +188,14 @@ describe('web e2e: plan chip click area at the narrow viewport', () => {
     const overlapBottom = Math.min(chipBox!.y + chipBox!.height, triggerBox!.y + triggerBox!.height)
     const overlapArea = Math.max(0, overlapRight - overlapLeft) * Math.max(0, overlapBottom - overlapTop)
 
-    const golden = [
+    const layoutGolden = [
       '# Plan chip and model trigger at the 800×720 viewport',
       '',
       '- Plan chip fully in viewport: ' + (chipInViewport ? 'true' : 'false'),
       '- Model trigger fully in viewport: ' + (triggerInViewport ? 'true' : 'false'),
       '- Click areas disjoint: ' + (overlapArea === 0 ? 'true' : 'false'),
     ].join('\n').trimEnd()
-    await compareOrRefreshGolden(LAYOUT_EXPECTED, golden, MODE)
+    await compareOrRefreshGolden(LAYOUT_EXPECTED, layoutGolden, MODE)
     expect(overlapArea).toBe(0)
     expect(chipInViewport).toBe(true)
     expect(triggerInViewport).toBe(true)
