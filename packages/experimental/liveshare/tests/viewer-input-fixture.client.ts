@@ -2,6 +2,7 @@
 // Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type { Context } from '@deepseek-ai/cordis'
+import { contextSessions } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
@@ -58,7 +59,7 @@ export function installViewerInputFixture(): ViewerInputFixture {
     },
     context,
     async send(sessionId, text, sendLabel) {
-      const scope = context().get('sessions')?.scope(sessionId as SessionId)
+      const scope = contextSessions(context())?.scope(sessionId as SessionId)
       if (scope === undefined) throw new Error(`viewer input probe: no retained scope for ${sessionId}`)
       const input = context().get('conversation')?.input.for(scope)
       if (input === undefined) throw new Error('viewer input probe: input facade is unavailable')

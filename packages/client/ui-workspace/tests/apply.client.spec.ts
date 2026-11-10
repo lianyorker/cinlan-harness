@@ -96,7 +96,7 @@ async function bench(access: 'fake' | 'static' = 'fake') {
   const retainedIds = new Map<string, number>()
   const scope = vi.fn((id: string) => retainedIds.has(id) ? ctx : undefined)
   const sessionOf = vi.fn((owner: Context) => owner === ctx ? session : undefined)
-  const retain = vi.fn((target: string) => {
+  const retain = vi.fn((target: string, _options?: unknown) => {
     const resolved = binding(target)
     retainedIds.set(target, (retainedIds.get(target) ?? 0) + 1)
     let active = true
@@ -144,7 +144,7 @@ async function bench(access: 'fake' | 'static' = 'fake') {
     unpinSession,
     insertSessionBefore: vi.fn(async () => ({})),
   } as never)
-  ctx.provide('sessions', {
+  const sessions = {
     list: { getSnapshot: () => sessionSnapshot, subscribe },
     create: vi.fn(async () => 'created' as never),
     retain,
@@ -157,7 +157,8 @@ async function bench(access: 'fake' | 'static' = 'fake') {
     subagentAddress: vi.fn(() => undefined),
     refreshProjections: vi.fn(() => Promise.resolve()),
     fork,
-  } as never)
+  }
+  ctx.provide('sessions', sessions as never)
   const pickDirectory = vi.fn(() => Promise.resolve({ ok: true as const, value: '/projects/picked' }))
   const directoryPicker = { pick: pickDirectory }
   Object.assign(new TestRemote(ctx), { directoryPicker })
@@ -169,7 +170,7 @@ async function bench(access: 'fake' | 'static' = 'fake') {
   locale.setLocale('zh')
   ctx.provide('locale', locale)
   return {
-    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename, commands, accessSource, whenResourceAccess, stopGuard,
+    ctx, sessions, slots: ctx.get('slots') as SlotRegistry, locale, create, rename, commands, accessSource, whenResourceAccess, stopGuard,
     retain, using, selectPanel, search, renameSession, binding, fork, pickDirectory, pinSession, unpinSession,
     workspacesSubscribe, initializeDefault, history, scope, sessionOf,
     setWorkspaces: (snapshot: WorkspaceSnapshot): void => { workspaceSnapshot = snapshot },
@@ -617,7 +618,7 @@ describe('ui-workspace apply', () => {
     // Fork goes through the navigation service, which leaves the child unselected.
     const forkSession = vi.spyOn(b.ctx.uiWorkspace, 'forkSession')
     const fork = sessionMenuActions(b.ctx)
-    using source = b.ctx.sessions.retain(sid('session'), { source: 'controllerOperation' })
+    using source = b.sessions.retain(sid('session'), { source: 'controllerOperation' })
     await source.ready
     b.retain.mockClear()
     fork.forkSession('session' as never)
@@ -667,7 +668,7 @@ describe('ui-workspace apply', () => {
       declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
       await b.ctx.plugin({ inject: [...inject], apply }).await()
       if (state !== 'absent') {
-        const source = b.ctx.sessions.retain(sid('source'), { source: 'controllerOperation' })
+        const source = b.sessions.retain(sid('source'), { source: 'controllerOperation' })
         onTestFinished(() => { source.release() })
         await source.ready
         b.history.set({ openState: state === 'closed' ? 'open' : state, subagent: null })
@@ -754,7 +755,7 @@ describe('ui-workspace apply', () => {
     onTestFinished(() => b.ctx.fiber.dispose())
     declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    using source = b.ctx.sessions.retain(sid('source'), { source: 'controllerOperation' })
+    using source = b.sessions.retain(sid('source'), { source: 'controllerOperation' })
     await source.ready
     b.history.set({ openState: 'open', subagent: {
       address: { parentSessionId: sid('parent'), childSessionId: sid('source'), mode: 'one-shot' },
@@ -780,7 +781,7 @@ describe('ui-workspace apply', () => {
     onTestFinished(() => b.ctx.fiber.dispose())
     declare(b.slots, 'sidebar.workspaces', 'shell.overlay')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    using source = b.ctx.sessions.retain(sid('source'), { source: 'controllerOperation' })
+    using source = b.sessions.retain(sid('source'), { source: 'controllerOperation' })
     await source.ready
     b.retain.mockClear()
     const error = kind === 'ordinary'

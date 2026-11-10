@@ -38,7 +38,7 @@ function providePreview(ctx: Context) {
   const openResourceIn = vi.fn<Context['sidebarRight']['openResourceIn']>()
   const openResource = vi.fn<Context['sidebarRight']['openResource']>()
   const mounted = createSnapshotStore<SessionId | undefined>(undefined)
-  const subagentAddress = vi.fn<Context['sessions']['subagentAddress']>(() => undefined)
+  const subagentAddress = vi.fn<import('@deepseek-ai/dsh-api-session-controller/client').ISessions['subagentAddress']>(() => undefined)
   const binding = vi.fn<() => object | undefined>(() => ({}))
   ctx.provide('sessions', { subagentAddress, binding })
   ctx.provide('resources', { register: vi.fn(() => removeResources) })

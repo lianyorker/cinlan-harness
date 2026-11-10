@@ -30,19 +30,20 @@ async function bench() {
   const scope = createScope(ctx, sid('a'))
   const session = { sessionId: sid('a') }
   const binding = { sessionId: sid('a'), session, ctx: scope.ctx }
-  ctx.provide('sessions', {
+  const sessions = {
     scope: (id: SessionId) => (id === sid('a') ? scope.ctx : undefined),
     scopeOf: (c: Context) => scopeOf(c),
     sessionOf: (c: Context) => c === scope.ctx ? session : undefined,
     binding: (id: SessionId) => id === sid('a') ? binding : undefined,
-  } as never)
+  }
+  ctx.provide('sessions', sessions as never)
   const locale = new LocaleRuntime(ctx)
   // These specs assert the shipped Chinese copy. There is no jsdom `window`
   // in this lane, so browser-language detection never runs and the locale
   // comes from FALLBACK_LOCALE (en): state the asserted locale explicitly.
   locale.setLocale('zh')
   ctx.provide('locale', locale)
-  return { ctx, slots, locale }
+  return { ctx, sessions, slots, locale }
 }
 
 describe('apply', () => {
@@ -68,7 +69,7 @@ describe('apply', () => {
   })
 
   it('registers MenuView into the overlay and resolves the per-session controller by slot sessionId', async () => {
-    const { ctx, slots } = await bench()
+    const { ctx, slots, sessions } = await bench()
     await ctx.plugin({ inject: [...inject], apply }).await()
     expect(slots.entries('conversation.input.overlay')).toHaveLength(1)
     const entries = slots.entries('conversation.input.overlay')
@@ -82,7 +83,7 @@ describe('apply', () => {
     const injectEntry = entries[0]!.inject as unknown as (sessionId: SessionId) => MenuViewInjected
     const injected = injectEntry(sid('a'))
     const controller = inputTriggers.sessionOf(
-      ctx.sessions.scope(sid('a'))!,
+      sessions.scope(sid('a'))!,
     )
     expect(injected.menu).toBe(controller.menu)
     expect(injected.headers).toBe(controller.headers)

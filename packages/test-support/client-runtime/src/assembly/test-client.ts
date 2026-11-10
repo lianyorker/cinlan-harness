@@ -19,6 +19,7 @@ import { createInProcessModules, loadPluginModules } from './modules.ts'
 import { assertPlan, graphFromRoster, type AssemblyPlan } from './roster.ts'
 import { REMOTES_PACKAGE, remoteNamespacesOf, remoteProxiesPlugin } from './remote-proxies.ts'
 import { allowAllAccessPlugin, staticAccessPlugin } from '../access.ts'
+import { contextSessions, type ISessions } from '../context-sessions.ts'
 
 /** The remote-access row: it mounts its own generated Remote contribution and publishes the access Hooks. */
 const REMOTE_ACCESS_PACKAGE = '@deepseek-ai/dsh-api-remote-access'
@@ -287,6 +288,11 @@ export class TestClient {
     readonly container: HTMLElement | undefined,
     private readonly restore: () => void,
   ) {}
+
+  /** The booted client sessions facade, captured through this package's facade-primary program. */
+  get sessions(): ISessions | undefined {
+    return contextSessions(this.ctx)
+  }
 
   /** The roster's Connection service (no `Context` augmentation declares it); throws when the roster provides none. */
   get connection(): ConnectionHandle {

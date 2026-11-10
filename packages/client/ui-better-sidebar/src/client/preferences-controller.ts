@@ -1,6 +1,6 @@
 /** Shared settingsScope-backed writer for every Better Sidebar preference surface. */
-import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { SettingsPathOpView } from '@deepseek-ai/dsh-settings/types'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-contract'
 import { t } from './locales.ts'
 import { parsePrefs, type SidebarPrefs } from './prefs.ts'
 import type { SidebarStore } from './state.ts'

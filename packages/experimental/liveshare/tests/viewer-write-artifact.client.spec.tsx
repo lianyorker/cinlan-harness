@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
  * writable for that reader, while the Workspace around it and the owner's own management stay put.
  */
 
+import { contextSessions } from '@deepseek-ai/dsh-client-test-runtime'
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFixtureFaces } from './viewer-fixture.client.ts'
@@ -182,7 +183,7 @@ describe('Assembled liveshare viewer page on a writable share', () => {
     expect(screen.queryByRole('button', { name: '停止生成' })).toBeNull()
     expect(screen.getAllByRole('button', { name: '在新对话中分支' }).length).toBeGreaterThan(0)
     const beforeDeniedSend = owner.prompts.length
-    const scope = inputFixture.context().get('sessions')?.scope('fx-alpha' as import('@deepseek-ai/dsh-session/types').SessionId)
+    const scope = contextSessions(inputFixture.context())?.scope('fx-alpha' as import('@deepseek-ai/dsh-session/types').SessionId)
     if (scope === undefined) throw new Error('source scope is missing after downgrade')
     // Negative control: even the live input API cannot submit after Owner downgrade.
     await act(async () => {

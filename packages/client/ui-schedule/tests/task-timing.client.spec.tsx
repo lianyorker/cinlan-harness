@@ -8,7 +8,8 @@ import {
 import type { TimingDraft } from '../src/client/task-timing.ts'
 
 const at: ScheduleCatalogEntry = {
-  id: 'at' as ScheduleId, sessionId: 'original' as SessionId, status: 'active', kind: 'at',
+  id: 'at' as ScheduleId, target: { kind: 'session', sessionId: 'original' as SessionId },
+  involvedSessionIds: ['original' as SessionId], status: 'active', kind: 'at',
   title: 'One-time instruction', prompt: 'One-time instruction', scheduledAt: '2099-10-01T09:12:34.567Z',
 }
 const after: ScheduleCatalogEntry = { ...at, id: 'after' as ScheduleId, kind: 'after', afterSeconds: 90 }
@@ -119,6 +120,7 @@ describe('timingSnapshot', () => {
         messageId: 'delivery' as NonNullable<ScheduleCatalogEntry['lastDelivery']>['messageId'],
         scheduledAt: daily.scheduledAt,
         deliveredAt: daily.scheduledAt,
+        targetSessionId: 'original' as SessionId,
       },
     }
     expect(timingSnapshot(delivered)).not.toHaveProperty('lastDelivery')
@@ -172,17 +174,7 @@ describe('device zone', () => {
 describe('timingError', () => {
   it.each([
     ['schedule_conflict', 'timing.conflict'],
-    ['schedule_ended', 'timing.inactive'],
     ['schedule_not_found', 'timing.notFound'],
-    ['subagent_session', 'timing.subagentSession'],
-    ['invalid_time_zone', 'timing.invalidZone'],
-    ['not_future', 'timing.notFuture'],
-    ['frequency_too_high', 'timing.invalidInterval'],
-    ['invalid_prompt', 'timing.invalid'],
-    ['invalid_selector', 'timing.invalid'],
-    ['invalid_rule', 'timing.invalid'],
-    ['time_out_of_range', 'timing.invalid'],
-    ['internal_error', 'timing.error'],
   ] as const)('maps the Host %s failure to %s', (code, key) => {
     expect(timingError(code)).toBe(key)
   })

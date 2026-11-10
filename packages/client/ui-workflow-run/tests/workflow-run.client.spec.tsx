@@ -941,7 +941,7 @@ describe('plugin lifecycle', () => {
     ctx.provide('sessions', sessions)
     const openSession = vi.fn(async () => {})
     ctx.provide('uiWorkspace', { openSession } as never)
-    const conversationEvents = new UiConversation(ctx, ctx.sessions).events
+    const conversationEvents = new UiConversation(ctx, sessions).events
     ctx.slots.register({
       name: 'root',
       children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } },

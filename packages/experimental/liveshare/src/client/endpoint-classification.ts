@@ -6,8 +6,6 @@
  * a shipped Client build can call; an endpoint added without a table row fails this declaration.
  * @module @deepseek-ai/dsh-experimental-liveshare/src/client/endpoint-classification
  */
-// Declared first: the client sessions facade must win the Cordis Context merge over the Host store augmentation.
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-api-remote-access/remote'
 import type { RemoteEndpoint } from '@deepseek-ai/dsh-api-remote-access/client'

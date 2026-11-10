@@ -87,6 +87,16 @@ class RemoteStub extends Service {
   }
 }
 
+/** Per-context sessions doubles, for tests that must intercept `list` reads directly. */
+const sessionsDoubles = new WeakMap<Context, { readonly list: { readonly getSnapshot: () => SessionListState } }>()
+
+/** The sessions double a baseContext installed on `ctx`. */
+function sessionsDoubleOf(ctx: Context): { readonly list: { readonly getSnapshot: () => SessionListState } } {
+  const double = sessionsDoubles.get(ctx)
+  if (double === undefined) throw new Error('test bug: baseContext has not installed a sessions double')
+  return double
+}
+
 async function baseContext(
   remote: RemoteStubInput = { $on: () => () => {} },
   sidebar: SidebarStubs = sidebarStubs(),
@@ -113,10 +123,12 @@ async function baseContext(
     phase: 'ready', projectionsBySession: {},
   }
   const workspaces: WorkspaceSnapshot = { items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null }
-  ctx.provide('sessions', {
+  const sessionsDouble = {
     list: { getSnapshot: () => sessions, subscribe: () => () => {} },
     binding: () => undefined,
-  } as never)
+  }
+  sessionsDoubles.set(ctx, sessionsDouble)
+  ctx.provide('sessions', sessionsDouble as never)
   ctx.provide('workspaces', { list: { getSnapshot: () => workspaces } } as never)
   ctx.provide('conversation', {} as never)
   await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
@@ -532,9 +544,10 @@ describe('ui-schedule browser half', () => {
       expect(openSession).not.toHaveBeenCalled()
       face.onOpenSession(COLD_SESSION)
       expect(openSession).toHaveBeenCalledWith(COLD_SESSION)
-      const available = ctx.sessions.list.getSnapshot()
+      const sessionsDouble = sessionsDoubleOf(ctx)
+      const available = sessionsDouble.list.getSnapshot()
       const workspace = ctx.workspaces.list.getSnapshot()
-      const sessionRead = vi.spyOn(ctx.sessions.list, 'getSnapshot')
+      const sessionRead = vi.spyOn(sessionsDouble.list, 'getSnapshot')
       const workspaceRead = vi.spyOn(ctx.workspaces.list, 'getSnapshot')
       sessionRead.mockReturnValue({ ...available, phase: 'pending' })
       face.onOpenSession(COLD_SESSION)

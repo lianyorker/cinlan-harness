@@ -20,56 +20,47 @@ async function bench() {
   const sessions = new TestSessions(async (operation) => { await operation() }, ctx)
   await ctx.plugin(() => undefined)
   await sessions.add({ id: parent })
-  await sessions.add({ id: child }, { current: false })
-  sessions.list.update((draft) => {
-    draft.subagentsByParent = {
-      [parent]: {
-        entries: [{ kind: 'child', id: child, label: 'Child', mode: 'continuable', activity: 'inactive', hasChildren: false }],
-        parentAvailable: true, state: 'ready', error: null,
-      },
-    }
-  })
+  await sessions.add({ id: child })
   return sessions
 }
 
-describe('TestSessions retainSubagent', () => {
-  it('shares the fixture binding and keeps selection unchanged after release', async () => {
+describe('TestSessions subagent retention', () => {
+  it('shares the fixture binding and mirrors ownership counts after release', async () => {
     const sessions = await bench()
     const face: ISessions = sessions
     const before = sessions.list.getSnapshot()
-    const first: SessionReference = face.retainSubagent(address)
-    const second = face.retainSubagent(address)
+    const first: SessionReference = face.retain(address, { source: 'testFixture' })
+    const second = face.retain(address, { source: 'testFixture' })
     const binding = face.binding(child)
     expect(binding?.session).toBe(sessions.behavior(child))
-    expect(binding?.session.getSnapshot().subagent).toEqual({ address, parentAvailable: true })
     expect(face.subagentAddress(child)).toEqual(address)
-    expect(sessions.list.getSnapshot()).toBe(before)
+    expect(sessions.list.getSnapshot()).not.toBe(before)
+    expect(sessions.list.getSnapshot().byId[child]?.retainedBy).toEqual({ testFixture: 2 })
     await Promise.all([first.ready, second.ready])
     first.release()
     first.release()
     expect(face.binding(child)).toBe(binding)
     second.release()
-    expect(face.binding(child)).toBe(binding)
-    expect(sessions.list.getSnapshot().current).toBe(parent)
-    expect(sessions.calls.map(call => call.method)).toEqual(['retainSubagent', 'retainSubagent'])
+    expect(face.binding(child)).toBeUndefined()
+    expect(sessions.calls).toEqual([])
+    expect(sessions.list.getSnapshot().byId[child]?.retainedBy).toEqual({})
   })
 
-  it('rejects invalid addresses and an aborted signal before allocating a reference', async () => {
+  it('rejects unknown fixtures and an aborted signal before allocating a reference', async () => {
     const sessions = await bench()
-    expect(() => sessions.retainSubagent({ ...address, parentSessionId: SessionId('wrong') }))
-      .toThrow('not a healthy catalog child')
+    expect(() => sessions.retain(SessionId('ghost'))).toThrow('test session "ghost" is not added')
     const reason = new Error('pane closed')
-    expect(() => sessions.retainSubagent(address, { signal: AbortSignal.abort(reason) })).toThrow(reason)
+    expect(() => sessions.retain(address, { source: 'testFixture', signal: AbortSignal.abort(reason) })).toThrow(reason)
     expect(sessions.calls).toEqual([])
-    expect(sessions.list.getSnapshot().current).toBe(parent)
+    expect(sessions.list.getSnapshot().byId[child]?.retainedBy).toEqual({})
   })
 
   it('cancels one reference independently and removes its lifetime listener', async () => {
     const sessions = await bench()
     const controller = new AbortController()
     const removed = vi.spyOn(controller.signal, 'removeEventListener')
-    const first = sessions.retainSubagent(address, { signal: controller.signal })
-    const second = sessions.retainSubagent(address)
+    const first = sessions.retain(address, { source: 'testFixture', signal: controller.signal })
+    const second = sessions.retain(address)
     const reason = new Error('pane changed')
     const rejected = expect(first.ready).rejects.toBe(reason)
     controller.abort(reason)
@@ -84,18 +75,17 @@ describe('TestSessions retainSubagent', () => {
     const sessions = await bench()
     const controller = new AbortController()
     const removed = vi.spyOn(controller.signal, 'removeEventListener')
-    const reference = sessions.retainSubagent(address, { signal: controller.signal })
+    const reference = sessions.retain(address, { source: 'testFixture', signal: controller.signal })
     await reference.ready
     const previous = sessions.binding(child)
     await previous?.ctx.fiber.await()
-    await sessions.disposeScopes()
-    expect(removed).toHaveBeenCalledWith('abort', expect.any(Function))
-    const next = sessions.retainSubagent(address)
-    await next.ready
     reference.release()
-    controller.abort()
+    expect(removed).toHaveBeenCalledWith('abort', expect.any(Function))
+    await sessions.disposeScopes()
+    const next = sessions.retain(address)
+    await next.ready
     expect(sessions.binding(child)).not.toBe(previous)
-    expect(sessions.list.getSnapshot().current).toBe(parent)
+    expect(sessions.list.getSnapshot().byId[child]?.retainedBy).toEqual({})
     next.release()
   })
 })
