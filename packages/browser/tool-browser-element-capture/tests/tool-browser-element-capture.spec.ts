@@ -1,5 +1,3 @@
-/* oxlint-disable typescript/no-unsafe-assignment -- Vitest asymmetric matchers are typed as any. */
-/* oxlint-disable typescript/unbound-method -- Vitest inspects mock methods without invoking their receiver. */
 import { Context } from '@deepseek-ai/cordis'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { BrowserElementSelectionId, BrowserPageId } from '@deepseek-ai/dsh-browser'

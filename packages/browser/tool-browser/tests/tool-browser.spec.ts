@@ -1,5 +1,3 @@
-/* oxlint-disable typescript/no-unsafe-assignment -- Vitest asymmetric matchers are typed as any. */
-/* oxlint-disable typescript/unbound-method -- Mock assertions inspect functions without invoking their receiver. */
 
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@deepseek-ai/dsh-agent'

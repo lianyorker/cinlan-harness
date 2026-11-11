@@ -1,4 +1,3 @@
-/* oxlint-disable typescript/unbound-method -- Mock assertions inspect methods without invoking their receiver. */
 
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'

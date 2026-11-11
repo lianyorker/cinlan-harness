@@ -19,6 +19,9 @@ const icons = Object.fromEntries(
   Object.entries(primitives).filter(([name]) => name.startsWith('Icon')),
 ) as Record<string, (p: primitives.IconProps) => React.JSX.Element>
 const iconNames = Object.keys(icons)
+// Fixed-size aliases pin one pixel size per use site (e.g. IconCloseOutline16).
+const sizeAliases = iconNames.filter(name => /\d+$/.test(name))
+const pairedNames = iconNames.filter(name => !/\d+$/.test(name))
 const glyphs = Object.keys(ICON_ARTWORK) as IconGlyph[]
 
 function artwork(glyph: IconGlyph, weight: IconWeight): Document {
@@ -27,11 +30,11 @@ function artwork(glyph: IconGlyph, weight: IconWeight): Document {
 }
 
 describe('product icon set', () => {
-  it('exports regular and medium variants for all 97 public glyphs', () => {
-    expect(iconNames.length).toBe(194)
-    expect(iconNames.some(name => /\d+$/.test(name))).toBe(false)
-    const regular = iconNames.filter(name => name.endsWith('Regular')).map(name => name.slice(0, -'Regular'.length))
-    const medium = iconNames.filter(name => name.endsWith('Medium')).map(name => name.slice(0, -'Medium'.length))
+  it('exports regular and medium variants for all 98 public glyphs plus size aliases', () => {
+    expect(iconNames.length).toBe(235)
+    expect(sizeAliases.length).toBe(41)
+    const regular = pairedNames.filter(name => name.endsWith('Regular')).map(name => name.slice(0, -'Regular'.length))
+    const medium = pairedNames.filter(name => name.endsWith('Medium')).map(name => name.slice(0, -'Medium'.length))
     expect(medium.sort()).toEqual(regular.sort())
     expect(iconNames).toEqual(expect.arrayContaining([
       'IconMicrophoneOutlineRegular',
@@ -59,7 +62,7 @@ describe('product icon set', () => {
     expect(shield.documentElement.getAttribute('stroke-width')).toBe(String(primitives.ICON_REGULAR_STROKE))
   })
 
-  it.each(iconNames)('%s references its sprite symbol', (name) => {
+  it.each(pairedNames)('%s references its sprite symbol', (name) => {
     const Icon = icons[name]!
     const { container } = render(<Icon />)
     const svg = container.querySelector('svg')!
@@ -89,7 +92,7 @@ describe('product icon set', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it.each(iconNames)('%s references the glyph and weight its name spells', (name) => {
+  it.each(pairedNames)('%s references the glyph and weight its name spells', (name) => {
     const weight = name.endsWith('Regular') ? 'regular' : 'medium'
     const glyph = name.slice('Icon'.length, -weight.length).replace(/(?<!^)(?=[A-Z])/g, '-').toLowerCase()
     const Icon = icons[name]!

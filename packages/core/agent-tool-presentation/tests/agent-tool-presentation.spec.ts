@@ -48,7 +48,6 @@ async function host(options: { runtime?: boolean } = {}) {
 }
 
 /** Mount the row under one agent's scope, as a preset subtree does. */
-// oxlint-disable-next-line typescript/no-deprecated -- Exercise the supported compatibility plugin configuration.
 async function mount(ctx: Context, config: Config, id = 'agent') {
   const agent = { id: SessionId(id) } as Agent
   let inner!: Context
@@ -63,7 +62,6 @@ async function mount(ctx: Context, config: Config, id = 'agent') {
 
 describe('the tool-presentation row', () => {
   it('rejects an unsupported presentation mode in configuration', () => {
-    // oxlint-disable-next-line typescript/no-deprecated -- The compatibility schema must reject unsupported modes.
     expect(() => Config({ mode: 'both' } as never)).toThrow()
   })
 
@@ -131,7 +129,6 @@ describe('the tool-presentation row', () => {
   it('requires a mode rather than defaulting one', () => {
     // An omitted value would mean the row was composed for nothing: a preset
     // without this row already gets the deployment default.
-    // oxlint-disable-next-line typescript/no-deprecated -- The compatibility schema still requires an explicit mode.
     expect(() => Config({} as never)).toThrow()
   })
 })

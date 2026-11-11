@@ -494,6 +494,15 @@
       "@deepseek-ai/dsh-client-keyboard": [
         "./packages/client/keyboard/src"
       ],
+      "@cinlan/client-keyboard": [
+        "./packages/client/keyboard/src"
+      ],
+      "@cinlan/client-keyboard/client": [
+        "./packages/client/keyboard/src/client/index.ts"
+      ],
+      "@cinlan/client-keyboard/src/*": [
+        "./packages/client/keyboard/src/*"
+      ],
       "@deepseek-ai/dsh-client-keyboard/client": [
         "./packages/client/keyboard/src/client/index.ts"
       ],

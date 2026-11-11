@@ -66,7 +66,7 @@ async function bench(
       {
         name: 'root',
         children: {
-          'conversation.composer': { kind: 'chain', scope: 'session' },
+          'conversation.composer': { kind: 'chain', scope: 'session', phases: ['interaction'] },
           'conversation.chat.node': { kind: 'keyed', scope: 'session' },
         },
       } as never,

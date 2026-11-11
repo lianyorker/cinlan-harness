@@ -222,7 +222,6 @@ export class ComputerUseRuntime extends Service {
       this.providers.set(provider.id, provider)
       yield () => { this.providers.delete(provider.id) }
     }.bind(this), 'computerUse.registerProvider()')
-    // oxlint-disable-next-line typescript/no-misused-promises -- Preserve public callback type and Cordis disposer metadata.
     return dispose
   }
 
