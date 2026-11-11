@@ -49,10 +49,10 @@ describe('resolveTerminalFont', () => {
       .toBe(DEFAULT_TERMINAL_FONT_FAMILY)
   })
 
-  it('prefers the custom family verbatim and clamps the size', () => {
+  it('prefers the custom family verbatim and keeps the default size', () => {
     const { fontFamily, fontSize } = resolveTerminalFont({ ...SIDEBAR_PREFS_DEFAULTS, terminalFontFamily: 'Custom Font' }, undefined)
     expect(fontFamily).toBe('Custom Font')
-    expect(fontSize).toBe(TERMINAL_FONT_SIZE_MAX)
+    expect(fontSize).toBe(SIDEBAR_PREFS_DEFAULTS.terminalFontSize)
   })
 })
 
