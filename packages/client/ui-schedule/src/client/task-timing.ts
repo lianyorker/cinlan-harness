@@ -7,7 +7,6 @@ import type {
   ScheduleEditRequest, ScheduleEditResult, ScheduleRecord,
 } from '@deepseek-ai/dsh-schedule/client'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
-import type { TaskManagerKey } from './task-manager-locales.ts'
 
 /** Task mutation callback injected by the task catalog owner. */
 export interface TaskTimingInjected {
@@ -183,18 +182,4 @@ export function secondPrecision(time: string): string {
   const match = /^(\d{2}):(\d{2})(?::(\d{2}))?/.exec(time)
   if (match === null) return time
   return `${match[1]}:${match[2]}:${match[3] ?? '00'}`
-}
-
-/**
- * Localize controlled Host failures without exposing transport or storage diagnostics.
- * @param code - Error code returned by the timing update.
- * @returns Dictionary key describing the recovery action.
- */
-export function timingError(code: Extract<ScheduleEditResult, { code: string }>['code']): TaskManagerKey {
-  switch (code) {
-    case 'schedule_conflict': return 'timing.conflict'
-    case 'schedule_not_found': return 'timing.notFound'
-  }
-  /* v8 ignore next -- Exhaustiveness guard for the closed ScheduleUpdateResult error-code union. */
-  return assertNever(code)
 }

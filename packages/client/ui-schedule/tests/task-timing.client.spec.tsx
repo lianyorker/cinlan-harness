@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ScheduleCatalogEntry, ScheduleId, ScheduleRecord } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  draftZone, timingDraft, timingError, timingSnapshot, zonedWallClock,
+  draftZone, timingDraft, timingSnapshot, zonedWallClock,
 } from '../src/client/task-timing.ts'
 import type { TimingDraft } from '../src/client/task-timing.ts'
 
@@ -168,14 +168,5 @@ describe('device zone', () => {
     expect(timingDraft({ ...daily, timeZone: 'Not/AZone' })).toStrictEqual({
       date: '', time: '09:12:34.567', timeZone: 'Not/AZone', seconds: '', expression: '',
     })
-  })
-})
-
-describe('timingError', () => {
-  it.each([
-    ['schedule_conflict', 'timing.conflict'],
-    ['schedule_not_found', 'timing.notFound'],
-  ] as const)('maps the Host %s failure to %s', (code, key) => {
-    expect(timingError(code)).toBe(key)
   })
 })
