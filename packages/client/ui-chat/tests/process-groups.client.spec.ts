@@ -295,7 +295,7 @@ describe('Definition-owned Chat process groups', () => {
     h.commit()
     expect(h.store.entries.map(entry => entry.kind)).toEqual(['group'])
     const head = h.store.entries[0] as { key: string }
-    const survivors = h.store.groupSource(head.key).getSnapshot()?.members.map(member => member.key) ?? []
+    const survivors = h.store.groupSource(head.key as GroupKey).getSnapshot()?.members.map(member => member.key) ?? [] // GroupKey
     expect(survivors).toEqual(['before', trigger.key, 'after'])
   })
 
