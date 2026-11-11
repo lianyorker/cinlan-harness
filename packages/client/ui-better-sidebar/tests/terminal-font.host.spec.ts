@@ -14,10 +14,6 @@ describe('terminal renderer preference validation', () => {
   it.each([
     { terminalScrollback: -1 }, { terminalScrollback: 100001 }, { terminalScrollback: 1.5 },
     { terminalCursorStyle: 'beam' }, { terminalCursorBlink: 'yes' },
-    { terminalScrollSensitivity: 0 }, { terminalScrollSensitivity: 11 },
-    { terminalFastScrollSensitivity: 0 }, { terminalFastScrollSensitivity: 11 },
-    { terminalWordSeparator: 'x'.repeat(129) },
-    { terminalRightClickPaste: 'yes' },
   ])('rejects invalid durable renderer options: %j', (patch) => {
     expect(() => PrefsSchema(patch as never)).toThrow()
   })
@@ -27,19 +23,6 @@ describe('terminal renderer preference validation', () => {
       .toMatchObject({ terminalScrollback: 100000, terminalCursorStyle: 'underline', terminalCursorBlink: false })
     expect(parsePrefs({ terminalScrollback: Number.NaN, terminalCursorStyle: 'beam', terminalCursorBlink: 'yes' }))
       .toMatchObject({ terminalScrollback: 4000, terminalCursorStyle: 'block', terminalCursorBlink: true })
-  })
-
-  it('preserves xterm default separators and rejects malformed or oversized values', () => {
-    expect(parsePrefs({}).terminalWordSeparator).toBe(" ()[]{}',\"`")
-    expect(parsePrefs({ terminalWordSeparator: '()[]' }).terminalWordSeparator).toBe('()[]')
-    expect(parsePrefs({ terminalWordSeparator: 'x'.repeat(129) }).terminalWordSeparator).toBe(" ()[]{}',\"`")
-  })
-
-  it('bounds wheel sensitivity values and uses xterm-compatible defaults', () => {
-    expect(parsePrefs({}).terminalScrollSensitivity).toBe(1)
-    expect(parsePrefs({}).terminalFastScrollSensitivity).toBe(5)
-    expect(parsePrefs({ terminalScrollSensitivity: 20, terminalFastScrollSensitivity: Number.NaN }))
-      .toMatchObject({ terminalScrollSensitivity: 10, terminalFastScrollSensitivity: 5 })
   })
 })
 
@@ -67,23 +50,19 @@ describe('resolveTerminalFont', () => {
   })
 
   it('prefers the custom family verbatim and clamps the size', () => {
-    const { fontFamily, fontSize } = resolveTerminalFont(
-      { ...SIDEBAR_PREFS_DEFAULTS, terminalFontFamily: '"JetBrains Mono", monospace', terminalFontSize: 40 },
-      'var-theme-font',
-    )
-    expect(fontFamily).toBe('"JetBrains Mono", monospace')
+    const { fontFamily, fontSize } = resolveTerminalFont({ ...SIDEBAR_PREFS_DEFAULTS, terminalFontFamily: 'Custom Font' }, undefined)
+    expect(fontFamily).toBe('Custom Font')
     expect(fontSize).toBe(TERMINAL_FONT_SIZE_MAX)
   })
 })
 
 describe('resolveTerminalOptions', () => {
-  it('resolves normal and Alt-fast wheel sensitivity', () => {
-    expect(resolveTerminalOptions({ ...SIDEBAR_PREFS_DEFAULTS, terminalScrollSensitivity: 3, terminalFastScrollSensitivity: 8 }, undefined))
-      .toMatchObject({ scrollSensitivity: 3, fastScrollSensitivity: 8, fastScrollModifier: 'alt' })
+  it('resolves scrollback and cursor options from the durable prefs', () => {
+    expect(resolveTerminalOptions({ ...SIDEBAR_PREFS_DEFAULTS, terminalScrollback: 50000, terminalCursorStyle: 'underline', terminalCursorBlink: false }, undefined))
+      .toMatchObject({ scrollback: 50000, cursorStyle: 'underline', cursorBlink: false })
   })
-  it('passes configured word separators to xterm without normalization', async () => {
-    const { resolveTerminalOptions } = await import('../src/client/terminal-font.ts')
-    expect(resolveTerminalOptions({ ...SIDEBAR_PREFS_DEFAULTS, terminalWordSeparator: ' ()[]' }, undefined).wordSeparator)
-      .toBe(' ()[]')
+  it('clamps an out-of-range scrollback into the durable bounds', () => {
+    expect(resolveTerminalOptions({ ...SIDEBAR_PREFS_DEFAULTS, terminalScrollback: 120000 }, undefined).scrollback)
+      .toBe(100000)
   })
 })

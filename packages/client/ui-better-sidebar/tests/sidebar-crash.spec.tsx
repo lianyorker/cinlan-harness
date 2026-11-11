@@ -64,7 +64,7 @@ function mountSidebar(sessionId = 's1'): MountedSidebar {
   const sessionsSnapshot = {
     current: sessionId,
     // cwd present → api.sessionCwd is never called in these tests.
-    byId: { [sessionId]: { cwd: '/tmp' } },
+    byId: { [sessionId]: { cwd: '/tmp', retainedBy: { mainView: 1 } } },
   }
   const ctx = {
     locale: { subscribe: () => () => {}, getSnapshot: () => localeSnapshot },

@@ -57,7 +57,7 @@ function mountSidebar(prepare?: (store: SidebarStore, service: BetterSidebarServ
   const sessionsSnapshot = {
     current: 's1',
     // cwd present → api.sessionCwd is never called in these tests.
-    byId: { s1: { cwd: '/tmp' } },
+    byId: { s1: { cwd: '/tmp', retainedBy: { mainView: 1 } } },
   }
   const ctx = {
     locale: { subscribe: () => () => {}, getSnapshot: () => localeSnapshot },
