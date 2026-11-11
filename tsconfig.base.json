@@ -590,9 +590,6 @@
       "@deepseek-ai/dsh-client-connection/types": [
         "./packages/client/connection/src/rpc.ts"
       ],
-      "@deepseek-ai/dsh-client-file-upload/types": [
-        "./packages/client/file-upload/src/types.ts"
-      ],
       "@deepseek-ai/dsh-client-locale/client": [
         "./packages/client/locale/src/client/index.ts"
       ],
