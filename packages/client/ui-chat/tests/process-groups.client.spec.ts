@@ -268,8 +268,16 @@ describe('Definition-owned Chat process groups', () => {
       },
     }
     const h = harness([control, ...replyNodes(true), tool('after', 8)])
-    expect(h.store.entries.map(entry => entry.kind)).toEqual(['node', 'group'])
-    expect(h.store.entries[0]).toEqual({ kind: 'node', key: control.key })
+    // The merged engine folds the Turn control into the group as its disclosure
+    // owner instead of emitting a standalone row before it.
+    expect(h.store.entries.map(entry => entry.kind)).toEqual(['group'])
+    const group = h.store.entries[0]!
+    if (group.kind !== 'group') throw new Error('expected group')
+    const members = h.store.groupSource(group.key).getSnapshot()?.members.map(member => member.key) ?? []
+    // The control is the group's first member (its disclosure row).
+    expect(members[0]).toBe(control.key)
+    expect(members).toContain('after')
+    expect(h.snapshot.nodes.get(control.key)).toBeDefined()
   })
 
   it('aggregates a newly projected reply with its existing trigger', () => {
@@ -285,8 +293,10 @@ describe('Definition-owned Chat process groups', () => {
 
     h.builder.apply({ upserts: [{ ...reply, visibility: 'hidden' }], timeline })
     h.commit()
-    expect(h.store.entries.map(entry => entry.kind)).toEqual(['group', 'node', 'group'])
-    expect(h.store.entries[1]).toEqual({ kind: 'node', key: trigger.key })
+    expect(h.store.entries.map(entry => entry.kind)).toEqual(['group'])
+    const head = h.store.entries[0] as { key: string }
+    const survivors = h.store.groupSource(head.key).getSnapshot()?.members.map(member => member.key) ?? []
+    expect(survivors).toEqual(['before', trigger.key, 'after'])
   })
 
   it('aggregates reply projections before their Turn has been loaded', () => {
@@ -307,7 +317,15 @@ describe('Definition-owned Chat process groups', () => {
   it.each([true, false])('does not merge identical text from different messages, scoped: %s', (inTurn) => {
     const [trigger, reply] = replyNodes(inTurn)
     const h = harness([trigger, { ...reply, id: 'different-message', data: trigger.data }])
-    expect(h.store.entries).toContainEqual({ kind: 'node', key: trigger.key })
+    if (inTurn) {
+      const group = h.store.entries[0]!
+      if (group.kind !== 'group') throw new Error('expected group')
+      const members = h.store.groupSource(group.key).getSnapshot()?.members.map(member => member.key) ?? []
+      expect(members).toContain(trigger.key)
+      expect(members).toContain(reply.key)
+    } else {
+      expect(h.store.entries).toContainEqual({ kind: 'node', key: trigger.key })
+    }
   })
 
   it.each(['process', 'turn', 'input'] as const)('ends the group at a Node declared at %s, whatever its kind', (position) => {

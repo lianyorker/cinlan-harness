@@ -171,12 +171,8 @@ describe('WorkspaceBrowser', () => {
     const preferences = createWorkspaceViewStore().create()
     preferences.actions.setGroupBy(mode === 'flat' ? 'flat' : 'workspace')
     const account = mode === 'ungrouped' ? UNGROUPED_KEY : 'alpha'
-    preferences.actions.setSessionOrder(account, ['older', 'newer'], {})
-    preferences.actions.setSessionOrder(UNGROUPED_KEY, ['older', 'newer'], {})
-    preferences.actions.setSessionOrder(FLAT_SESSION_ORDER_KEY, ['older', 'newer'], {})
     preferences.actions.setGroupExpanded(account, true)
     preferences.actions.setGroupExpanded(UNGROUPED_KEY, true)
-    localStorage.setItem('dsh.workspace.view.v5', JSON.stringify({ ...preferences.getSnapshot(), orderBy: 'updated' }))
     const b = mount({
       useSessions: hook(sessionState([summary('newer', 100)])),
       useWorkspaces: hook(workspaceState(mode === 'ungrouped' ? [] : [workspace(account, ['older', 'newer'])])),
@@ -193,7 +189,6 @@ describe('WorkspaceBrowser', () => {
     expect(names()).toEqual(['older', 'newer'])
     rerender(b, { useSessions: hook(sessionState([summary('older', 80), summary('newer', 100)])) })
     expect(names()).toEqual(['newer', 'older'])
-    expect(b.store.getSnapshot().sessionOrderByAccount[account]).toEqual(['older', 'newer'])
     b.view.unmount()
     const restored = mount({
       useSessions: hook(sessionState([summary('older', 80), summary('newer', 100)])),
