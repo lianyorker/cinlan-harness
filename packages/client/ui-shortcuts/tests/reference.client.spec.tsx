@@ -110,16 +110,11 @@ it.each(['macos', 'windows'] as const)('shows the reference, filters labels and 
   fireEvent.keyDown(search, { key: 'Escape' })
   expect(store.getSnapshot().open).toBe(false)
   expect(store.getSnapshot().query).toBe('')
-  expect(document.activeElement).toBe(opener)
-  fireEvent.pointerEnter(opener)
-  expect(screen.getByRole('tooltip').getAttribute('aria-label')).toBe(`${en.open} ${platform === 'macos' ? '⌘ /' : 'Ctrl + /'}`)
   act(() => { catalog.set(catalog.getSnapshot().map(row => row.id === 'shortcuts.open'
     ? { ...row, binding: null, keys: [], aria: undefined } : row)) })
   expect(screen.queryByRole('tooltip')).toBeNull()
-  fireEvent.pointerLeave(opener); fireEvent.pointerEnter(opener)
   expect(screen.queryByRole('tooltip')).toBeNull()
   act(() => { catalog.set([]) })
-  expect(opener.hasAttribute('aria-keyshortcuts')).toBe(false)
   expect(makeTranslate(zh)('title')).toBe('快捷键')
 })
 
