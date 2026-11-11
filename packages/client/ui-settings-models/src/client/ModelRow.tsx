@@ -182,39 +182,6 @@ export function ModelRow(props: ModelRowProps): ReactNode {
           )
           : null}
       </div>
-      {props.expanded
-        ? (
-          <div className={styles['modelAdvanced']}>
-            {(['contextWindow', 'maxTokens'] as const).map(field => (
-              <label className={styles['modelField']} key={field}>
-                <span className={styles['modelFieldLabel']}>{t(field)}</span>
-                <input
-                  className={styles['input']}
-                  type="text"
-                  inputMode="numeric"
-                  value={props[field].value}
-                  placeholder={props[field].placeholder}
-                  aria-label={`${t(field)} ${String(position)}`}
-                  disabled={disabled}
-                  onChange={(event) => { props[field].onChange(event.target.value) }}
-                  onBlur={props[field].onBlur}
-                />
-              </label>
-            ))}
-            <ModelInputTypes
-              model={model} field={props.inputField} position={position}
-              fallback={props.inputFallback} disabled={disabled || props.inputLoading === true} t={t} onChange={props.onChange}
-            />
-            {props.reasoningLevels !== undefined && props.reasoningLevels.length > 0
-              ? (
-                <ModelReasoningEfforts
-                  model={model} levels={props.reasoningLevels} position={position} disabled={disabled} t={t} onChange={props.onChange}
-                />
-              )
-              : null}
-          </div>
-        )
-        : null}
     </div>
   )
 }
