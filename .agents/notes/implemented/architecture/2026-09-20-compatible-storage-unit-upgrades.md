@@ -16,7 +16,7 @@ A compatible whole-unit open and `loadAll()` preserve stored values and the exis
 
 SQLite uses `BEGIN IMMEDIATE` for `putRecord`, `deleteRecord`, and `setGlobal`. Under that transaction it rechecks the stored stamp, runs the data operation, updates `units.version`, and commits. Failure rolls back both data and stamp. A handle opened against an older version cannot write after another handle commits a newer stamp. Compatible unit upgrades change no physical DDL; `STORAGE_SQLITE_SCHEMA_VERSION` and its exact-version database admission remain separate from owner-declared unit versions.
 
-The [projection-cache compatibility decision](2026-09-02-projcache-cross-version-read-compat.md) retains ownership of per-record admission, legacy bootstrap, semantic identity checks, and backup-and-skip. This decision extends whole-unit backend admission without changing those mechanisms. [Released Session JSONL generations](2026-08-31-released-session-format-migrations.md) retain their independent adjacent-migration rules.
+The [projection-cache compatibility decision](../../../../.agents/notes/archived/architecture/2026-09-02-projcache-cross-version-read-compat.md) retains ownership of per-record admission, legacy bootstrap, semantic identity checks, and backup-and-skip. This decision extends whole-unit backend admission without changing those mechanisms. [Released Session JSONL generations](2026-08-31-released-session-format-migrations.md) retain their independent adjacent-migration rules.
 
 ## Alternatives considered
 

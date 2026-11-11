@@ -4,7 +4,7 @@ Status: implemented
 
 [English](2026-10-31-worktree-task-parent-links-in-fork-domain.md) | 中文
 
-> 范围：Worktree Task checkout 工作区与其源工作区之间的父子关系存在哪里、如何对外提供，以及为什么官方 `WorkspaceRecord` schema 保持不动。实施计划见 [docs/dev/工作树会话归属/plan.zh.md](../../../../docs/dev/工作树会话归属/plan.zh.md)。
+> 范围：Worktree Task checkout 工作区与其源工作区之间的父子关系存在哪里、如何对外提供，以及为什么官方 `WorkspaceRecord` schema 保持不动。实施计划见 docs/dev/工作树会话归属/plan.zh.md。
 
 ## Problem
 

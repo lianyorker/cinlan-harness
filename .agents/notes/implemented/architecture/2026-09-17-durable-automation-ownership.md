@@ -18,7 +18,7 @@ Each run creates an ordinary Agent Session with explicit Workspace, model, Agent
 
 Recovery does not replay work whose start or outcome is uncertain. It records ambiguous or interrupted evidence, pauses the definition for human review, and retains the invocation history. Full Host shutdown may detach persistence before a normal ending is durable; that state is recorded as interrupted rather than invented cancellation or success. The runtime uses positive flush participation and durable Session evidence when live state is inconclusive.
 
-This decision complements [Session-local reminders](../feature/2026-08-05-durable-web-schedule.md) and [explicit reminder time zones](../simplification/2026-08-09-explicit-schedule-time-zone.md). Those records still own delivery within an existing Session. Saved automations own separate Agent invocations; neither older decision is superseded.
+This decision complements [Session-local reminders](../../../../.agents/notes/archived/feature/2026-08-05-durable-web-schedule.md) and [explicit reminder time zones](../simplification/2026-08-09-explicit-schedule-time-zone.md). Those records still own delivery within an existing Session. Saved automations own separate Agent invocations; neither older decision is superseded.
 
 ## Alternatives considered
 

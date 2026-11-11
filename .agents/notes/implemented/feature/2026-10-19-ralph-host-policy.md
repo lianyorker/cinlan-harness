@@ -10,7 +10,7 @@ Ralph tools live inside Agent presets while user configuration is Host-owned. In
 
 ## Decision
 
-The [Ralph policy entry](../../../../packages/workflow/tool-ralph/README.md#host-policy) mounts once at Host scope and defaults to disabled. Web standard, PTC, and Creator presets require that service. Availability registers or withdraws both the tool and its fixed explicit-human-request guidance. The executor checks current admission and its registration generation, applies the smaller Host/preset round ceiling, and rejects stale definitions and late results. Disabling or unloading requests cancellation of owned runs; callers still await workflow settlement and dispose their runs.
+The Ralph policy entry mounts once at Host scope and defaults to disabled. Web standard, PTC, and Creator presets require that service. Availability registers or withdraws both the tool and its fixed explicit-human-request guidance. The executor checks current admission and its registration generation, applies the smaller Host/preset round ceiling, and rejects stale definitions and late results. Disabling or unloading requests cancellation of owned runs; callers still await workflow settlement and dispose their runs.
 
 The single Developer tools settings section owns the switch and saved positive-integer round ceiling through the existing configuration form. Changing settings never starts a workflow or supplies the human instruction required to call Ralph. Standalone compositions without the new requirement retain their explicit opt-in behavior. No Session event, workflow protocol, or released data format changes.
 

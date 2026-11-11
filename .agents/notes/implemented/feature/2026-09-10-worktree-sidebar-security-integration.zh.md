@@ -40,7 +40,7 @@ Worktree Task 的 setup 与 cleanup 和 Git 操作共用受管子进程执行器
 
 ## 相关决策
 
-[右侧栏 docking 记录](2026-09-04-right-sidebar-docking-infrastructure.zh.md)、[tab 类型记录](../architecture/2026-09-05-sidebar-tab-types-and-navigation.zh.md)与[文件树记录](2026-09-05-sidebar-text-preview-and-file-tree.zh.md)保留前代 docking 栈的设计依据。本记录仅取代其中“这些包拥有默认 Web 组合”的事实。Workspace Isolation lease 语义仍由[隔离记录](2026-09-09-workspace-isolation-leases.zh.md)负责；Worktree Task 是独立的任务提供方，不扩展 Workspace 记录。
+[右侧栏 docking 记录](2026-09-04-right-sidebar-docking-infrastructure.zh.md)、[tab 类型记录](../../../../.agents/notes/archived/architecture/2026-09-05-sidebar-tab-types-and-navigation.zh.md)与[文件树记录](../../../../.agents/notes/archived/feature/2026-09-05-sidebar-text-preview-and-file-tree.zh.md)保留前代 docking 栈的设计依据。本记录仅取代其中“这些包拥有默认 Web 组合”的事实。Workspace Isolation lease 语义仍由[隔离记录](2026-09-09-workspace-isolation-leases.zh.md)负责；Worktree Task 是独立的任务提供方，不扩展 Workspace 记录。
 
 ## 测试
 

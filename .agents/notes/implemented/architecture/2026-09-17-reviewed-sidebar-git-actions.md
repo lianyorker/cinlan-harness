@@ -66,7 +66,7 @@ The mutation queue coordinates this executor's work only. Repository checks and 
 
 ## Related decisions
 
-The active-note audit finds no earlier record owning this manual Git executor or its prepare/confirm protocol. [Agent initiator scope](2026-07-15-agent-initiator-scope.md) retains the rules for recovering a model tool's Agent and Session. [Workspace Isolation leases](../feature/2026-09-09-workspace-isolation-leases.md) and [Worktree/sidebar composition](../feature/2026-09-10-worktree-sidebar-security-integration.md) retain their distinct lifecycle and checkpoint rationale. [Native subprocess containment](2026-08-28-subprocess-native-containment.md) owns the platform-specific meaning and limits of managed-range exit. These are complementary decisions; no triplet is superseded or archived by this record.
+The active-note audit finds no earlier record owning this manual Git executor or its prepare/confirm protocol. [Agent initiator scope](2026-07-15-agent-initiator-scope.md) retains the rules for recovering a model tool's Agent and Session. [Workspace Isolation leases](../feature/2026-09-09-workspace-isolation-leases.md) and [Worktree/sidebar composition](../feature/2026-09-10-worktree-sidebar-security-integration.md) retain their distinct lifecycle and checkpoint rationale. [Native subprocess containment](../../../../.agents/notes/archived/architecture/2026-08-28-subprocess-native-containment.md) owns the platform-specific meaning and limits of managed-range exit. These are complementary decisions; no triplet is superseded or archived by this record.
 
 ## Testing
 

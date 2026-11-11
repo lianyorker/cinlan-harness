@@ -4,7 +4,7 @@ Status: implemented
 
 English | [中文](2026-10-31-clh-dsh-naming-boundary.zh.md)
 
-> Scope: where the Cinlan product identity (`clh`) ends and the upstream-aligned identity (`dsh`) begins, and why the user-data root is strictly isolated. The authoritative rule set lives in [docs/dev/clh-dsh-边界.md](../../../../docs/dev/clh-dsh-边界.zh.md).
+> Scope: where the Cinlan product identity (`clh`) ends and the upstream-aligned identity (`dsh`) begins, and why the user-data root is strictly isolated. The authoritative rule set lives in docs/dev/clh-dsh-边界.md.
 
 ## Problem
 

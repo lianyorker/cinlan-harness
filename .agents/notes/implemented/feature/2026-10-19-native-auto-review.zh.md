@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-[Auto guard](../../../../packages/guard/auto-review/README.zh.md)在 `packages/guard/auto-review` 拥有授权逻辑，发布名为 `@deepseek-ai/dsh-auto-review`。Web bundle 安装一个有界后端，可选 bundle 清单移除旧实验名称。源码导入、测试、编译引用、发布载荷与生成目录同时跟随新所有者更新。
+Auto guard在 `packages/guard/auto-review` 拥有授权逻辑，发布名为 `@deepseek-ai/dsh-auto-review`。Web bundle 安装一个有界后端，可选 bundle 清单移除旧实验名称。源码导入、测试、编译引用、发布载荷与生成目录同时跟随新所有者更新。
 
 后端存在与权限选择独立。Auto 仍仅限当前会话，保留可见风险确认，不能成为未来会话默认值，也不向子执行转移 Auto 权限状态。原生/PTC 审查、拒绝、技术失败、日志、取消和卸载行为不变，`auto` 预设和审计事件身份保持稳定。工作树持久化确认及完整验收未完成，因此保留 EXP 提示；迁移不代表发布认证。
 

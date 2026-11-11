@@ -66,7 +66,7 @@ Remote 控制器传递调用者的取消信号。每条命令还观察其配置�
 
 ## 相关决策
 
-活动记录审计未发现拥有此手动 Git 执行器或其准备/确认协议的既有记录。[Agent 发起者作用域](2026-07-15-agent-initiator-scope.zh.md)保留恢复模型工具 Agent 与 Session 的规则。[Workspace Isolation 租约](../feature/2026-09-09-workspace-isolation-leases.zh.md)和 [Worktree/侧边栏组合](../feature/2026-09-10-worktree-sidebar-security-integration.zh.md)保留各自的生命周期与检查点理由。[原生子进程包含](2026-08-28-subprocess-native-containment.zh.md)拥有受管范围退出的平台含义与限制。这些决策相互补充；本记录不取代或归档任何三件套。
+活动记录审计未发现拥有此手动 Git 执行器或其准备/确认协议的既有记录。[Agent 发起者作用域](2026-07-15-agent-initiator-scope.zh.md)保留恢复模型工具 Agent 与 Session 的规则。[Workspace Isolation 租约](../feature/2026-09-09-workspace-isolation-leases.zh.md)和 [Worktree/侧边栏组合](../feature/2026-09-10-worktree-sidebar-security-integration.zh.md)保留各自的生命周期与检查点理由。[原生子进程包含](../../../../.agents/notes/archived/architecture/2026-08-28-subprocess-native-containment.zh.md)拥有受管范围退出的平台含义与限制。这些决策相互补充；本记录不取代或归档任何三件套。
 
 ## 测试
 

@@ -14,11 +14,11 @@ Status: implemented
 
 插件管理位于既有 Plugins 设置页签内。其 Host 服务要求真实、由启动器提供的 `ProfileContext`，不会根据路径推断 profile 的可写所有权。执行端在取得锁或修改文件之前，以 `management-required` 拒绝 Desktop 包与组合修改。配置行修改要求[能力集成决策](2026-09-20-official-capabilities-preserve-cinlan-architecture.zh.md)所述的显式 Desktop Host 适配器。Desktop 按[所有权决策](2026-08-25-electron-desktop-packaging-and-updates.zh.md)保留 `dsh-app://`、framed pipes、私有 pnpm，以及独占的暂存、健康检查、激活和恢复事务。隐藏浏览器控件不能替代执行端强制检查。
 
-better-sidebar API 与既有消费者保留其公开行为。计划预览与文件变更审阅通过可选消费者注册，两项功能都不要求替换侧栏。新增的 `conversation.chat.turnCards` 列表与 `conversation.chat.turnTail` 链并存，独立卡片不争用其选择器。既有[页签导航](2026-09-05-sidebar-tab-types-and-navigation.zh.md)与 [worktree/侧栏安全](../feature/2026-09-10-worktree-sidebar-security-integration.zh.md)决策保留各自的所有权与授权规则。
+better-sidebar API 与既有消费者保留其公开行为。计划预览与文件变更审阅通过可选消费者注册，两项功能都不要求替换侧栏。新增的 `conversation.chat.turnCards` 列表与 `conversation.chat.turnTail` 链并存，独立卡片不争用其选择器。既有[页签导航](../../../../.agents/notes/archived/architecture/2026-09-05-sidebar-tab-types-and-navigation.zh.md)与 [worktree/侧栏安全](../feature/2026-09-10-worktree-sidebar-security-integration.zh.md)决策保留各自的所有权与授权规则。
 
 subagent 运行时的 `maxActiveSubagents` 默认值为 `8`，并保留本地 `maxDepth` 默认值 `3`。显式部署值优先；没有深度覆盖的工具在每次委派时解析共享设置。[人设、过滤与深度决策](../feature/2026-07-12-subagent-persona-tool-filter-and-depth.zh.md)保留提供方与绝对深度保证。
 
-Chat Completions 仍是默认协议，Messages 是显式选项。新增图像支持用于请求准备，不引入另一种持久图像格式或跨 Session 持久化迁移。既有网关、已配置模型列表与[图像请求管线](../feature/2026-08-20-unified-image-request-pipeline.zh.md)保留各自属主。
+Chat Completions 仍是默认协议，Messages 是显式选项。新增图像支持用于请求准备，不引入另一种持久图像格式或跨 Session 持久化迁移。既有网关、已配置模型列表与[图像请求管线](../../../../.agents/notes/archived/feature/2026-08-20-unified-image-request-pipeline.zh.md)保留各自属主。
 
 ## 曾考虑的替代方案
 

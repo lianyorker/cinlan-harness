@@ -34,7 +34,7 @@ Status: implemented
 
 提供方与消费方显式等待准备，请求解析与任务准入则保持既有职责。每条已 spawn 的命令保留自身的强制执行事实。本地 runner 选择、同步探测、Windows ACL 授权、私有临时目录权限与部分强制执行报告继续由提供方负责；异步签名不会使同步本地工作变得可抢占。
 
-[可移植消费方决策](2026-07-28-portable-execution-world-consumers.zh.md)、[共享策略决策](../feature/2026-07-14-cross-family-fs-sandbox.zh.md)、[Windows 沙箱决策](../feature/2026-08-08-windows-acl-restricted-token-sandbox.zh.md)与 [SSH 提供方决策](2026-09-11-posix-ssh-runtime.zh.md)各自的架构和平台理由仍然有效。本文负责通用准备时序、取消与路径保留。
+[可移植消费方决策](2026-07-28-portable-execution-world-consumers.zh.md)、[共享策略决策](../../../../.agents/notes/archived/feature/2026-07-14-cross-family-fs-sandbox.zh.md)、[Windows 沙箱决策](../feature/2026-08-08-windows-acl-restricted-token-sandbox.zh.md)与 [SSH 提供方决策](2026-09-11-posix-ssh-runtime.zh.md)各自的架构和平台理由仍然有效。本文负责通用准备时序、取消与路径保留。
 
 ## 验证
 

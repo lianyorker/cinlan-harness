@@ -10,7 +10,7 @@ Applying one visual settings layout to independent plugins can imply behavior th
 
 ## Decision
 
-The settings shell owns geometry, grouping, and navigation. Each feature owns its persisted fields, defaults, runtime consumer, availability, and operation lifecycle. Native rows use semantic theme tokens and localized public copy. Unsupported prototype fields remain explicit gaps rather than writable values without consumers. The [metadata decision](2026-09-17-settings-navigation-metadata.md) owns search and anchors; the [Host preferences decision](../bug-fix/2026-08-06-host-backed-web-preferences.md) owns the shared mirror and write queue. Neither is superseded.
+The settings shell owns geometry, grouping, and navigation. Each feature owns its persisted fields, defaults, runtime consumer, availability, and operation lifecycle. Native rows use semantic theme tokens and localized public copy. Unsupported prototype fields remain explicit gaps rather than writable values without consumers. The [metadata decision](2026-09-17-settings-navigation-metadata.md) owns search and anchors; the [Host preferences decision](../../../../.agents/notes/archived/bug-fix/2026-08-06-host-backed-web-preferences.md) owns the shared mirror and write queue. Neither is superseded.
 
 A form that reports saved state requires an accepted Host mutation and the intended effective value and raw override. Reset removes owned overrides. `SettingsScope.mutate` reports actual acceptance while keeping its existing revision fence, serialized queue, recovery, and disposal drain. A refused write that reloads matching values remains refused. Device-specific microphone choices and audio bytes remain browser-owned; they do not enter Host schemas merely to match a visual prototype.
 

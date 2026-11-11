@@ -16,7 +16,7 @@ The catalog offers an explicit **Open in sidebar** action, and topology child ca
 
 The existing Conversation registration opts into `reusable: true`. The renderer's `renderSessionView` operation resolves standard hooks, stores, injected callbacks, and child slots against the explicitly retained Session. Reuse retains the original slot authorization and contains errors per occurrence. Reload reauthorizes a replacement registration before rendering it. The optional embedded presentation hides main navigation and width handles; transcript assembly, tool cards, input, and interaction takeovers use the normal Conversation tree and transport.
 
-The [Web catalog and human continuation decision](2026-07-27-web-subagent-conversations.md) remains authoritative for direct-parent permission, read-only one-shot records, live-parent continuation, and independent Stop. It is retained as an active decision; parallel placement does not supersede its authority rules. No package or transport is added.
+The [Web catalog and human continuation decision](../../../../.agents/notes/archived/feature/2026-07-27-web-subagent-conversations.md) remains authoritative for direct-parent permission, read-only one-shot records, live-parent continuation, and independent Stop. It is retained as an active decision; parallel placement does not supersede its authority rules. No package or transport is added.
 
 ## Alternatives considered
 

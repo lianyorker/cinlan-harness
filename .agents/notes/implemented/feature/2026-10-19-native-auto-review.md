@@ -10,7 +10,7 @@ A permission option cannot work without its per-call authorization backend. A se
 
 ## Decision
 
-The [Auto guard](../../../../packages/guard/auto-review/README.md) owns authorization under `packages/guard/auto-review`, published as `@deepseek-ai/dsh-auto-review`. The Web bundle installs one bounded backend, and the optional bundle roster removes the old experimental name. Source imports, tests, compiler references, publication payload and generated catalogs follow the new owner together.
+The Auto guard owns authorization under `packages/guard/auto-review`, published as `@deepseek-ai/dsh-auto-review`. The Web bundle installs one bounded backend, and the optional bundle roster removes the old experimental name. Source imports, tests, compiler references, publication payload and generated catalogs follow the new owner together.
 
 Backend presence is independent of permission selection. Auto remains current-session-only, requires the existing visible risk acknowledgement, cannot become a future-session default, and does not transfer Auto permission state to children. Existing native/PTC review, denial, technical failure, logging, cancellation, and teardown behavior is unchanged. The `auto` preset and audit event identity remain stable. The EXP warning stays because the workspace persistence acknowledgement and full acceptance are pending; relocation is not release certification.
 

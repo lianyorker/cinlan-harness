@@ -210,7 +210,7 @@ orca 的 `ComputerUsePane` 包含两大模块：
 
 **文件变更**：
 
-1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `ComputerOSPermissionsSection.tsx`。当前只读能力与未探测权限说明见 [ComputerObservations.tsx](../../../packages/client/ui-settings-security/src/client/ComputerObservations.tsx)，不等同于本阶段拟议的 OS 权限操作。
+1. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `ComputerOSPermissionsSection.tsx`。当前只读能力与未探测权限说明见 ComputerObservations.tsx，不等同于本阶段拟议的 OS 权限操作。
    - 平台检测：仅 `platform === 'darwin'` 显示
    - 顶部摘要卡：ShieldCheck + 状态标题 + Ready 徽章 + 刷新按钮
    - 权限行列表：Accessibility + Screenshots，每行图标 + 标签 + 状态徽章 + Open 按钮

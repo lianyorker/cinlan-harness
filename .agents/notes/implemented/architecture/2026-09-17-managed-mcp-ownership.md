@@ -18,7 +18,7 @@ Bridge shutdown orders contribution withdrawal, SDK cleanup, and namespace relea
 
 Desired records hold credential references. Resolved values are excluded from public snapshots, errors, managed diagnostics, and displayed descriptors. A secret in a public tool name rejects discovery instead of inventing a different tool identity. HTTP configuration rejects URL user information, queries, and fragments. The [controller](../../../../packages/api/mcp-controller/README.md) streams committed snapshots through the existing authenticated carrier; cancellation directly releases subscriptions even when a generator is paused at a yielded frame.
 
-The [native page](../../../../packages/client/ui-settings-mcp/README.md) keeps drafts separate from the authoritative snapshot, renders actual discovered tools and owners, and indexes localized static field copy only. The [original MCP decision](../feature/2026-07-07-mcp-client-plugin.md) still owns SDK selection, tool naming, and model-tool bridging. Management reuses that implementation; the earlier decision is complementary and remains active.
+The [native page](../../../../packages/client/ui-settings-mcp/README.md) keeps drafts separate from the authoritative snapshot, renders actual discovered tools and owners, and indexes localized static field copy only. The [original MCP decision](../../../../.agents/notes/archived/feature/2026-07-07-mcp-client-plugin.md) still owns SDK selection, tool naming, and model-tool bridging. Management reuses that implementation; the earlier decision is complementary and remains active.
 
 ## Alternatives considered
 

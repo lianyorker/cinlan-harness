@@ -18,7 +18,7 @@ Status: implemented
 
 恢复不重放启动或结果不确定的工作。它记录 ambiguous 或 interrupted 证据，暂停定义供人工检查，并保留调用历史。整个 Host 关闭时，持久化可能在正常结束记录落盘前卸载；此状态记为中断，不虚构取消或成功。活动状态不明确时，运行时使用已确认的 flush 参与和持久 Session 证据。
 
-此决策补充 [Session 内提醒](../feature/2026-08-05-durable-web-schedule.zh.md) 与 [显式提醒时区](../simplification/2026-08-09-explicit-schedule-time-zone.zh.md)。这些记录继续拥有既有 Session 内的交付。保存的自动化拥有独立 Agent 调用；两个旧决策均未被取代。
+此决策补充 [Session 内提醒](../../../../.agents/notes/archived/feature/2026-08-05-durable-web-schedule.zh.md) 与 [显式提醒时区](../simplification/2026-08-09-explicit-schedule-time-zone.zh.md)。这些记录继续拥有既有 Session 内的交付。保存的自动化拥有独立 Agent 调用；两个旧决策均未被取代。
 
 ## 考虑过的替代方案
 

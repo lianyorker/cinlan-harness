@@ -18,7 +18,7 @@ Status: implemented
 
 期望记录保存凭据引用。解析值不进入公开快照、错误、托管诊断和显示的描述符。公开工具名中出现秘密时拒绝发现，而不是虚构另一个工具标识。HTTP 配置拒绝 URL 用户信息、查询参数与片段。[Controller](../../../../packages/api/mcp-controller/README.zh.md) 经现有认证通道传输已提交快照；即使生成器停在已 yield 的帧上，取消也会直接释放订阅。
 
-[原生页面](../../../../packages/client/ui-settings-mcp/README.zh.md) 将草稿与权威快照分开，呈现真实发现的工具与所有者，仅索引本地化静态字段文案。[最初 MCP 决策](../feature/2026-07-07-mcp-client-plugin.zh.md) 继续拥有 SDK 选择、工具命名和模型工具桥接。管理复用该实现；旧决策是互补记录，继续有效。
+[原生页面](../../../../packages/client/ui-settings-mcp/README.zh.md) 将草稿与权威快照分开，呈现真实发现的工具与所有者，仅索引本地化静态字段文案。[最初 MCP 决策](../../../../.agents/notes/archived/feature/2026-07-07-mcp-client-plugin.zh.md) 继续拥有 SDK 选择、工具命名和模型工具桥接。管理复用该实现；旧决策是互补记录，继续有效。
 
 ## 考虑过的替代方案
 

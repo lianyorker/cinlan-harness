@@ -40,7 +40,7 @@ The [native browser and evidence decision](2026-09-13-native-browser-and-securit
 
 ## Related decisions
 
-The [docking note](2026-09-04-right-sidebar-docking-infrastructure.md), [tab-types note](../architecture/2026-09-05-sidebar-tab-types-and-navigation.md), and [file-tree note](2026-09-05-sidebar-text-preview-and-file-tree.md) retain the rationale for the predecessor docking stack. This note supersedes only their claim that those packages own the default Web composition. Workspace Isolation lease semantics remain in [the isolation note](2026-09-09-workspace-isolation-leases.md); Worktree Task is a separate task-oriented provider and does not extend Workspace records.
+The [docking note](2026-09-04-right-sidebar-docking-infrastructure.md), [tab-types note](../../../../.agents/notes/archived/architecture/2026-09-05-sidebar-tab-types-and-navigation.md), and [file-tree note](../../../../.agents/notes/archived/feature/2026-09-05-sidebar-text-preview-and-file-tree.md) retain the rationale for the predecessor docking stack. This note supersedes only their claim that those packages own the default Web composition. Workspace Isolation lease semantics remain in [the isolation note](2026-09-09-workspace-isolation-leases.md); Worktree Task is a separate task-oriented provider and does not extend Workspace records.
 
 ## Testing
 

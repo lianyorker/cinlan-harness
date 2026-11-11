@@ -18,7 +18,7 @@ Matching uses the literal `URL.pathname`. Connection does not decode the resourc
 
 Both modes use one path-keyed registry and the same caller-fiber effects. Disposing a contribution withdraws admission; the carrier and handler still own accepted requests, their abort signals, response streams, and settlement. Authentication and Host/Origin checks run before shared dispatch. Prefix matching adds no authentication path, listener, transport, or request/response adapter, and does not change generation or body-limit ownership.
 
-This decision extends the route-matching facts in the [Remote method note](2026-08-02-typert-remote-method-calls.md), [boot and transport note](2026-07-24-web-config-tree-boot-and-transport-layering.md), and [client loading note](2026-07-23-client-plugin-loading-model.md). Their Remote, boot, and loading decisions remain active.
+This decision extends the route-matching facts in the [Remote method note](2026-08-02-typert-remote-method-calls.md), [boot and transport note](../../../../.agents/notes/archived/architecture/2026-07-24-web-config-tree-boot-and-transport-layering.md), and [client loading note](2026-07-23-client-plugin-loading-model.md). Their Remote, boot, and loading decisions remain active.
 
 ## Alternatives considered
 
@@ -34,4 +34,4 @@ Relative resources retain their Session and directory context through ordinary U
 
 ## Testing
 
-The [registry tests](../../../../packages/client/connection/tests/fetch-routes.host.spec.ts) cover default exact matching, registration validation and uniqueness, precedence independent of registration order, literal escapes and lookalikes, method denial, unregistering, fiber withdrawal, and signal/response ownership. The [Loader composition tests](../../../../packages/client/connection/tests/fetch-routes-loader.host.spec.ts) exercise real Connection and HTTP dispatch with browser authentication, relative resource requests, route disable/re-enable, selected body modes and limits, and cancellation of a late response after client disconnect. These checks establish Connection behavior and its authenticated HTTP composition.
+The [registry tests](../../../../packages/client/connection/tests/fetch-routes.host.spec.ts) cover default exact matching, registration validation and uniqueness, precedence independent of registration order, literal escapes and lookalikes, method denial, unregistering, fiber withdrawal, and signal/response ownership. The Loader composition tests exercise real Connection and HTTP dispatch with browser authentication, relative resource requests, route disable/re-enable, selected body modes and limits, and cancellation of a late response after client disconnect. These checks establish Connection behavior and its authenticated HTTP composition.

@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-远端编码需要文件工具、Bash、终端、语言服务器与 Node 程序看到同一个文件系统与进程环境。[可移植消费方决策](2026-07-28-portable-execution-world-consumers.zh.md)提供这些接口。保留的 [E2B 提供方](../../../../packages/e2b/README.zh.md)共用这些接口；其标准流库未实现双向 PTC 控制流。
+远端编码需要文件工具、Bash、终端、语言服务器与 Node 程序看到同一个文件系统与进程环境。[可移植消费方决策](2026-07-28-portable-execution-world-consumers.zh.md)提供这些接口。保留的 E2B 提供方共用这些接口；其标准流库未实现双向 PTC 控制流。
 
 SSH 提供经过认证的字节通道及逐通道流量控制，但普通 exec 请求不映射任意子进程描述符。若把 SSH 当作进程管理器的替代品，控制流桥接、启动发布、EOF、取消及断连清理就会缺少实现。
 

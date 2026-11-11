@@ -244,7 +244,7 @@ orca 支持：
 **文件变更**：
 
 1. **修改** `@/packages/dsh-browser-playwright/types.ts`：扩展 `BrowserPreferences` 支持多 Profile
-2. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `BrowserSessionCookiesSection.tsx`。当前 Cookie 导入见 [BrowserControls.tsx](../../../packages/client/ui-settings-security/src/client/BrowserControls.tsx)，不代表此处规划的多 Profile 管理已实现。
+2. **拟新建（尚不存在）**：在 [ui-settings-security/src/client](../../../packages/client/ui-settings-security/src/client/) 下创建 `BrowserSessionCookiesSection.tsx`。当前 Cookie 导入见 BrowserControls.tsx，不代表此处规划的多 Profile 管理已实现。
 3. **修改** `BrowserSettingsSection.tsx`：嵌入 Cookie 管理区
 
 ## 风险

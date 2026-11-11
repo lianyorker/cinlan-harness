@@ -18,7 +18,7 @@ Status: implemented
 
 配置的发布 manifest 提供由内容派生的版本、精确归档大小与 SHA-256、有序文件清单、技能清单、平台、许可和来源。[归档验证器](../../../../packages/security/security-skills/src/resource-files.ts)拒绝非法元数据、不安全路径以及损坏或超限内容。除受控 loopback HTTP 外，必须使用 HTTPS。实现不推断公开端点；缺少 releaseManifestUrl 时，网络操作保持不可用并给出明确原因。显式内置安装读取包资产并记录 bundled 来源。[共享清单 owner](../../../../packages/security/security-skills/src/resource-inventory.ts)为内置安装和[离线 ZIP 构建器](../../../../scripts/build-security-skill-resource.ts)应用相同筛选、UTF-8 规范化和内容哈希。两条路径均不执行资源脚本或安装外部工具。
 
-[安全研究页面](../../../../packages/client/ui-settings-security/src/client/SecurityResourcesSection.tsx)独立于预设名单注册。它通过框架绑定的 Host 快照展示已安装和可用版本、来源、进度、不可用原因、重试与显式移除。页面切换只释放其[观察](../../../../packages/client/ui-settings-security/src/client/resource-observer.ts)。该页面管理资源；评估授权与认证报告交付仍由各自 owner 负责。安装技能不授予目标、工具或导出权限。
+安全研究页面独立于预设名单注册。它通过框架绑定的 Host 快照展示已安装和可用版本、来源、进度、不可用原因、重试与显式移除。页面切换只释放其观察。该页面管理资源；评估授权与认证报告交付仍由各自 owner 负责。安装技能不授予目标、工具或导出权限。
 
 ## Alternatives considered
 
@@ -40,7 +40,7 @@ Status: implemented
 
 [管理器测试](../../../../packages/security/security-skills/tests/resources.spec.ts)、[存储测试](../../../../packages/security/security-skills/tests/resource-store.spec.ts)和[归档测试](../../../../packages/security/security-skills/tests/resource-files.spec.ts)验证 generation 切换、基于 revision 拒绝跨空状态转换的过期写入、启动回收、Provider 刷新失败后的恢复、相对文件保留、取消、竞争所有权与非法归档。[真实 Host Remote 场景](../../../../packages/api/security-research-controller/tests/resources-lifecycle.host.spec.ts)覆盖观察断开、controller 重载、管理器释放与显式内置安装；[管理器缺失场景](../../../../packages/api/security-research-controller/tests/resources.host.spec.ts)固定不可用行为。
 
-[资源组件测试](../../../../packages/client/ui-settings-security/tests/SecurityResourcesSection.client.spec.tsx)和[观察测试](../../../../packages/client/ui-settings-security/tests/resource-observer.client.spec.ts)固定可见状态与观察释放行为。[Web 资源场景](../../../../apps/web/tests/security-resources.e2e.ts)使用真实 loopback manifest 与 ZIP server，覆盖导航、取消、下载失败重试、重新下载、更新、Host 重启和移除。[可选研究场景](../../../../apps/web/tests/security-capabilities.e2e.ts)保留范围和报告后端检查，并断言资源页没有范围/报告控件。这些场景定义不代表完整 Web 执行已通过；发布验证单独记录其结果。
+资源组件测试和观察测试固定可见状态与观察释放行为。[Web 资源场景](../../../../apps/web/tests/security-resources.e2e.ts)使用真实 loopback manifest 与 ZIP server，覆盖导航、取消、下载失败重试、重新下载、更新、Host 重启和移除。[可选研究场景](../../../../apps/web/tests/security-capabilities.e2e.ts)保留范围和报告后端检查，并断言资源页没有范围/报告控件。这些场景定义不代表完整 Web 执行已通过；发布验证单独记录其结果。
 
 [模型可见资源测试](../../../../packages/security/security-skills/tests/model-visible.spec.ts)验证真实 Session 请求、技能工具结果、重新打开后的持久结果与内置 Provider；其预期输出为[managed-security-skills.json](../../../../packages/security/security-skills/tests/expected/managed-security-skills.json)。[构建器测试](../../../../scripts/build-security-skill-resource.spec.ts)独立验证归档内容、确定性时间与换行、不安全输入拒绝和真实 loopback 传输。内置资源从已记录的输入清单安装 169 个直接技能入口；打包本身不证明这些文件可以再分发。
 

@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-设置外壳拥有尺寸、分组与导航。各功能拥有持久字段、默认值、运行消费者、可用性与操作生命周期。原生设置行使用语义主题 token 和本地化公开文案。尚不支持的原型字段明确记为缺口，不成为没有消费者的可写值。[元数据决策](2026-09-17-settings-navigation-metadata.zh.md) 拥有搜索与锚点；[Host 偏好决策](../bug-fix/2026-08-06-host-backed-web-preferences.zh.md) 拥有共享镜像与写入队列。两者都不被取代。
+设置外壳拥有尺寸、分组与导航。各功能拥有持久字段、默认值、运行消费者、可用性与操作生命周期。原生设置行使用语义主题 token 和本地化公开文案。尚不支持的原型字段明确记为缺口，不成为没有消费者的可写值。[元数据决策](2026-09-17-settings-navigation-metadata.zh.md) 拥有搜索与锚点；[Host 偏好决策](../../../../.agents/notes/archived/bug-fix/2026-08-06-host-backed-web-preferences.zh.md) 拥有共享镜像与写入队列。两者都不被取代。
 
 报告已保存状态的表单必须收到 Host 接受，并确认目标生效值与原始覆盖。重置移除所属覆盖字段。`SettingsScope.mutate` 在保留原有 revision 栅栏、串行队列、恢复与拆除等待的同时返回真实接受结果。拒绝后重新加载到相同值仍是拒绝。特定设备的麦克风选择与音频字节归浏览器所有，不因视觉原型而移入 Host schema。
 

@@ -34,7 +34,7 @@ Generic `JobStart.run` remains synchronous. The [Bash](../../../../packages/shel
 
 Providers and consumers await preparation explicitly, while request resolution and job admission keep their existing ownership. Each spawned command retains its own enforcement facts. Local runner selection, synchronous probes, Windows ACL grants, private temp authority, and partial-enforcement reporting retain their provider-owned mechanics; asynchronous signatures do not make synchronous local work preemptible.
 
-The [portable-consumer decision](2026-07-28-portable-execution-world-consumers.md), [shared-policy decision](../feature/2026-07-14-cross-family-fs-sandbox.md), [Windows sandbox decision](../feature/2026-08-08-windows-acl-restricted-token-sandbox.md), and [SSH provider decision](2026-09-11-posix-ssh-runtime.md) remain active for their independent architecture and platform rationale. This note owns generic preparation timing, cancellation, and path preservation.
+The [portable-consumer decision](2026-07-28-portable-execution-world-consumers.md), [shared-policy decision](../../../../.agents/notes/archived/feature/2026-07-14-cross-family-fs-sandbox.md), [Windows sandbox decision](../feature/2026-08-08-windows-acl-restricted-token-sandbox.md), and [SSH provider decision](2026-09-11-posix-ssh-runtime.md) remain active for their independent architecture and platform rationale. This note owns generic preparation timing, cancellation, and path preservation.
 
 ## Verification
 

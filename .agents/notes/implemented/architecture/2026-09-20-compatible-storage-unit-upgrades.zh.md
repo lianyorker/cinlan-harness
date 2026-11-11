@@ -16,7 +16,7 @@ Status: implemented
 
 SQLite 对 `putRecord`、`deleteRecord` 和 `setGlobal` 使用 `BEGIN IMMEDIATE`。它在事务内重新检查存储版本戳，执行数据操作，更新 `units.version`，然后提交。失败同时回滚数据和版本戳。其他句柄提交较新版本后，以旧版本打开的句柄不能再写入。兼容单元升级不改变物理 DDL；`STORAGE_SQLITE_SCHEMA_VERSION` 及其精确版本数据库准入与领域所有者声明的单元版本分开。
 
-[投影缓存兼容决策](2026-09-02-projcache-cross-version-read-compat.zh.md)继续负责逐记录准入、旧文件初始化、语义身份检查和 backup-and-skip。本决策扩展整单元后端准入，不改变这些机制。[已发布 Session JSONL 代次](2026-08-31-released-session-format-migrations.zh.md)保留独立的相邻迁移规则。
+[投影缓存兼容决策](../../../../.agents/notes/archived/architecture/2026-09-02-projcache-cross-version-read-compat.zh.md)继续负责逐记录准入、旧文件初始化、语义身份检查和 backup-and-skip。本决策扩展整单元后端准入，不改变这些机制。[已发布 Session JSONL 代次](2026-08-31-released-session-format-migrations.zh.md)保留独立的相邻迁移规则。
 
 ## 备选方案
 

@@ -16,7 +16,7 @@ Status: implemented
 
 现有 Conversation 注册启用 `reusable: true`。renderer 的 `renderSessionView` 操作针对显式保留的 Session 解析标准 hook、store、注入回调与子插槽。复用保留原插槽授权，并在每个实例内隔离错误。重载在渲染替代注册前重新验证授权。可选嵌入式展示隐藏主导航与宽度拖柄；记录组装、工具卡片、输入和交互接管均使用普通 Conversation 树与传输。
 
-[Web 目录与人工继续交互决策](2026-07-27-web-subagent-conversations.zh.md) 继续定义直接父级权限、只读一次性记录、在线父级继续交互与独立 Stop。该决策保持活跃；并行位置不会取代其授权规则。本变更不增加包或传输。
+[Web 目录与人工继续交互决策](../../../../.agents/notes/archived/feature/2026-07-27-web-subagent-conversations.zh.md) 继续定义直接父级权限、只读一次性记录、在线父级继续交互与独立 Stop。该决策保持活跃；并行位置不会取代其授权规则。本变更不增加包或传输。
 
 ## Alternatives considered
 

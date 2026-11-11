@@ -4,7 +4,7 @@ Status: implemented
 
 [English](2026-10-31-clh-dsh-naming-boundary.md) | 中文
 
-> 范围：Cinlan 产品标识（`clh`）与 upstream 对齐标识（`dsh`）的分界线，以及用户数据根为什么严格隔离。权威规则集见 [docs/dev/clh-dsh-边界.zh.md](../../../../docs/dev/clh-dsh-边界.zh.md)。
+> 范围：Cinlan 产品标识（`clh`）与 upstream 对齐标识（`dsh`）的分界线，以及用户数据根为什么严格隔离。权威规则集见 docs/dev/clh-dsh-边界.zh.md。
 
 ## Problem
 

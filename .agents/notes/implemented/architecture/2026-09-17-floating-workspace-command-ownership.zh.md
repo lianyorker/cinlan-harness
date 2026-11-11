@@ -32,7 +32,7 @@ Electron 的主窗口策略按预期文档、frame 名称、路由字段和受�
 
 浮动上下文在偏好加载完成之前就提供经过校验的窗口身份。因此，侧边栏状态从创建开始就能使用正确的窗口命名空间，无需临时与主视图共享。只有真实终端消费者声明目录支持。新的浮动终端标签页同时捕获窗口 id 与获接受的目录；加载中或不可用的偏好不能提供暂定目录。捕获的数据在渲染与重连期间随该标签页保留，后续偏好变更作用于新标签页。空目录表示请求关联 Session 的工作目录。终端执行与目录校验仍由[原生运行时消费者决策](2026-09-17-native-settings-runtime-consumers.zh.md)所述的终端 owner 负责。
 
-持久化遵循 [Host 偏好决策](../bug-fix/2026-08-06-host-backed-web-preferences.zh.md)，已安装运行时的归属遵循[桌面打包决策](2026-08-25-electron-desktop-packaging-and-updates.zh.md)。已归档的 [Lexical 编辑器决策](../../archived/architecture/2026-08-20-web-composer-lexical-editor.md)提供选择编辑引擎的历史背景；[当前对话参考](../../../../docs/subsystems/conversation.zh.md)持有其受支持行为。这些记录保留各自关于持久化、分发和编辑的独立理由。
+持久化遵循 [Host 偏好决策](../../../../.agents/notes/archived/bug-fix/2026-08-06-host-backed-web-preferences.zh.md)，已安装运行时的归属遵循[桌面打包决策](2026-08-25-electron-desktop-packaging-and-updates.zh.md)。已归档的 [Lexical 编辑器决策](../../archived/architecture/2026-08-20-web-composer-lexical-editor.md)提供选择编辑引擎的历史背景；[当前对话参考](../../../../docs/subsystems/conversation.zh.md)持有其受支持行为。这些记录保留各自关于持久化、分发和编辑的独立理由。
 
 ## 曾考虑的替代方案
 

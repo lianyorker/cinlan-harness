@@ -10,7 +10,7 @@ Auto review can authorize full-host tool execution. Reconstructing an earlier de
 
 ## Decision
 
-The [Auto plugin](../../../../packages/guard/auto-review/README.md#request-audit) appends required log-only `auto-review/request` before model dispatch. The event captures the exact system policy, sole user text block, route, sampling temperature, output-token cap, deadline, and scoped native/PTC call identity. Input-budget rejection records no dispatch attempt; append failure fails closed. Audits do not join the conversation surface or feed later reviewer history. The provider stream, reasoning, parsed risk, and raw response are not retained by this event.
+The Auto plugin appends required log-only `auto-review/request` before model dispatch. The event captures the exact system policy, sole user text block, route, sampling temperature, output-token cap, deadline, and scoped native/PTC call identity. Input-budget rejection records no dispatch attempt; append failure fails closed. Audits do not join the conversation surface or feed later reviewer history. The provider stream, reasoning, parsed risk, and raw response are not retained by this event.
 
 This partially supersedes the input-retention decision in the [Auto record](2026-08-28-auto-review.md). Its risk policy, authority ordering, session opt-in, and lifecycle remain active. Required-event handling refuses older readers lacking this vocabulary; updated readers can retain the event using the existing physical encoding. Source schema classification reports an additive event, but repository-wide acknowledgement is still blocked by independent finalized-V4 differences; this record is not an acknowledgement or stable-promotion approval.
 

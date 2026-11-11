@@ -10,7 +10,7 @@ Authorization review runs before a tool body and can delay the call and integrat
 
 ## Decision
 
-The [Auto plugin](../../../../packages/guard/auto-review/README.md#review-limits) requires explicit input-byte, output-token, and deadline configuration. It rejects an oversized complete system policy plus framed user input before dispatch, without truncating authorization evidence. It passes the output-token cap and deadline signal to the model provider. Deadline expiry rejects every later response before tool execution; caller cancellation and integration disposal retain their existing precedence. Providers must observe cancellation for timely settlement, and teardown still drains the owned review instead of abandoning it.
+The Auto plugin requires explicit input-byte, output-token, and deadline configuration. It rejects an oversized complete system policy plus framed user input before dispatch, without truncating authorization evidence. It passes the output-token cap and deadline signal to the model provider. Deadline expiry rejects every later response before tool execution; caller cancellation and integration disposal retain their existing precedence. Providers must observe cancellation for timely settlement, and teardown still drains the owned review instead of abandoning it.
 
 This partially supersedes only the unlimited-request choice in the [Auto decision](2026-08-28-auto-review.md). Its authority rules, full-access execution, current-session opt-in, and experimental isolation remain active. No Session event or format is changed; the missing durable reviewer-input record remains unresolved.
 

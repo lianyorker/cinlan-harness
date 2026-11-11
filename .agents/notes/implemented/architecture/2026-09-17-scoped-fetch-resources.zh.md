@@ -18,7 +18,7 @@ Connection 已负责与 Remote 调用共用的、经过认证的 Fetch 分发。
 
 两种模式共用一个以路径为键的注册表，以及调用方 fiber 的同一套 effect。销毁注册会撤回请求准入；载体与处理函数仍负责已接收的请求、中止信号、响应流及其结束。认证与 Host/Origin 检查在共享分发之前执行。前缀匹配不增加认证路径、监听器、传输或请求／响应适配器，也不改变连接代际与请求体限制的归属。
 
-本决策扩展了 [Remote 方法笔记](2026-08-02-typert-remote-method-calls.zh.md)、[启动与传输笔记](2026-07-24-web-config-tree-boot-and-transport-layering.zh.md)和[客户端加载笔记](2026-07-23-client-plugin-loading-model.zh.md)中的路由匹配事实。它们关于 Remote、启动与加载的决策继续有效。
+本决策扩展了 [Remote 方法笔记](2026-08-02-typert-remote-method-calls.zh.md)、[启动与传输笔记](../../../../.agents/notes/archived/architecture/2026-07-24-web-config-tree-boot-and-transport-layering.zh.md)和[客户端加载笔记](2026-07-23-client-plugin-loading-model.zh.md)中的路由匹配事实。它们关于 Remote、启动与加载的决策继续有效。
 
 ## 考虑过的替代方案
 
@@ -34,4 +34,4 @@ Connection 已负责与 Remote 调用共用的、经过认证的 Fetch 分发。
 
 ## 测试
 
-[注册表测试](../../../../packages/client/connection/tests/fetch-routes.host.spec.ts)覆盖默认精确匹配、注册校验与唯一性、不受注册顺序影响的优先级、字面转义与相似路径、方法拒绝、注销、fiber 撤回以及信号／响应归属。[Loader 组合测试](../../../../packages/client/connection/tests/fetch-routes-loader.host.spec.ts)通过真实 Connection 与 HTTP 分发验证浏览器认证、相对资源请求、路由禁用与重新启用、选中路由的请求体模式与限制，以及客户端断开后迟到响应的取消。这些检查验证 Connection 行为及其经过认证的 HTTP 组合。
+[注册表测试](../../../../packages/client/connection/tests/fetch-routes.host.spec.ts)覆盖默认精确匹配、注册校验与唯一性、不受注册顺序影响的优先级、字面转义与相似路径、方法拒绝、注销、fiber 撤回以及信号／响应归属。Loader 组合测试通过真实 Connection 与 HTTP 分发验证浏览器认证、相对资源请求、路由禁用与重新启用、选中路由的请求体模式与限制，以及客户端断开后迟到响应的取消。这些检查验证 Connection 行为及其经过认证的 HTTP 组合。

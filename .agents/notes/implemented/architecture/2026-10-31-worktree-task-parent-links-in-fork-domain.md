@@ -4,7 +4,7 @@ Status: implemented
 
 English | [中文](2026-10-31-worktree-task-parent-links-in-fork-domain.zh.md)
 
-> Scope: where the parent–child relation between a Worktree Task checkout Workspace and its source Workspace is stored and served, and why the official `WorkspaceRecord` schema stays untouched. The implementation plan lives in [docs/dev/工作树会话归属/plan.md](../../../../docs/dev/工作树会话归属/plan.zh.md).
+> Scope: where the parent–child relation between a Worktree Task checkout Workspace and its source Workspace is stored and served, and why the official `WorkspaceRecord` schema stays untouched. The implementation plan lives in docs/dev/工作树会话归属/plan.md.
 
 ## Problem
 
