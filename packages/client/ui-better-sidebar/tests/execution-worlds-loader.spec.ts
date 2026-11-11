@@ -123,8 +123,10 @@ async function fixture() {
   const right = await h.remote('right')
   const session = (name: string, binding: typeof left.binding) => {
     const value = h.ctx.sessions.prepare(SessionId(name), { meta: { cwd: '/project' } })
+    h.ctx.sessions.enter(value)
+    h.ctx.sessions.announce(value)
     value.append('execution/bound', { binding })
-    h.ctx.effect(() => h.ctx.sessions.enter(value))
+    h.ctx.effect(() => () => { h.ctx.sessions.leave(value) })
     return value
   }
   const a = session('left-files', left.binding)
