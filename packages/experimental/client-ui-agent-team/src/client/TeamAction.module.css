@@ -23,11 +23,15 @@
   font-size: 12px;
 }
 
-.iconButton:hover,
-.smallButton:hover,
-.taskActions button:hover,
-.formActions button:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .iconButton:hover,
+  .smallButton:hover,
+  .taskActions button:hover,
+  .formActions button:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
+
 @media (hover: hover) {
   .trigger:hover {
     color: var(--dsw-alias-label-primary);
@@ -58,6 +62,7 @@
   border: 0;
   border-radius: 12px;
   background: var(--dsw-specific-menu);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
 }
@@ -124,6 +129,8 @@
     --dsw-elevation-stroke-color: var(--dsw-alias-border-l3);
     box-shadow: var(--dsw-elevation-panel);
   }
+}
+
 .memberText {
   display: flex;
   flex-direction: column;
@@ -136,6 +143,8 @@
   .member:hover .memberModel {
     display: inline;
   }
+}
+
 .memberText small,
 .meta {
   color: var(--dsw-alias-label-tertiary);

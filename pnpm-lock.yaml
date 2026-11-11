@@ -4537,6 +4537,9 @@ importers:
 
   packages/bundle/web-app:
     dependencies:
+      '@cinlan/client-keyboard':
+        specifier: workspace:*
+        version: link:../../client/keyboard
       '@deepseek-ai/dsh-agent-instructions':
         specifier: workspace:*
         version: link:../../context/agent-instructions

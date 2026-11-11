@@ -131,6 +131,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
+  corner-shape: round;
   font-size: 12px;
   font-weight: 600;
   color: var(--dsw-alias-label-secondary);

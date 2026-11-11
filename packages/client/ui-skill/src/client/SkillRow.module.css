@@ -16,10 +16,12 @@
   transition: color 100ms ease;
 }
 
-.row:hover {
-  color: var(--dsw-alias-label-secondary);
-  color: var(--dsw-alias-label-tertiary);
-  transition: color 100ms ease;
+@media (hover: hover) {
+  .row:hover {
+    color: var(--dsw-alias-label-secondary);
+    color: var(--dsw-alias-label-tertiary);
+    transition: color 100ms ease;
+  }
 }
 
 @media (hover: hover) {

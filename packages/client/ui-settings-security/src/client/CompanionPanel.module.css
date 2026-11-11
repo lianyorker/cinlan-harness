@@ -5,6 +5,8 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-base);
 }
@@ -86,6 +88,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
+  corner-shape: round;
   background: var(--dsw-alias-bg-layer-2);
   font-size: 11px;
 }
@@ -167,6 +170,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  corner-shape: round;
   background: var(--dsw-alias-state-success);
 }
 .emptyRow {
@@ -256,11 +260,15 @@
   background: var(--dsw-alias-button-primary-fill);
   color: var(--dsw-alias-label-primary-inverted);
 }
-.primary:hover { background: var(--dsw-alias-button-primary-hover); }
-.secondary:hover { background: var(--dsw-alias-interactive-bg-hover); }
+@media (hover: hover) {
+  .primary:hover { background: var(--dsw-alias-button-primary-hover); }
+}
+@media (hover: hover) {
+  .secondary:hover { background: var(--dsw-alias-interactive-bg-hover); }
+}
 .primary:focus-visible, .secondary:focus-visible, .step:focus-visible, .stepActive:focus-visible,
 .platform:focus-visible, .platformActive:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 .primary:disabled, .secondary:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -278,7 +286,9 @@
   font-size: 13px;
   cursor: pointer;
 }
-.back:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+@media (hover: hover) {
+  .back:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+}
 .alert {
   margin: 0;
   color: var(--dsw-alias-state-business-primary);

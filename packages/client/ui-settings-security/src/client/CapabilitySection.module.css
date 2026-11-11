@@ -87,10 +87,13 @@
 .copyButton, .recheckButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; max-width: 100%; box-sizing: border-box; padding: 7px 14px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; corner-shape: round; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); font: inherit; font-size: 14px; line-height: 20px; cursor: pointer; }
 .recheckButton { align-self: flex-start; }
 .copyButton { flex: none; width: 36px; padding: 0; }
-.copyButton:hover:not(:disabled), .recheckButton:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+@media (hover: hover) {
+  .copyButton:hover:not(:disabled),
+  .recheckButton:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+}
 .section button:disabled, .section input:disabled, .section select:disabled, .section textarea:disabled { opacity: 0.5; cursor: default; }
 .section button:focus-visible, .section input:focus-visible, .section select:focus-visible, .section textarea:focus-visible,
-.section summary:focus-visible, .section a:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.section summary:focus-visible, .section a:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
 .section .failure { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
 .copyFeedback, .capabilityFact, .diagnostics { font-size: 12px; line-height: 18px; }
 

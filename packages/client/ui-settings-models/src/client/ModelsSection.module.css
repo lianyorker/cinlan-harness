@@ -297,10 +297,14 @@
   cursor: help;
 }
 
-.helpButton:hover,
 .helpButton:focus-visible {
   color: var(--dsw-alias-label-primary);
   border-color: var(--dsw-alias-label-tertiary);
+}@media (hover: hover) {
+  .helpButton:hover {
+    color: var(--dsw-alias-label-primary);
+    border-color: var(--dsw-alias-label-tertiary);
+  }
 }
 
 .helpButton {
@@ -842,8 +846,10 @@ select.input {
   cursor: pointer;
 }
 
-.keyToggle:hover:not(:disabled) {
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .keyToggle:hover:not(:disabled) {
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .keyToggle:focus-visible {

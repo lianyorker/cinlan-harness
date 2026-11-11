@@ -55,13 +55,15 @@
   cursor: pointer;
 }
 
-.recordsButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .recordsButton:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .recordsButton:focus-visible,
 .marker:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -79,6 +81,7 @@
   transform: translate(-50%, -50%);
   border: 0;
   border-radius: 50%;
+  corner-shape: round;
   color: var(--dsw-alias-label-primary-foreground);
   background: var(--dsw-alias-button-primary-fill);
   cursor: pointer;
@@ -93,7 +96,7 @@
   width: 100%;
   min-height: 36px;
   box-sizing: border-box;
-  border: 1px solid var(--dsw-alias-border-l3);
+  border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: var(--dsw-radius-sm);
   padding: 8px;
   color: var(--dsw-alias-label-primary);

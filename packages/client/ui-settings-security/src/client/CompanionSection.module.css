@@ -48,7 +48,7 @@
 }
 .section input:focus-visible,
 .section select:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 .settingList { display: flex; flex-direction: column; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
@@ -88,7 +88,8 @@
   font-size: 12px;
   line-height: 18px;
 }
-.statusDot, .statusDotOnline { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-secondary); }
+.statusDot, .statusDotOnline { flex: none; width: 7px; height: 7px; border-radius: 50%;
+  corner-shape: round; background: var(--dsw-alias-label-secondary); }
 .statusDotOnline { background: var(--dsw-alias-state-success-primary); }
 .pairingResult {
   display: flex;
@@ -132,8 +133,10 @@
   font-size: 13px;
   cursor: pointer;
 }
-.danger:hover { background: var(--dsw-alias-interactive-bg-hover); }
-.danger:focus-visible { outline: 2px solid var(--dsw-alias-state-error-primary); outline-offset: 2px; }
+@media (hover: hover) {
+  .danger:hover { background: var(--dsw-alias-interactive-bg-hover); }
+}
+.danger:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
 .pairLinkRow { display: flex; gap: 8px; width: 100%; min-width: 0; }
 .pairLinkRow textarea {
   flex: 1;
@@ -172,9 +175,13 @@
   cursor: pointer;
 }
 .action { border-color: transparent; background: var(--dsw-alias-button-primary-fill); color: var(--dsw-alias-label-primary-inverted); }
-.action:hover { background: var(--dsw-alias-button-primary-hover); }
-.actionQuiet:hover { background: var(--dsw-alias-interactive-bg-hover); }
-.action:focus-visible, .actionQuiet:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+@media (hover: hover) {
+  .action:hover { background: var(--dsw-alias-button-primary-hover); }
+}
+@media (hover: hover) {
+  .actionQuiet:hover { background: var(--dsw-alias-interactive-bg-hover); }
+}
+.action:focus-visible, .actionQuiet:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
 .action:disabled, .actionQuiet:disabled, .section input:disabled, .settingList:disabled { opacity: 0.5; cursor: not-allowed; }
 .deviceFacts { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .deviceFacts li { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }

@@ -104,9 +104,11 @@
     color var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
-.toggleButton:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .toggleButton:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .toggleButton:disabled {
@@ -287,9 +289,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   flex: none;
 }
 
-.bottomClose:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .bottomClose:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 /* The bottom panel's tab strips reserve the close control's width at their
@@ -355,9 +359,12 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   touch-action: none;
 }
 
-.cornerHandle:hover,
 .cornerHandle[data-dragging] {
   background: var(--dsw-alias-interactive-bg-hover-accent);
+}@media (hover: hover) {
+  .cornerHandle:hover {
+    background: var(--dsw-alias-interactive-bg-hover-accent);
+  }
 }
 
 /* Icon button: the app's own icon-button pattern (ui-workspace) — a 28px
@@ -379,9 +386,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   flex: none;
 }
 
-.iconButton:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .iconButton:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .iconButton:disabled {
@@ -464,9 +473,12 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   transform: translateY(-50%);
 }
 
-.divider:hover::after,
 .dividerActive::after {
   background: var(--dsw-alias-interactive-bg-hover-accent);
+}@media (hover: hover) {
+  .divider:hover::after {
+    background: var(--dsw-alias-interactive-bg-hover-accent);
+  }
 }
 
 .pane {
@@ -583,10 +595,12 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   text-align: center;
 }
 
-.paneCard:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
-  border-color: var(--dsw-alias-border-l2);
+@media (hover: hover) {
+  .paneCard:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+    border-color: var(--dsw-alias-border-l2);
+  }
 }
 
 .paneCard:disabled {
@@ -650,8 +664,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   user-select: none;
 }
 
-.tab:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .tab:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .tabActive {
@@ -698,9 +714,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   flex: none;
 }
 
-.tabClose:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .tabClose:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .tabBarPlus {
@@ -724,9 +742,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.tabBarPlus:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .tabBarPlus:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 /* ── Explorer ──────────────────────────────────────────────────────────── */
@@ -792,8 +812,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   animation: dsh-row-in 150ms var(--ds-ease-in-out);
 }
 
-.explorerRow:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .explorerRow:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .explorerDir {
@@ -843,14 +865,19 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.explorerRef:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .explorerRef:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
-.explorerRow:hover .explorerRef,
 .explorerRow:focus-within .explorerRef {
   display: inline-flex;
+}@media (hover: hover) {
+  .explorerRow:hover .explorerRef {
+    display: inline-flex;
+  }
 }
 
 .explorerCopied {
@@ -1060,9 +1087,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.uploadOverlayCancel:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-  border-color: var(--dsw-alias-border-l2);
+@media (hover: hover) {
+  .uploadOverlayCancel:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-border-l2);
+  }
 }
 
 .uploadOverlayCancel:disabled {
@@ -1162,8 +1191,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   z-index: 3;
 }
 
-.editorTreeResize:hover {
-  background: var(--dsw-alias-border-l2);
+@media (hover: hover) {
+  .editorTreeResize:hover {
+    background: var(--dsw-alias-border-l2);
+  }
 }
 
 .editorTreePanel {
@@ -1229,8 +1260,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   white-space: nowrap;
 }
 
-.editorSearchResult:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .editorSearchResult:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .editorStatus {
@@ -1306,9 +1339,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
     border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
-.editorDownloadLink:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  border-color: var(--dsw-alias-border-l2);
+@media (hover: hover) {
+  .editorDownloadLink:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-border-l2);
+  }
 }
 
 .editorError {
@@ -1382,8 +1417,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.sandboxAction:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .sandboxAction:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 /* The HTML preview iframe: fills the editor body. Route-src (never srcdoc)
@@ -1502,8 +1539,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.browserBlockedButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .browserBlockedButton:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .editorCm {
@@ -1549,8 +1588,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.editorModeButton:hover {
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .editorModeButton:hover {
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .editorModeActive {
@@ -1627,9 +1668,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.mermaidCopy:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .mermaidCopy:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .mermaidBody {
@@ -1710,8 +1753,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   justify-content: center;
 }
 
-.mermaidModalButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .mermaidModalButton:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .mermaidModalStage {
@@ -1772,8 +1817,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.selectionPopup:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .selectionPopup:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .editorPdf {
@@ -1905,9 +1952,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.terminalRetry:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .terminalRetry:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 /* The node-pty dependency failure banner (issue #140): a taller warn block
@@ -2043,8 +2092,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   padding: 0;
 }
 
-.gitLink:hover:not(:disabled) {
-  text-decoration: underline;
+@media (hover: hover) {
+  .gitLink:hover:not(:disabled) {
+    text-decoration: underline;
+  }
 }
 
 .gitLink:disabled {
@@ -2063,8 +2114,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   animation: dsh-row-in 150ms var(--ds-ease-in-out);
 }
 
-.gitRow:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .gitRow:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .gitRowSelected {
@@ -2182,8 +2235,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: default;
 }
 
-.gitDiffFile:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .gitDiffFile:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .gitDiffFileChevron {
@@ -2307,8 +2362,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   text-align: center;
 }
 
-.gitDiffExpand:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .gitDiffExpand:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .gitConfirmDesc {
@@ -2343,8 +2400,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.gitCommitButton:hover:not(:disabled) {
-  background: var(--dsw-alias-button-primary-hover);
+@media (hover: hover) {
+  .gitCommitButton:hover:not(:disabled) {
+    background: var(--dsw-alias-button-primary-hover);
+  }
 }
 
 .gitCommitButton:disabled {
@@ -2363,8 +2422,10 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   border-radius: 8px;
 }
 
-.gitLogRow:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .gitLogRow:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .gitLogLine1 {
@@ -2427,9 +2488,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.gitLogMore:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .gitLogMore:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .gitLogMore:disabled {
@@ -2468,9 +2531,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   overflow: hidden;
 }
 
-.producedChip:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .producedChip:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .producedChip span {
@@ -2509,7 +2574,7 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
 .editorDownloadLink:focus-visible,
 .editorPptxButton:focus-visible,
 .editorDocxZoomRange:focus-visible {
-  outline: 2px solid var(--dsw-alias-interactive-bg-hover-accent);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -1px;
 }
 
@@ -2601,9 +2666,11 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: pointer;
 }
 
-.openWithPin:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .openWithPin:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .openWithPinActive {

@@ -288,8 +288,10 @@
   cursor: pointer;
 }
 
-.designModeExitBtn:hover {
-  background: var(--dsw-alias-fill-secondary);
+@media (hover: hover) {
+  .designModeExitBtn:hover {
+    background: var(--dsw-alias-fill-secondary);
+  }
 }
 
 .designModeNotice {

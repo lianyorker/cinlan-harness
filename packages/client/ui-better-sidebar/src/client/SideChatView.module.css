@@ -67,9 +67,11 @@
   transition: background-color 100ms ease-out, color 100ms ease-out;
 }
 
-.sidechatIconBtn:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .sidechatIconBtn:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .sidechatIconBtn:disabled {
@@ -119,8 +121,10 @@
   transition: opacity 100ms ease-out;
 }
 
-.sidechatPrimaryBtn:hover:not(:disabled) {
-  opacity: 0.88;
+@media (hover: hover) {
+  .sidechatPrimaryBtn:hover:not(:disabled) {
+    opacity: 0.88;
+  }
 }
 
 .sidechatPrimaryBtn:disabled {
@@ -206,8 +210,10 @@
   display: none;
 }
 
-.sidechatRowSummary:hover {
-  color: var(--dsw-alias-label-secondary);
+@media (hover: hover) {
+  .sidechatRowSummary:hover {
+    color: var(--dsw-alias-label-secondary);
+  }
 }
 
 .sidechatRowStatic {
@@ -393,8 +399,10 @@
   transition: opacity 100ms ease-out;
 }
 
-.sidechatSendBtn:hover:not(:disabled) {
-  opacity: 0.88;
+@media (hover: hover) {
+  .sidechatSendBtn:hover:not(:disabled) {
+    opacity: 0.88;
+  }
 }
 
 .sidechatSendBtn:disabled {

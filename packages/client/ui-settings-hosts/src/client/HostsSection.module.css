@@ -48,7 +48,8 @@
 /* ── add/edit dialog ─────────────────────────────────────────── */
 .dialogFooter { display: flex; gap: 8px; justify-content: flex-end; }
 .form { display: flex; flex-direction: column; gap: 12px; }
-.editingChip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin: 0; padding: 4px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; font-size: 11px; color: var(--dsw-alias-label-secondary); }
+.editingChip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin: 0; padding: 4px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px;
+  corner-shape: round; font-size: 11px; color: var(--dsw-alias-label-secondary); }
 .editingChip strong { font-weight: 500; color: var(--dsw-alias-label-primary); }
 /* The shared modal caps itself at 380px; this form needs the reference width,
    so the doubled class outranks the primitive's own rule regardless of bundle order. */
@@ -68,14 +69,16 @@
 /* ── import dialog ───────────────────────────────────────────── */
 .importDialog.importDialog { width: min(520px, 100%); }
 .importBody { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-.importList { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; padding: 0; list-style: none; max-height: 320px; overflow: auto; }
+.importList { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; padding: 0; list-style: none; max-height: 320px; overflow: auto; --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2); --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2); }
 .importEntry { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 10px 12px; font: inherit; text-align: left; color: var(--dsw-alias-label-primary); background: none; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; cursor: pointer; }
-.importEntry:hover { background: var(--dsw-alias-bg-layer-1); }
+@media (hover: hover) {
+  .importEntry:hover { background: var(--dsw-alias-bg-layer-1); }
+}
 .importAlias { font-size: 13px; font-weight: 500; }
 
 /* The anchor mark is a search target: a pointer click on it must not paint the
    ring, while keyboard navigation and a search jump still do. */
-.section [data-settings-anchor]:focus-visible, .section :focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 3px; }
+.section [data-settings-anchor]:focus-visible, .section :focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 3px; }
 .section [data-settings-anchor]:focus:not(:focus-visible) { outline: none; }
 @media (max-width: 700px) {
   .groupHeading, .row { flex-direction: column; align-items: stretch; gap: 12px; }

@@ -75,9 +75,11 @@
   white-space: nowrap;
 }
 
-.toolButton:hover {
-  background: var(--dsw-alias-control-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .toolButton:hover {
+    background: var(--dsw-alias-control-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .activeButton {
@@ -101,9 +103,11 @@
   transition: all 0.15s ease;
 }
 
-.iconButton:hover {
-  background: var(--dsw-alias-control-bg-hover);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .iconButton:hover {
+    background: var(--dsw-alias-control-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .scoreBadge {
@@ -149,8 +153,10 @@
   white-space: nowrap;
 }
 
-.demoButton:hover {
-  background: rgba(99, 102, 241, 0.2);
+@media (hover: hover) {
+  .demoButton:hover {
+    background: rgba(99, 102, 241, 0.2);
+  }
 }
 
 .sandboxViewport {
@@ -162,6 +168,8 @@
   overflow: auto;
   padding: 24px;
   background: var(--dsw-alias-bg-layer-3, #0f1117);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 .deviceWrapper {
@@ -271,15 +279,17 @@
   padding: 14px;
   border-radius: 10px;
   background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l1);
+  border: 0.5px solid var(--dsw-alias-border-l1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.directionCard:hover {
-  border-color: var(--dsw-alias-brand-primary);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .directionCard:hover {
+    border-color: var(--dsw-alias-brand-primary);
+    transform: translateY(-1px);
+  }
 }
 
 .directionName {
@@ -314,7 +324,7 @@
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 0.5px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
@@ -322,10 +332,12 @@
   margin-top: 4px;
 }
 
-.applyButton:hover {
-  background: var(--dsw-alias-control-bg-hover);
-  border-color: var(--dsw-alias-brand-primary);
-  color: var(--dsw-alias-brand-primary);
+@media (hover: hover) {
+  .applyButton:hover {
+    background: var(--dsw-alias-control-bg-hover);
+    border-color: var(--dsw-alias-brand-primary);
+    color: var(--dsw-alias-brand-primary);
+  }
 }
 
 .findingItem {
@@ -385,8 +397,10 @@
   transition: all 0.15s ease;
 }
 
-.demoButton:hover {
-  background: var(--dsw-alias-brand-bg-subtle-hover, rgba(99, 102, 241, 0.2));
+@media (hover: hover) {
+  .demoButton:hover {
+    background: var(--dsw-alias-brand-bg-subtle-hover, rgba(99, 102, 241, 0.2));
+  }
 }
 
 .demoBadgeInBar {
@@ -423,7 +437,7 @@
   padding: 32px 24px;
   border-radius: 12px;
   background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 0.5px solid var(--dsw-alias-border-l2);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -434,6 +448,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
+  corner-shape: round;
   background: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
   margin-bottom: 16px;
@@ -476,8 +491,10 @@
   transition: opacity 0.15s ease;
 }
 
-.primaryAction:hover {
-  opacity: 0.9;
+@media (hover: hover) {
+  .primaryAction:hover {
+    opacity: 0.9;
+  }
 }
 
 .secondaryAction {
@@ -486,7 +503,7 @@
   gap: 6px;
   height: 32px;
   padding: 0 14px;
-  border: 1px solid var(--dsw-alias-border-l1);
+  border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: 6px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
@@ -496,8 +513,10 @@
   transition: background 0.15s ease;
 }
 
-.secondaryAction:hover {
-  background: var(--dsw-alias-control-bg-hover);
+@media (hover: hover) {
+  .secondaryAction:hover {
+    background: var(--dsw-alias-control-bg-hover);
+  }
 }
 
 

@@ -18,8 +18,10 @@
 .directoryControl { position: relative; display: grid; grid-template-columns: minmax(150px, 244px) 36px; gap: 8px; align-items: center; flex: 0 1 288px; min-width: 0; }
 .directoryControl > span { width: 100%; }
 .directoryButton { display: inline-flex; width: 36px; height: 36px; padding: 0; align-items: center; justify-content: center; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-1); cursor: pointer; }
-.directoryButton:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
-.directoryButton:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+@media (hover: hover) {
+  .directoryButton:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
+}
+.directoryButton:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
 .directoryButton:disabled { opacity: 0.45; cursor: not-allowed; }
 .controlError { grid-column: 1 / -1; margin: 0; color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
 .segmented { display: inline-flex; min-width: 0; flex: none; margin: 0; padding: 3px; border: 0; border-radius: 8px; background: var(--dsw-alias-bg-layer-2); }
@@ -27,7 +29,7 @@
 .segment input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
 .segment span { display: inline-flex; min-height: 30px; box-sizing: border-box; align-items: center; justify-content: center; padding: 5px 12px; border-radius: 6px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; white-space: nowrap; }
 .segment input:checked + span { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); box-shadow: 0 1px 2px color-mix(in srgb, var(--dsw-alias-label-primary) 10%, transparent); font-weight: 500; }
-.segment input:focus-visible + span { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 1px; }
+.segment input:focus-visible + span { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 1px; }
 .segment input:disabled + span { opacity: 0.45; cursor: not-allowed; }
 .message { margin: 0 0 16px; color: var(--dsw-alias-label-secondary); }
 .error { margin: 8px 0; color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 20px; }

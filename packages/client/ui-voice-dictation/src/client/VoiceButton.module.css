@@ -13,9 +13,11 @@
   cursor: pointer;
 }
 
-.button:hover:not(:disabled) {
-  background: var(--dsw-alias-bg-layer-2);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .button[data-dictation-phase='recording'] {

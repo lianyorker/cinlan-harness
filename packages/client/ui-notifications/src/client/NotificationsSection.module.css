@@ -11,7 +11,7 @@
 .description { margin-top: 4px; color: var(--dsw-alias-label-secondary); font: var(--dsw-font-xxs-12); }
 .control { display: flex; flex: 0 1 auto; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .select { box-sizing: border-box; width: 180px; max-width: 100%; height: 36px; padding: 0 14px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 999px; corner-shape: round; background: var(--dsw-alias-bg-base); color: inherit; font: var(--dsw-font-s-14); }
-.select:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.select:focus-visible { outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
 .select:disabled { color: var(--dsw-alias-label-tertiary); cursor: default; }
 .time { width: 160px; max-width: 100%; }
 .scheduleActions { display: flex; justify-content: flex-end; padding-top: 8px; }

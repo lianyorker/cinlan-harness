@@ -35,8 +35,10 @@
   border-radius: 8px;
 }
 
-.row:hover {
-  background: var(--dsw-alias-bg-layer-1);
+@media (hover: hover) {
+  .row:hover {
+    background: var(--dsw-alias-bg-layer-1);
+  }
 }
 
 .identity {
@@ -80,7 +82,9 @@
   cursor: pointer;
 }
 
-.iconButton:hover {
-  background: var(--dsw-alias-bg-layer-1);
-  color: var(--dsw-alias-state-error-primary);
+@media (hover: hover) {
+  .iconButton:hover {
+    background: var(--dsw-alias-bg-layer-1);
+    color: var(--dsw-alias-state-error-primary);
+  }
 }

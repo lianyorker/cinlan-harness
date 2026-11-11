@@ -16,7 +16,10 @@
 .control input[type='checkbox'] { width: 18px; height: 18px; min-height: 0; accent-color: var(--dsw-alias-label-primary); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0; }
 .section button, .actions button { border: 0.5px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); min-height: 34px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
-.section button:hover:enabled, .actions button:hover:enabled { background: var(--dsw-alias-interactive-bg-hover); }
+@media (hover: hover) {
+  .section button:hover:enabled,
+  .actions button:hover:enabled { background: var(--dsw-alias-interactive-bg-hover); }
+}
 .section button:disabled, .actions button:disabled, .section fieldset:disabled { opacity: .55; cursor: default; }
 .row:focus, .section :focus-visible, .actions :focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 3px; }
 .note { margin-top: 12px; }

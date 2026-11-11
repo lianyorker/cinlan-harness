@@ -68,12 +68,24 @@
   transform: translateY(0.5px);
 }
 
-.row:is(:hover, [aria-expanded='true']) .diffAdded {
+.row[aria-expanded='true'] .diffAdded {
   color: var(--dsw-alias-state-success-primary);
 }
 
-.row:is(:hover, [aria-expanded='true']) .diffRemoved {
+@media (hover: hover) {
+  .row:hover .diffAdded {
+    color: var(--dsw-alias-state-success-primary);
+  }
+}
+
+.row[aria-expanded='true'] .diffRemoved {
   color: var(--dsw-alias-state-error-primary);
+}
+
+@media (hover: hover) {
+  .row:hover .diffRemoved {
+    color: var(--dsw-alias-state-error-primary);
+  }
 }
 
 .row[aria-expanded='true'] .diffAdded {

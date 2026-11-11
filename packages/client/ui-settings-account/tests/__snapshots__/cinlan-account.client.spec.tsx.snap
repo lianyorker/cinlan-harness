@@ -1,5 +1,9 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`describes Cinlan account access in the active locale 1`] = `"Not signed inSign in to share your work and reach this desktop from Cinlan IDE Mobile.Sign in to Cinlan IDEIncluded with your accountArtifact sharingPublish HTML and Markdown files, and manage every shared link in Cinlan IDE.Cinlan IDE RelayReach this desktop from Cinlan IDE Mobile across any Wi-Fi through the edge network."`;
+
+exports[`describes Cinlan account access in the active locale 2`] = `"未登录登录后可共享工作，并通过 Cinlan IDE Mobile 访问此桌面。登录 Cinlan IDE账户包含Artifact sharing发布 HTML 和 Markdown 文件，并在 Cinlan IDE 中管理所有共享链接。Cinlan IDE Relay通过边缘网络绕过任意 Wi-Fi，将 Cinlan IDE Mobile 连接到此桌面。"`;
+
 exports[`describes Cinlan account access without promising file sharing 1`] = `"Not signed inSign in to use the configured model service on this Host.Sign in to CinlanThis account provides model access and is required when this Host connects through Cinlan Relay."`;
 
 exports[`describes Cinlan account access without promising file sharing 2`] = `"未登录登录后即可在此 Host 使用已配置的模型服务。登录 Cinlan此账户用于模型访问；此 Host 通过 Cinlan Relay 连接时也必须登录。"`;

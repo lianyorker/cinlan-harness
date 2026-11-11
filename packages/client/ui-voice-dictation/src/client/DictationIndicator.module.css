@@ -10,7 +10,7 @@
   max-width: calc(100vw - 32px);
   min-height: 36px;
   padding: 4px 6px 4px 12px;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 0;
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-specific-input-major);
   box-shadow: var(--dsw-elevation-panel);
@@ -25,6 +25,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  corner-shape: round;
   background: var(--dsw-alias-state-error-primary);
   animation: recording-pulse 1s ease-in-out infinite alternate;
 }

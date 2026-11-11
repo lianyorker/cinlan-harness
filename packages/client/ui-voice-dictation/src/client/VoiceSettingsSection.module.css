@@ -171,10 +171,12 @@
   gap: 6px;
 }
 
-.actionButton:hover:not(:disabled),
-.copyButton:hover:not(:disabled),
-.modeOption:hover .modeInput:not(:disabled) + .modeButton {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .actionButton:hover:not(:disabled),
+  .copyButton:hover:not(:disabled),
+  .modeOption:hover .modeInput:not(:disabled) + .modeButton {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .actionButton:focus-visible,
@@ -184,7 +186,7 @@
 .iconButton:focus-visible,
 .modelSelect:focus-visible,
 .modeInput:focus-visible + .modeButton {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -248,10 +250,13 @@
   cursor: pointer;
 }
 
-.modelOption:hover:not(:disabled),
-.modelOption:focus-visible,
-.iconButton:hover:not(:disabled) {
+.modelOption:focus-visible {
   background: var(--dsw-alias-interactive-bg-hover);
+}@media (hover: hover) {
+  .modelOption:hover:not(:disabled),
+  .iconButton:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .modelOption:disabled {

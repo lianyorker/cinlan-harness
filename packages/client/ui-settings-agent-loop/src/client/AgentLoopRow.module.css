@@ -88,9 +88,12 @@
   opacity: 0;
 }
 
-.stepper:hover .arrows,
 .stepper:focus-within .arrows {
   opacity: 1;
+}@media (hover: hover) {
+  .stepper:hover .arrows {
+    opacity: 1;
+  }
 }
 
 /* Arrow buttons: small chips carrying a translucent wash of the layer-1
@@ -110,8 +113,10 @@
   cursor: pointer;
 }
 
-.arrow:hover:not(:disabled) {
-  background: var(--dsw-alias-bg-layer-1);
+@media (hover: hover) {
+  .arrow:hover:not(:disabled) {
+    background: var(--dsw-alias-bg-layer-1);
+  }
 }
 
 .arrow:disabled {
@@ -130,8 +135,10 @@
   cursor: pointer;
 }
 
-.reset:hover:not(:disabled) {
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .reset:hover:not(:disabled) {
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .reset:disabled {

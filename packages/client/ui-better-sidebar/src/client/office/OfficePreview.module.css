@@ -19,7 +19,7 @@
   flex-shrink: 0;
   gap: 4px 12px;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
 }
 
 .control {
@@ -40,14 +40,16 @@ a.control {
   text-underline-offset: 2px;
 }
 
-.control:hover:not(:disabled),
-.fontNotice summary:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .control:hover:not(:disabled),
+  .fontNotice summary:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .control:focus-visible,
 .fontNotice summary:focus-visible {
-  outline: 2px solid var(--dsw-alias-label-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -2px;
 }
 
@@ -68,7 +70,7 @@ a.control {
   flex-shrink: 0;
   max-height: 35%;
   overflow: auto;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
   padding: 4px 12px;
   overflow-wrap: anywhere;
 }

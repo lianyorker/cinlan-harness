@@ -58,12 +58,14 @@
   cursor: pointer;
 }
 
-.addViewer:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .addViewer:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .addViewer:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -145,9 +147,11 @@
 }
 
 /* Hover affordance on disabled cards only (enabled cards are already lit). */
-.card:not(.cardOn):hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  border-color: var(--dsw-alias-label-dimmed);
+@media (hover: hover) {
+  .card:not(.cardOn):hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-label-dimmed);
+  }
 }
 
 /* Enabled = highlighted: a SOFTENED brand border (color-mix, the icon-chip
@@ -179,7 +183,7 @@
 .cardMain:focus-visible,
 .cardSettings:focus-visible,
 .rowGear:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -292,23 +296,29 @@
   text-align: left;
 }
 
-.addCard:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  border-color: var(--dsw-alias-interactive-bg-hover-accent);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .addCard:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-interactive-bg-hover-accent);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
-.addCard:hover .cardTitle {
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .addCard:hover .cardTitle {
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
-.addCard:hover .cardIconChip {
-  border-color: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 35%, transparent);
-  color: var(--dsw-alias-button-primary-fill);
+@media (hover: hover) {
+  .addCard:hover .cardIconChip {
+    border-color: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 35%, transparent);
+    color: var(--dsw-alias-button-primary-fill);
+  }
 }
 
 .addCard:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -344,9 +354,11 @@
   border-top-color: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 18%, transparent);
 }
 
-.cardSettings:hover {
-  background: var(--dsw-alias-interactive-bg-hover-accent);
-  color: var(--dsw-alias-brand-primary);
+@media (hover: hover) {
+  .cardSettings:hover {
+    background: var(--dsw-alias-interactive-bg-hover-accent);
+    color: var(--dsw-alias-brand-primary);
+  }
 }
 
 /* The gear icon button on a general settings ROW (the position-compat
@@ -368,10 +380,12 @@
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
-.rowGear:hover {
-  border-color: var(--dsw-alias-interactive-bg-hover-accent);
-  background: var(--dsw-alias-interactive-bg-hover-accent);
-  color: var(--dsw-alias-brand-primary);
+@media (hover: hover) {
+  .rowGear:hover {
+    border-color: var(--dsw-alias-interactive-bg-hover-accent);
+    background: var(--dsw-alias-interactive-bg-hover-accent);
+    color: var(--dsw-alias-brand-primary);
+  }
 }
 
 /* Settings-row recipe (the DSH General section rows): title/desc left,
@@ -448,8 +462,10 @@
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.switch:hover .switchTrack {
-  border-color: var(--dsw-alias-label-dimmed);
+@media (hover: hover) {
+  .switch:hover .switchTrack {
+    border-color: var(--dsw-alias-label-dimmed);
+  }
 }
 
 .switchInput:checked + .switchTrack {
@@ -463,7 +479,7 @@
 }
 
 .switchInput:focus-visible + .switchTrack {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -507,8 +523,10 @@
   cursor: pointer;
 }
 
-.selectAnchor:hover {
-  border-color: var(--dsw-alias-label-dimmed);
+@media (hover: hover) {
+  .selectAnchor:hover {
+    border-color: var(--dsw-alias-label-dimmed);
+  }
 }
 
 .selectAnchorIcon {
@@ -566,7 +584,7 @@
 }
 
 .cssTextArea:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
 
@@ -612,8 +630,10 @@
   background: var(--dsh-scrollbar-thumb);
 }
 
-.popupRows::-webkit-scrollbar-thumb:hover {
-  background: var(--dsh-scrollbar-thumb-hover);
+@media (hover: hover) {
+  .popupRows::-webkit-scrollbar-thumb:hover {
+    background: var(--dsh-scrollbar-thumb-hover);
+  }
 }
 
 .popupRow {
@@ -630,8 +650,10 @@
   transition: border-color 0.16s, background 0.16s;
 }
 
-.popupRow:hover {
-  border-color: var(--dsw-alias-label-dimmed);
+@media (hover: hover) {
+  .popupRow:hover {
+    border-color: var(--dsw-alias-label-dimmed);
+  }
 }
 
 /* The popup's Done button: the settings primary-button recipe
@@ -650,7 +672,7 @@
 }
 
 .done:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -693,14 +715,16 @@
   cursor: pointer;
 }
 
-.pluginTopicBtn:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  border-color: var(--dsw-alias-interactive-bg-hover-accent);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .pluginTopicBtn:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-interactive-bg-hover-accent);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .pluginTopicBtn:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -755,14 +779,16 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.pluginJumpBtn:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  border-color: var(--dsw-alias-interactive-bg-hover-accent);
-  color: var(--dsw-alias-label-primary);
+@media (hover: hover) {
+  .pluginJumpBtn:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    border-color: var(--dsw-alias-interactive-bg-hover-accent);
+    color: var(--dsw-alias-label-primary);
+  }
 }
 
 .pluginJumpBtn:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -788,9 +814,11 @@
   cursor: pointer;
 }
 
-.pluginName:hover {
-  text-decoration: underline;
-  color: var(--dsw-alias-button-primary-fill);
+@media (hover: hover) {
+  .pluginName:hover {
+    text-decoration: underline;
+    color: var(--dsw-alias-button-primary-fill);
+  }
 }
 
 .pluginDesc {
@@ -829,12 +857,14 @@
   color: var(--dsw-alias-bg-layer-3);
 }
 
-.pluginCopyBtn:hover {
-  background: var(--dsw-alias-button-primary-hover);
+@media (hover: hover) {
+  .pluginCopyBtn:hover {
+    background: var(--dsw-alias-button-primary-hover);
+  }
 }
 
 .pluginCopyBtn:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -903,7 +933,7 @@
 }
 
 .pluginSearch:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -961,7 +991,7 @@
 
 .openWithEditorInput:focus-visible,
 .openWithEditorTemplate:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
 
@@ -987,9 +1017,11 @@
   cursor: pointer;
 }
 
-.openWithRemove:hover {
-  color: var(--dsw-alias-state-error-primary);
-  background: var(--dsw-alias-bg-layer-2);
+@media (hover: hover) {
+  .openWithRemove:hover {
+    color: var(--dsw-alias-state-error-primary);
+    background: var(--dsw-alias-bg-layer-2);
+  }
 }
 
 .openWithHint {

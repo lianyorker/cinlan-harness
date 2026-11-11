@@ -153,8 +153,10 @@
   cursor: pointer;
 }
 
-.expander:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .expander:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .expander svg {

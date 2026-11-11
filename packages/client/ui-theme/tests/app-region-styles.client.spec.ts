@@ -249,7 +249,8 @@ describe('window drag-region ownership', () => {
     ])
   })
 
-  it('declares every pinned chrome row at the height the manifest pins', () => {
+  // The corpus scan re-reads every chrome stylesheet; under parallel workers the default 5s budget is not enough on Windows.
+  it('declares every pinned chrome row at the height the manifest pins', { timeout: 30000 }, () => {
     for (const row of CHROME_ROWS) {
       if (row.height === undefined) continue
       expect(declaredValue(row.file, row.selector, row.height[0]), `${row.selector} ${row.height[0]}`)

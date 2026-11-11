@@ -1,12 +1,153 @@
 {
+  "ui-better-sidebar/src/client/git-view.module.css": [
+    ".messageInput: border-radius: 6px"
+  ],
+  "ui-better-sidebar/src/client/sidebar.module.css": [
+    ".paneCard: border-radius: 8px",
+    ".tabBadge: border-radius: 8px",
+    ".tabBarPlus: border-radius: 5px",
+    ".explorerRow: border-radius: 8px",
+    ".uploadDropZone: border-radius: 10px",
+    ".uploadOverlayCard: border-radius: 24px",
+    ".uploadOverlayCancel: border-radius: 8px",
+    ".editorPathInput: border-radius: 6px",
+    ".editorSearchInput: border-radius: 6px",
+    ".editorSearchResult: border-radius: 6px",
+    ".editorDownloadLink: border-radius: 6px",
+    ".sandboxAction: border-radius: 6px",
+    ".browserInput: border-radius: 6px",
+    ".browserBlockedButton: border-radius: 6px",
+    ".editorModeToggle: border-radius: 6px",
+    ".mermaidWrap: border-radius: 6px",
+    ".mermaidModalButton: border-radius: 8px",
+    ".mermaidModalStage :global(svg): border-radius: 12px",
+    ".selectionPopup: border-radius: 6px",
+    ".gitBranchSelect: border-radius: 6px",
+    ".gitRow: border-radius: 8px",
+    ".gitCommitButton: border-radius: 6px",
+    ".gitLogRow: border-radius: 8px",
+    ".gitLogMore: border-radius: 6px",
+    ".openWithPin: border-radius: 6px"
+  ],
+  "ui-better-sidebar/src/client/SideCardSection.module.css": [
+    ".addViewer: border-radius: 8px",
+    ".group: border-radius: 16px",
+    ".card: border-radius: 12px",
+    ".cardIconChip: border-radius: 8px",
+    ".cardSwitchTrack: border-radius: 8px",
+    ".rowGear: border-radius: 6px",
+    ".switchTrack: border-radius: 10px",
+    ".selectAnchor: border-radius: 8px",
+    ".cssTextArea: border-radius: 8px",
+    ".popupRow: border-radius: 12px",
+    ".done: border-radius: 8px",
+    ".pluginTopicBtn: border-radius: 8px",
+    ".pluginEntry: border-radius: 12px",
+    ".pluginJumpBtn: border-radius: 8px",
+    ".pluginInstall: border-radius: 8px",
+    ".pluginCopyBtn: border-radius: 8px",
+    ".pluginSearch: border-radius: 8px",
+    ".openWithEditorInput, .openWithEditorTemplate: border-radius: 8px",
+    ".openWithRemove: border-radius: 8px"
+  ],
+  "ui-better-sidebar/src/client/SideChatView.module.css": [
+    ".sidechatIconBtn: border-radius: 6px",
+    ".sidechatUser: border-radius: 18px",
+    ".sidechatComposer: border-radius: 16px"
+  ],
+  "ui-better-sidebar/src/client/SubagentView.module.css": [
+    ".subagentRefresh: border-radius: 6px",
+    ".subagentRow: border-radius: 8px",
+    ".subagentErrorRetry: border-radius: 6px",
+    ".jobsRow: border-radius: 8px",
+    ".jobsRowMain: border-radius: 8px",
+    ".jobsKill: border-radius: 6px",
+    ".jobsPane: border-radius: 8px",
+    ".jobsPaneClose: border-radius: 5px"
+  ],
+  "ui-better-sidebar/src/client/TerminalShellChooser.module.css": [
+    ".select: border-radius: 6px"
+  ],
+  "ui-cinlan-design/src/client/view/CinlanDesign.module.css": [
+    ".addressBar: border-radius: 6px",
+    ".buttonGroup: border-radius: 6px",
+    ".scoreBadge: border-radius: 12px",
+    ".deviceWrapper: border-radius: 8px",
+    ".deviceWrapperMobile: border-radius: 36px",
+    ".pinMarker: border-radius: 12px",
+    ".directionCard: border-radius: 10px",
+    ".toneBadge: border-radius: 10px",
+    ".applyButton: border-radius: 6px",
+    ".findingItem: border-radius: 6px",
+    ".selfOriginCard: border-radius: 12px",
+    ".primaryAction: border-radius: 6px",
+    ".secondaryAction: border-radius: 6px"
+  ],
   "ui-deliverables/src/client/ChangedFiles.module.css": [
     ".tile: border-radius: 10px"
   ],
   "ui-deliverables/src/client/Deliverables.module.css": [
     ".fileIcon: border-radius: 10px"
   ],
+  "ui-floating-workspace/src/client/FloatingEntry.module.css": [
+    ".floating: border-radius: 14px",
+    ".notice: border-radius: 10px"
+  ],
+  "ui-floating-workspace/src/client/FloatingPanel.module.css": [
+    ".panel: border-radius: 12px"
+  ],
+  "ui-floating-workspace/src/client/FloatingWorkspaceSection.module.css": [
+    ".card: border-radius: 8px",
+    ".directoryButton: border-radius: 8px",
+    ".segmented: border-radius: 8px",
+    ".segment span: border-radius: 6px"
+  ],
+  "ui-git-settings/src/client/GitSettingsSection.module.css": [
+    ".select: border-radius: 18px",
+    ".input: border-radius: 18px",
+    ".recipeCard: border-radius: 8px",
+    ".recipeTextarea: border-radius: 6px"
+  ],
+  "ui-integrations/src/client/IntegrationsSection.module.css": [
+    ".refresh: border-radius: 18px",
+    ".symbol: border-radius: 10px",
+    ".status: border-radius: 18px"
+  ],
+  "ui-orchestration/src/client/OrchestrationSection.module.css": [
+    ".capabilityCard: border-radius: 12px",
+    ".heroIcon: border-radius: 8px",
+    ".exampleCard: border-radius: 8px",
+    ".exampleIcon: border-radius: 7px"
+  ],
+  "ui-paired-shell/src/client/PairedShell.module.css": [
+    ".select: border-radius: 8px"
+  ],
   "ui-plan/src/client/PlanPreview.module.css": [
     ".cardIcon: border-radius: 10px"
+  ],
+  "ui-quick-commands/src/client/QuickCommandsCard.module.css": [
+    ".card: border-radius: 10px",
+    ".field input, .field textarea, .field select: border-radius: 8px",
+    ".primary, .quiet, .danger: border-radius: 8px",
+    ".empty: border-radius: 10px",
+    ".row: border-radius: 10px"
+  ],
+  "ui-right-sidebar/src/client/SidebarContributors.module.css": [
+    ".button, .primaryButton: border-radius: 5px",
+    ".input, .select: border-radius: 5px",
+    ".output: border-radius: 5px",
+    ".item: border-radius: 5px",
+    ".frame: border-radius: 5px",
+    ".diffFile: border-radius: 6px",
+    ".commentBox: border-radius: 6px",
+    ".commentCard: border-radius: 5px",
+    ".preferencesCard: border-radius: 6px",
+    ".portCard: border-radius: 6px",
+    ".subtabBadgeError: border-radius: 8px",
+    ".prCard: border-radius: 6px",
+    ".checkOverviewBanner: border-radius: 6px",
+    ".fixSentNotice: border-radius: 5px",
+    ".checkItem: border-radius: 5px"
   ],
   "ui-schedule/src/client/ClockPicker.module.css": [
     ".option: border-radius: 10px"
@@ -43,6 +184,9 @@
     ".instruction: border-radius: 16px",
     ".delivery: border-radius: 8px"
   ],
+  "ui-session-inspector/src/client/views/inspector.module.css": [
+    ".chatReveal: border-radius: 6px"
+  ],
   "ui-settings-account/src/client/AccountNotice.module.css": [
     ".card: border-radius: 16px"
   ],
@@ -53,6 +197,83 @@
     ".page .action: border-radius: 12px",
     ".indicator: border-radius: 6px"
   ],
+  "ui-settings-automation/src/client/AutomationSettings.module.css": [
+    ".textarea: border-radius: 12px"
+  ],
+  "ui-settings-general/src/client/GeneralSection.module.css": [
+    ".section > :global([data-slot='settings.general.item']): border-radius: 10px",
+    ".section > :global([data-slot='settings.general.item']): border-radius: 8px"
+  ],
+  "ui-settings-general/src/client/SettingsRoot.module.css": [
+    ".trigger: border-radius: 12px",
+    ".navCell: border-radius: 6px",
+    ".clearSearch, .showResults: border-radius: 8px",
+    ".iconButton: border-radius: 8px"
+  ],
+  "ui-settings-hosts/src/client/HostsSection.module.css": [
+    ".panel: border-radius: 10px",
+    ".editor: border-radius: 10px",
+    ".section select: border-radius: 8px",
+    ".empty: border-radius: 8px",
+    ".card: border-radius: 8px",
+    ".importEntry: border-radius: 8px",
+    ".recipeCard: border-radius: 8px",
+    ".quotaRow: border-radius: 8px"
+  ],
+  "ui-settings-mcp/src/client/McpSettingsSection.module.css": [
+    ".select: border-radius: 8px",
+    ".textarea: border-radius: 8px"
+  ],
+  "ui-settings-security/src/client/CapabilitySection.module.css": [
+    ".section:is([data-capability='browser'], [data-capability='mobile'], [data-capability='companion']) .setupCard > section, .section:is([data-capability='browser'], [data-capability='mobile'], [data-capability='companion']) .setupCard > form: border-radius: 14px",
+    ".commandGrid code: border-radius: 8px",
+    ".computerCommand: border-radius: 8px",
+    ".console: border-radius: 8px",
+    ".section textarea: border-radius: 12px",
+    ".section input[type='file']: border-radius: 12px",
+    ".mobileSetupCard .settingRow select: border-radius: 8px",
+    ".sdkPanel: border-radius: 8px",
+    ".section .sdkPath input: border-radius: 8px",
+    ".section[data-capability='mobile'] .commandRow: border-radius: 8px",
+    ".section[data-capability='mobile'] .copyButton: border-radius: 8px"
+  ],
+  "ui-settings-security/src/client/CompanionPanel.module.css": [
+    ".card: border-radius: 12px",
+    ".row: border-radius: 10px",
+    ".emptyRow: border-radius: 10px",
+    ".platform, .platformActive: border-radius: 8px",
+    ".qr: border-radius: 10px",
+    ".primary, .secondary: border-radius: 8px",
+    ".back: border-radius: 8px"
+  ],
+  "ui-settings-security/src/client/CompanionSection.module.css": [
+    ".card: border-radius: 12px",
+    ".section input:not([type='radio']), .section select: border-radius: 8px",
+    ".settingLine: border-radius: 10px",
+    ".qr: border-radius: 10px",
+    ".confirmRow: border-radius: 10px",
+    ".danger: border-radius: 8px",
+    ".pairLinkRow textarea: border-radius: 8px",
+    ".action, .actionQuiet: border-radius: 8px"
+  ],
+  "ui-settings-terminal/src/client/TerminalSettingsSection.module.css": [
+    ".control input, .control select: border-radius: 8px",
+    ".section button, .actions button: border-radius: 8px"
+  ],
+  "ui-settings-unarchive-sessions/src/client/ArchivedSessionsSection.module.css": [
+    ".row: border-radius: 8px",
+    ".iconButton: border-radius: 6px"
+  ],
+  "ui-settings-usage/src/client/UsageSection.module.css": [
+    ".field select: border-radius: 8px",
+    ".switcher select: border-radius: 8px",
+    ".card: border-radius: 12px",
+    ".bar: border-radius: 5px",
+    ".providerCard: border-radius: 12px",
+    ".empty: border-radius: 12px",
+    ".metrics > div: border-radius: 12px",
+    ".tableScroll: border-radius: 12px"
+  ],
   "ui-shortcuts/src/client/Reference.module.css": [
     ".dialog: border-radius: 24px",
     ".close: border-radius: 28px",
@@ -60,5 +281,43 @@
     ".keyBadge: border-radius: 10px",
     ".unbound: border-radius: 10px",
     ".recorder: border-radius: 10px"
+  ],
+  "ui-sidebar-browser/src/client/view/Browser.module.css": [
+    ".designModeNotice: border-radius: 6px"
+  ],
+  "ui-sidebar-terminal/src/client/terminal.module.css": [
+    ".quickCommandsToggle: border-radius: 8px",
+    ".quickCommandsMenu: border-radius: 10px",
+    ".quickCommandsMenu button: border-radius: 6px",
+    ".runConfirm: border-radius: 10px",
+    ".runConfirm button: border-radius: 8px"
+  ],
+  "ui-skill/src/client/SkillSharingTab.module.css": [
+    ".banner: border-radius: 8px",
+    ".stepItem: border-radius: 6px"
+  ],
+  "ui-voice-dictation/src/client/VoiceButton.module.css": [
+    ".button: border-radius: 6px"
+  ],
+  "ui-work-items/src/client/WorkItemsSection.module.css": [
+    ".filter select, .filter textarea: border-radius: 18px",
+    ".filter textarea: border-radius: 12px",
+    ".filter .input: border-radius: 18px",
+    ".section .button: border-radius: 18px",
+    ".item, .selected: border-radius: 12px",
+    ".detail: border-radius: 12px",
+    ".badge: border-radius: 10px",
+    ".providerBadgeConnected, .providerBadgeDisconnected: border-radius: 10px",
+    ".receipt: border-radius: 12px"
+  ],
+  "ui-workspace-isolation/src/client/WorkspaceIsolationSection.module.css": [
+    ".error, .notice: border-radius: 8px",
+    ".card: border-radius: 12px",
+    ".comparison: border-radius: 8px",
+    ".patch: border-radius: 7px"
+  ],
+  "ui-worktree-task/src/client/WorktreeTaskSection.module.css": [
+    ".taskCard: border-radius: 12px",
+    ".patch: border-radius: 8px"
   ]
 }

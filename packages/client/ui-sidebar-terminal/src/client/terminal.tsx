@@ -2,7 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { Button, IconPlusOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconPlusOutlineRegular, MenuSurface } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { TerminalViewState, TerminalView } from '@deepseek-ai/dsh-api-terminal-controller/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
@@ -26,7 +26,8 @@ export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, quickCom
   const theme = useTheme(value => value)
   const model = view(tab.id)
   const state = useTerminal(tab.id)
-  const [commands, setCommands] = useState<readonly { readonly id: string; readonly name: string; readonly command: string; readonly confirm: boolean }[]>([])
+  interface QuickCommand { readonly id: string; readonly name: string; readonly command: string; readonly confirm: boolean }
+  const [commands, setCommands] = useState<readonly QuickCommand[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const [pendingRun, setPendingRun] = useState<{ readonly id: string; readonly name: string; readonly command: string }>()
   const [runError, setRunError] = useState('')
@@ -80,7 +81,7 @@ export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, quickCom
       {commands.length > 0 && state.phase === 'connected' && <div className={css.quickCommands} data-sidebar-terminal-quick-commands>
         <button type="button" className={css.quickCommandsToggle} aria-expanded={menuOpen}
           onClick={() => { setMenuOpen(value => !value) }}>{t('quickCommands')}</button>
-        {menuOpen && <div className={css.quickCommandsMenu} role="menu">
+        {menuOpen && <MenuSurface className={css.quickCommandsMenu} role="menu">
           {commands.map(command => <button key={command.id} type="button" role="menuitem"
             onClick={() => {
               setMenuOpen(false)
@@ -90,7 +91,7 @@ export function TerminalBody({ useTabInfo, useTerminal, useTheme, view, quickCom
                 catch (reason) { setRunError(t('runFailed', { message: reason instanceof Error ? reason.message : String(reason) })) }
               }
             }}>{command.name}</button>)}
-        </div>}
+        </MenuSurface>}
       </div>}
       {pendingRun !== undefined && <div className={css.runConfirm} role="alertdialog" aria-label={t('runConfirmTitle', { name: pendingRun.name })}>
         <strong>{t('runConfirmTitle', { name: pendingRun.name })}</strong>
