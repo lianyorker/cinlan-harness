@@ -425,7 +425,7 @@ describe('WorkspaceBrowser', () => {
 
   it('drops the obsolete timestamp ledger from persisted viewing state', async () => {
     localStorage.clear()
-    localStorage.setItem('dsh.workspace.view.v5', JSON.stringify({
+    localStorage.setItem('dsh.workspace.view.v6', JSON.stringify({
       groupBy: 'workspace',
       orderBy: 'manual',
       groupExpansion: {},
@@ -434,13 +434,13 @@ describe('WorkspaceBrowser', () => {
     }))
     mount()
     await waitFor(() => {
-      const persisted = JSON.parse(localStorage.getItem('dsh.workspace.view.v5') ?? '{}') as Record<string, unknown>
+      const persisted = JSON.parse(localStorage.getItem('dsh.workspace.view.v6') ?? '{}') as Record<string, unknown>
       expect(persisted).not.toHaveProperty('sessionUpdatedAtByAccount')
     })
   })
 
   it('hides archived Sessions regardless of a persisted pre-filter view blob', () => {
-    const key = 'dsh.workspace.view.v5'
+    const key = 'dsh.workspace.view.v6'
     const previous = localStorage.getItem(key)
     try {
       localStorage.setItem(key, JSON.stringify({
@@ -2387,7 +2387,9 @@ describe('Workspace tree grouping', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: '添加工作区' }))
     fireEvent.click(screen.getByRole('button', { name: 'Pick directory' }))
-    await waitFor(() => { expect(b.props.startSession).toHaveBeenCalledWith(wid('root'), { clearPreviousDraft: false }) })
+    // No draft options: the adoption preserves whatever draft the current
+    // blank already carries (clearing only happens on an explicit request).
+    await waitFor(() => { expect(b.props.startSession).toHaveBeenCalledWith(wid('root')) })
     expect(b.props.createWorkspace).toHaveBeenCalledWith({ path: '/projects' })
     expect(screen.queryByRole('dialog')).toBeNull()
     rerender(b, { useWorkspaces: hook(workspaceState([child, root])) })
