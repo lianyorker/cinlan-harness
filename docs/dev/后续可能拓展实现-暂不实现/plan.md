@@ -256,7 +256,7 @@ B7/B8 的外部设计参照见 §4.1（UnifiedModel、Nacos ARD，未验证）�
 | R7 | 实验包无稳定承诺 | `agent-team`、`forge`、`webhook`、`subagent-oar` 均 `experimental`、版本 `0.2.2-alpha.2`；上游变更需跟随，且 `AGENTS.md` 称公共 API 属 pre-stable |
 | R8 | 取代 Dify 的迁移资产 | Dify 内沉淀的知识库与提示词需导出迁移；导出能力**未验证** |
 | R9 | 自助搭建越权 | §7.3 |
-| R10 | 底架回归 | `test:gui` 有 68 个文件、272 个测试失败，分布在多个无关包，非本项回归（`合并后执行计划.md:162`）；本方案不依赖 GUI 测试通过，但底架治理仍是入场条件 |
+| R10 | 底架回归 | `test:gui` 有 68 个文件、272 个测试失败，分布在多个无关包，非本项回归（`docs/dev/归档/合并后执行计划.md`）；本方案不依赖 GUI 测试通过，但底架治理仍是入场条件 |
 
 ## 10. 分阶段落地
 
@@ -273,7 +273,7 @@ B7/B8 的外部设计参照见 §4.1（UnifiedModel、Nacos ARD，未验证）�
 | 评审 `credentials` / `permission-presets` 对多部门隔离的支撑度 | 补进 §7.3 |
 | 核实 §4.1 沙龙项目的仓库、许可、活跃度（AgentTeams 已核实，余五项待办），更新 §4.1 的“未验证”标注 | 各项目一行核实结论 |
 
-> **核实结果（2026-11-08，四会话并行收口；细节见 `docs/dev/发布坐标迁移-2026-11-08.md` §9 与 `.mrdayone/side-session-notes/`）**：
+> **核实结果（2026-11-08，四会话并行收口；细节见 `docs/dev/归档/发布坐标迁移-2026-11-08.md` §9 与 `.mrdayone/side-session-notes/`）**：
 > - 健康检查：两包均**无**主动健康检查、心跳、自动重连——失联为被动 markLost（消息即 "reconnect to inspect"），重连留人工/上层；唯一心跳类机制是 OpenSSH ServerAliveInterval（需显式配置）。B3 放置 / B4 owner 回收确属自建。
 > - Windows 双执行端：subagent-codex（npm 载荷，keyless）**7/7 通过**；oar-claude **通过**；oar-codex 失败但根因在机器配置（默认模型 id 在 magpie 网关 404 + codex CLI 0.166.0 的 Windows workspace-write 沙箱卡死，0.153.4 载荷无此问题），路径本身可通（CODEX_HOME 透传已验证）。
 > - ZK租赁托管平台：**仓库内无法确认**（全量 grep 仅命中本文件「待确认」原文），需用户提供；work-items-gitee（GITEE_TOKEN）/ work-items-gitlab（自建 origin）承载位就绪。

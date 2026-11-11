@@ -1,7 +1,7 @@
 # 树内双实现裁决分析（Step 2）
 
 > 生成日期：2026-10-31
-> 依据：`docs/dev/合并后执行计划.md` Step 2、`docs/dev/官方功能差距对比.md` 第二节、`.devin/rules/Cinlan Harness Fork 边界与同步规则（窄 fork + 宽插件）.md` 第 3 节
+> 依据：`docs/dev/归档/合并后执行计划.md` Step 2、`docs/dev/官方功能差距对比.md` 第二节、`.devin/rules/Cinlan Harness Fork 边界与同步规则（窄 fork + 宽插件）.md` 第 3 节
 > 方法：`git log upstream/master -- <目录>` 判归属；`git diff upstream/master HEAD` 与 `git log HEAD --not upstream/master` 找本地增量；实测运行可疑测试
 > ~~本报告只做分析，未改代码、未删包、未改任何配置。所有裁决均为建议，待 YG 确认，未执行。~~
 > **执行状态（2026-10-31）：YG 已确认并全部执行完毕，执行结果见 §7。**
