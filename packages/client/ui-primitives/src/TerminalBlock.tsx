@@ -260,7 +260,6 @@ export function TerminalBlock({
                 text={line}
                 label={copy.commandLine(index + 1)}
               />
-              <CommandText className={css.command} text={line} label={copy.commandLine(index + 1)} />
             </div>
           ))}
         </div>
