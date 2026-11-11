@@ -1211,9 +1211,9 @@ Trusted-local management only; the remoteAccess executor verifies current carrie
 @Remote('revokeDevice') revokeDevice(request: { readonly deviceId: PairedDeviceId }): Promise<void>
 ```
 
-Types: [PairedDeviceId](../../packages/remote-access/remote-access/README.zh.md) · [PairingGrant](../../packages/remote-access/remote-access/README.zh.md) · [PairingInvitation](../../packages/remote-access/remote-access/README.zh.md) · [RemoteAccessStatus](../../packages/remote-access/remote-access/README.zh.md)
+Types: PairedDeviceId · PairingGrant · PairingInvitation · RemoteAccessStatus
 
-Source: [`packages/api/pairing-controller/src/index.ts`](../../packages/api/pairing-controller/src/index.ts)
+Source: `packages/api/pairing-controller/src/index.ts`
 
 <a id="ctxsecurityresearchcontroller--securityresearchcontroller"></a>
 

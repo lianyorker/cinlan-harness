@@ -273,7 +273,7 @@ Creates one lazily consumable E2B SDK handle and deletes the sandbox at timeout 
 async getSandbox(): Promise<Sandbox>
 ```
 
-Source: [`packages/e2b/e2b/src/index.ts`](../../packages/e2b/e2b/src/index.ts)
+Source: `packages/e2b/e2b/src/index.ts`
 
 <a id="ctxsubprocess--subprocessruntime-abstract-seam"></a>
 

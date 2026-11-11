@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-此 Client 插件以适合手机的布局显示已授权 Session 选择和既有 Conversation UI。认证、Session 授权与撤销由 [Remote Access](../../remote-access/remote-access/README.zh.md) 负责。外壳不授予权限。
+此 Client 插件以适合手机的布局显示已授权 Session 选择和既有 Conversation UI。认证、Session 授权与撤销由 Remote Access 负责。外壳不授予权限。
 
 ## 目录
 

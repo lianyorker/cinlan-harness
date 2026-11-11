@@ -41,7 +41,7 @@ kind: "package-reference"
 <a id="dev-note"></a>
 ## 开发备注
 
-[组件与注册测试](tests/)覆盖中英文、可用性限制、修订号约束的修改、恢复确认、写入拒绝及卸载。客户端 Loader 测试组合真实 SettingsScope 提供方，验证冲突恢复和不变值不写入；包内快照固定不可用时的中文页面。[侧边栏 Loader 回归](../ui-better-sidebar/tests/terminal-settings-loader.spec.ts)通过无需 Web 服务的测试配置启动真实的 Settings、工具和侧边栏源代码，在两条 PTY 创建路径上验证已保存的 Shell 选择。原生 PTY 适配器是外部进程测试替身。[渲染测试](../ui-better-sidebar/tests/terminal-preferences.spec.tsx)验证即时消费者与已安装 xterm 的选项修改。本包仅拥有草稿，从 SettingsScope 派生持久化状态，因此不发布运行时 invariant 伴随入口。共享框架见 [Web Client](../../../docs/subsystems/web-client.zh.md)。
+[组件与注册测试](tests/)覆盖中英文、可用性限制、修订号约束的修改、恢复确认、写入拒绝及卸载。客户端 Loader 测试组合真实 SettingsScope 提供方，验证冲突恢复和不变值不写入；包内快照固定不可用时的中文页面。[侧边栏 Loader 回归](../ui-better-sidebar/tests/terminal-settings-loader.spec.ts)通过无需 Web 服务的测试配置启动真实的 Settings、工具和侧边栏源代码，在两条 PTY 创建路径上验证已保存的 Shell 选择。原生 PTY 适配器是外部进程测试替身。渲染测试验证即时消费者与已安装 xterm 的选项修改。本包仅拥有草稿，从 SettingsScope 派生持久化状态，因此不发布运行时 invariant 伴随入口。共享框架见 [Web Client](../../../docs/subsystems/web-client.zh.md)。
 
 <a id="model-experience"></a>
 ## 模型体验

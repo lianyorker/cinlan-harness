@@ -114,7 +114,7 @@ Read these pages when the domain layer's view is not enough: the subsystem refer
 
 - [Storage subsystem](../../../docs/subsystems/storage.md) — the domain contract, backend contract, change events, and generated API.
 - [Storage package map](../README.md) — the family's packages and their repository position.
-- [domain KV storage Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — why domains exist, the workspace consumer, and deferred work such as cross-process change push.
+- [domain KV storage Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md) — why domains exist, the workspace consumer, and deferred work such as cross-process change push.
 - [Workspace subsystem](../../../docs/subsystems/workspace.md) — the first consumer of the domain data form.
 
 -----
@@ -143,7 +143,7 @@ Independent: domain reads and writes never touch request prefixes, so nothing he
 
 These limits define when the domain layer is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
-- **Single-process change visibility** — `domain/changed` is an in-process event; a second host process or a reconnecting GUI observes no changes until the cross-process revision pattern lands ([Agent Note](../../../.agents/notes/proposed/architecture/2026-07-24-domain-kv-storage-and-workspace.md)).
+- **Single-process change visibility** — `domain/changed` is an in-process event; a second host process or a reconnecting GUI observes no changes until the cross-process revision pattern lands ([Agent Note](../../../.agents/notes/implemented/architecture/2026-07-24-domain-kv-storage-and-workspace.md)).
 - **No cross-table transactions, secondary indexes, or multi-segment keys** — each write targets one table or the global slot; these extensions are deferred in the Agent Note's out-of-scope list.
 - **No incompatible-value migration runner** — `compatibleVersions` admits older data for the current decoder; consumers convert values when rewriting selected records. A current stamp can still contain historical rows. See [domain versioning](../../../docs/subsystems/storage.md#domain-versioning) for backend differences, upgrades, downgrade refusal, and retiring old readers.
 

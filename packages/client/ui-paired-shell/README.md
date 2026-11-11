@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This Client plugin displays authorized Session selection and the existing Conversation UI in a phone-sized layout. Authentication, Session grants, and revocation belong to [Remote Access](../../remote-access/remote-access/README.md). The shell does not grant authority.
+This Client plugin displays authorized Session selection and the existing Conversation UI in a phone-sized layout. Authentication, Session grants, and revocation belong to Remote Access. The shell does not grant authority.
 
 ## Table of Contents
 
