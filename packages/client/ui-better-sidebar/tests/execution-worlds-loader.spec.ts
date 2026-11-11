@@ -133,7 +133,7 @@ async function fixture() {
   const b = session('right-files', right.binding)
   const fetch = h.ctx.connection.createSharedFetchHandler('/api')
   const call = async (method: string, payload: unknown) => {
-    const response = await fetch.fetch(new Request('http://localhost/api/sidebar.api?method=' + method, { method: 'POST', body: JSON.stringify(payload) }))
+    const response = await fetch.fetch(new Request('http://localhost/api/sidebar.api?method=' + method, { method: 'POST', body: JSON.stringify(payload) }), h.ctx.connection.browserPeer)
     return { response, body: await response.json() as { ok: boolean; value?: Record<string, unknown>; error?: unknown } }
   }
   return { ...h, left, right, a, b, fetch, call }
@@ -147,7 +147,7 @@ describe('file and Git execution worlds through Loader', () => {
       expect((await h.call('fs.read', scope)).body).toMatchObject({ ok: true, value: { content: label } })
       expect((await h.call('fs.tree', { sessionId: session.id })).body).toMatchObject({ ok: true, value: { path: '/project', entries: [{ name: 'shared.txt' }] } })
       expect((await h.call('fs.search', { sessionId: session.id, query: 'shared' })).body).toMatchObject({ ok: true, value: { matches: ['shared.txt'] } })
-      const media = await h.fetch.fetch(new Request('http://localhost/api/sidebar.file?' + new URLSearchParams(scope).toString()))
+      const media = await h.fetch.fetch(new Request('http://localhost/api/sidebar.file?' + new URLSearchParams(scope).toString()), h.ctx.connection.browserPeer)
       expect(media.status).toBe(200)
       expect(await media.text()).toBe(label)
     }
@@ -227,7 +227,7 @@ describe('file and Git execution worlds through Loader', () => {
       await expect(h.ctx.sidebarGit.status({ sessionId: h.a.id })).rejects.toThrow('connection lost')
       expect(h.left.world.connections).toHaveLength(1)
       expect((await h.call('open.external', { sessionId: h.b.id, action: 'reveal', path: '/project/shared.txt' })).response.status).toBe(501)
-      const upload = await h.fetch.fetch(new Request('http://localhost/api/sidebar.upload?' + new URLSearchParams({ sessionId: h.b.id, dir: '/project', relativePath: 'shared.txt' }).toString(), { method: 'POST', body: 'no replacement' }))
+      const upload = await h.fetch.fetch(new Request('http://localhost/api/sidebar.upload?' + new URLSearchParams({ sessionId: h.b.id, dir: '/project', relativePath: 'shared.txt' }).toString(), { method: 'POST', body: 'no replacement' }), h.ctx.connection.browserPeer)
       expect(upload.status).toBe(501)
       expect(h.right.world.files.get('/project/shared.txt')).toBe('right')
       expect(await readFile(join(h.localRoot, 'shared.txt'), 'utf8')).toBe('local')
