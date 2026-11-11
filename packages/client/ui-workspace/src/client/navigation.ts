@@ -378,7 +378,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const binding = this.sessions.binding(id)
       if (binding === undefined) this.draftPreparationFailed()
       this.prepareDraft(binding, draftOptions)
-    } : undefined).catch(
+    } : undefined, { agentPreset: draftOptions?.agentPreset }).catch(
       (reason: unknown) => { console.warn('new session failed:', reason) },
     )
   }

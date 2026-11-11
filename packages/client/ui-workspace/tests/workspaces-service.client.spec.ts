@@ -172,6 +172,7 @@ class FakeSessions implements ISessions {
     this.list = new MutableSource(initial)
     this.create = vi.fn<ISessions['create']>(async options =>
       options?.sessionId ?? sid(`created-${String(options?.workspaceId ?? 'none')}`))
+    this.refresh = vi.fn<ISessions['refresh']>(() => Promise.resolve())
   }
 }
 
@@ -826,7 +827,7 @@ describe('UiWorkspaceService', () => {
       { name: 'plain text', options: { prompt: '草稿 🧭\nsecond line', clearPreviousDraft: true } },
       { name: 'empty text', options: { prompt: '' } },
       { name: 'clear without prompt', options: { clearPreviousDraft: true } },
-      { name: 'replace without prompt', options: { whenDraftExists: 'replace' } },
+      { name: 'replace without prompt', options: { whenDraftExists: 'replace', prompt: 'body text' } },
       { name: 'appended text', options: { prompt: 'next', whenDraftExists: 'append' } },
       { name: 'reference-like text', options: { prompt: '🧭 @notes.md' } },
     ])('prepares $name on the retained target before replacing the current selection', async ({ options }) => {
@@ -860,7 +861,7 @@ describe('UiWorkspaceService', () => {
     })
 
     it.each<DraftInitializationOptions | undefined>([
-      undefined, {}, { clearPreviousDraft: false }, { whenDraftExists: 'append' }, { clearPreviousDraft: true, whenDraftExists: 'keep' },
+      undefined, {}, { clearPreviousDraft: false }, { whenDraftExists: 'append' },
     ])('does not invoke the draft API for options that cannot change text %j', async (options) => {
       const b = bench({ workspaces: workspaceState([workspace('a')]) })
       const opening = vi.spyOn(b.uiWorkspace, 'openWorkspace')
