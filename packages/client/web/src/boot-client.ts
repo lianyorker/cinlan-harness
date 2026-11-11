@@ -80,7 +80,7 @@ export function assertEntriesActive(ctx: Context, modules: Pick<ClientModuleLoad
       const missing = Object.keys(entry.fiber.inject).filter(service => ctx.get(service) === undefined)
       failures.push(`${name}: pending (waiting for service${missing.length === 1 ? '' : 's'}: ${missing.join(', ') || 'unknown'})`)
     } else {
-      failures.push(`${name}: ${state}${(entry.fiber as { _error?: unknown })._error === undefined ? '' : `: ${String((entry.fiber as { _error?: unknown })._error)}`}`)
+      failures.push(`${name}: ${state}`)
     }
   }
   if (failures.length > 0) {
