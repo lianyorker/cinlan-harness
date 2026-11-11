@@ -132,6 +132,12 @@ export function apply(ctx: ClientContext): void {
       clipboardText: ref => ref,
       serialize: ref => Promise.resolve(ref),
     },
+    openReference(session, { ref, appearance }) {
+      if (appearance !== 'file') return false
+      const path = ref.replace(/^@/, '').replaceAll('"', '')
+      ctx.sidebarRight.openResource(fileAddressFor(session.sessionId, sessions.list.getSnapshot().byId[session.sessionId]?.cwd, path))
+      return true
+    },
   }
   const inputTriggers = ctx.get('inputTriggers') as InputTriggerServiceContract
   ctx.effect(() => inputTriggers.registerSource(source), 'ui-reference: @ source')

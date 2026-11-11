@@ -115,7 +115,6 @@ async function bench(
   ctx.provide('remote.fileReferences', { list: files })
   ctx.provide('remote.sessionReferenceResolver', { candidates: sessions })
   ctx.provide('locale', new LocaleRuntime(ctx))
-  ctx.provide('sessions', { list: { getSnapshot: () => ({ byId: listed }) } })
   const sessionStore = new TestSessions(async (action) => { await action() }, ctx)
   onTestFinished(async () => {
     await sessionStore.disposeScopes()
