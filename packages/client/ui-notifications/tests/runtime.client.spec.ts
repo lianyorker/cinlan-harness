@@ -76,7 +76,7 @@ function result(seq: number, text: string): SessionLiveEventEntry {
     type: 'tool/result', seq: SessionSeq(seq), time: 1, surfaceOp: 'append',
     data: { turn: 1, step: 1, message: createToolResultMessage({
       callId,
-      content: [{ type: 'text', text }],
+      content: [{ type: 'tool-result' as const, toolCallId: callId, content: [{ type: 'text' as const, text }], isError: false }],
       isError: false,
     }) },
   } }

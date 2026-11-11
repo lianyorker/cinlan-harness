@@ -12,13 +12,10 @@ exports[`ArchivedSessionsSection > renders the Chinese list, search, and restore
     >
       <svg
         aria-hidden="true"
-        data-content="36e55712"
-        fill="none"
+        data-content="f40ae8b7"
+        data-icon="dsw-icon-search-outline-medium"
         height="16"
-        stroke-width="1.3"
-        viewBox="0 0 16 16"
         width="16"
-        xmlns="http://www.w3.org/2000/svg"
       />
     </span>
     <input
@@ -60,13 +57,10 @@ exports[`ArchivedSessionsSection > renders the Chinese list, search, and restore
         >
           <svg
             aria-hidden="true"
-            data-content="9bf454ee"
-            fill="none"
+            data-content="2ddf233e"
+            data-icon="dsw-icon-trash-outline-regular"
             height="14"
-            stroke-width="1"
-            viewBox="0 0 16 16"
             width="14"
-            xmlns="http://www.w3.org/2000/svg"
           />
         </button>
         <button
@@ -105,13 +99,10 @@ exports[`ArchivedSessionsSection > renders the Chinese list, search, and restore
         >
           <svg
             aria-hidden="true"
-            data-content="9bf454ee"
-            fill="none"
+            data-content="2ddf233e"
+            data-icon="dsw-icon-trash-outline-regular"
             height="14"
-            stroke-width="1"
-            viewBox="0 0 16 16"
             width="14"
-            xmlns="http://www.w3.org/2000/svg"
           />
         </button>
         <button
@@ -139,13 +130,10 @@ exports[`ArchivedSessionsSection > renders the English list, search, and restore
     >
       <svg
         aria-hidden="true"
-        data-content="36e55712"
-        fill="none"
+        data-content="f40ae8b7"
+        data-icon="dsw-icon-search-outline-medium"
         height="16"
-        stroke-width="1.3"
-        viewBox="0 0 16 16"
         width="16"
-        xmlns="http://www.w3.org/2000/svg"
       />
     </span>
     <input
@@ -187,13 +175,10 @@ exports[`ArchivedSessionsSection > renders the English list, search, and restore
         >
           <svg
             aria-hidden="true"
-            data-content="9bf454ee"
-            fill="none"
+            data-content="2ddf233e"
+            data-icon="dsw-icon-trash-outline-regular"
             height="14"
-            stroke-width="1"
-            viewBox="0 0 16 16"
             width="14"
-            xmlns="http://www.w3.org/2000/svg"
           />
         </button>
         <button
@@ -232,13 +217,10 @@ exports[`ArchivedSessionsSection > renders the English list, search, and restore
         >
           <svg
             aria-hidden="true"
-            data-content="9bf454ee"
-            fill="none"
+            data-content="2ddf233e"
+            data-icon="dsw-icon-trash-outline-regular"
             height="14"
-            stroke-width="1"
-            viewBox="0 0 16 16"
             width="14"
-            xmlns="http://www.w3.org/2000/svg"
           />
         </button>
         <button
