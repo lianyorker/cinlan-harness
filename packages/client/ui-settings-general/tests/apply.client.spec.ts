@@ -15,6 +15,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { ok, type RemoteMock } from '@deepseek-ai/dsh-remote-mock'
 import type { SettingsNamespaceView } from '@deepseek-ai/dsh-settings/types'
+import { StaticRemoteAccess } from '@deepseek-ai/dsh-client-test-runtime'
 import { createClientTest, type TestClient, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import { graphFromRoster } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/roster.ts'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
@@ -93,6 +94,12 @@ async function bench(isLoopback = true) {
   })
   // The fixed Host facts the shell reads its loopback-only action from.
   remote.$host = { home: undefined, isLoopback }
+  // The general plugin needs the shell's own services; ui-settings supplies
+  // configForms/settingsScope/settingsMetadata itself.
+  new StaticRemoteAccess(ctx)
+  ctx.provide('connection', { state: { getSnapshot: () => 'connected', subscribe: () => () => {} } } as never)
+  ctx.provide('shortcuts', { register: () => () => {} } as never)
+  ctx.provide('modules', { entries: { state: { getSnapshot: () => ({ syncing: false, failures: [] }), subscribe: () => () => {} }, releaseChange: { getSnapshot: () => null, subscribe: () => () => {} }, dismissRelease: () => {} } } as never)
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, settingsDescribe, settingsOpenDocument }
 }
@@ -263,7 +270,7 @@ describe('ui-settings-general apply', () => {
     expect(t('connection.connecting')).toBe('重新连接中')
     expect(t('connection.connected')).toBe('连接成功')
     c.ctx.locale.setLocale('en')
-    expect(t('close')).toBe('Close')
+    expect(t('close')).toBe('Back to app')
     expect(t('connection.reconnect')).toBe('Disconnected, reconnect now')
     expect(t('connection.connecting')).toBe('Reconnecting')
     await vi.waitFor(() => {

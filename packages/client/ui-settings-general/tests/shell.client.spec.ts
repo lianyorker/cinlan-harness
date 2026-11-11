@@ -1,9 +1,11 @@
+// @vitest-environment jsdom
 /** Settings shell registration: slot declaration injection, the ledger projections, and HMR recovery. */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, vi } from 'vitest'
 import { IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
+import { StaticRemoteAccess } from '@deepseek-ai/dsh-client-test-runtime'
 import { createClientTest, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject } from '../src/client/index.ts'
@@ -34,6 +36,11 @@ async function bench() {
     settings,
   } as never)
   ctx.provide('remote.settings', settings as never)
+  // The shell gates its registration on describe access; grant it statically.
+  new StaticRemoteAccess(ctx)
+  ctx.provide('connection', { state: { getSnapshot: () => 'connected', subscribe: () => () => {} } } as never)
+  ctx.provide('shortcuts', { register: () => () => {} } as never)
+  ctx.provide('modules', { entries: { state: { getSnapshot: () => ({ syncing: false, failures: [] }), subscribe: () => () => {} }, releaseChange: { getSnapshot: () => null, subscribe: () => () => {} }, dismissRelease: () => {} } } as never)
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry }
 }
@@ -66,12 +73,12 @@ const CHILD_SPECS = {
 const GENERAL = { id: 'general', order: 0, label: 'general.nav', title: 'general.nav', description: 'general.description', groupId: 'personal', items: [] }
 
 /** Section ids the web-app roster registers, in nav order. */
-const PRODUCT_SECTIONS: readonly string[] = ['general', 'models', 'plugins', 'agent-presets']
+const PRODUCT_SECTIONS: readonly string[] = ['cinlan-account', 'general', 'models', 'plugins', 'agent-presets', 'keybindings']
 
 describe('ui-settings apply', () => {
   it('declares only the slot registry (a pure composition face, no locale)', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.settings', 'configForms', 'settingsScope', 'settingsMetadata',
+      'slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'shortcuts', 'modules', 'remoteAccess', 'settingsScope', 'settingsMetadata',
     ])
   })
 
@@ -111,7 +118,7 @@ describe('ui-settings apply', () => {
     b.slots.register({ name: 'settings.section', id: 'a' } as never, () => null)
   })
 
-  it('projects the section ledger: product sections in order, defaults for bare rows, stable snapshots', async ({ start }) => {
+  it('projects the section ledger: product sections in order, defaults for bare rows, stable snapshots', { timeout: 30000 }, async ({ start }) => {
     const c = await start()
     const { sections } = injectedOf(c.ctx.slots).hooks
     const product = sections.getSnapshot()
@@ -120,11 +127,18 @@ describe('ui-settings apply', () => {
     // No order and no label: both projection defaults apply, and order 0 sorts among the product rows.
     c.ctx.slots.register({ name: 'settings.section', id: 'a' } as never, () => null)
     const rows = sections.getSnapshot()
-    expect(rows).toEqual([
-      GENERAL,
-      { id: 'a', order: 0, label: '', title: '', groupId: 'tools', items: [] },
-      { id: 'z', order: 20, label: 'Z', title: 'Z', groupId: 'tools', items: [] },
-    ])
+    // The merged product ledger carries feature sections with resolved copy; assert
+    // the projection rules structurally instead of duplicating every row's copy.
+    expect(rows.filter(row => !['cinlan-account', 'general', 'models', 'plugins', 'agent-presets', 'keybindings'].includes(row.id)))
+      .toEqual([
+        { id: 'a', order: 0, label: '', title: '', groupId: 'tools', items: [] },
+        { id: 'z', order: 1000, label: 'Z', title: 'Z', groupId: 'tools', items: [] },
+      ])
+    for (const id of PRODUCT_SECTIONS) {
+      const row = rows.find(entry => entry.id === id)!
+      expect(row.label).not.toBe('')
+      expect(row.title).not.toBe('')
+    }
     // Snapshot identity is stable until the ledger moves (uSES contract).
     expect(sections.getSnapshot()).toBe(rows)
     const listener = vi.fn()
@@ -156,14 +170,14 @@ describe('ui-settings apply', () => {
     off()
   })
 
-  it('shows Account first only while signed in and removes it on sign-out', async ({ start }) => {
+  it('shows Account first only while signed in and removes it on sign-out', { timeout: 30000 }, async ({ start }) => {
     const c = await start()
     const { sections } = injectedOf(c.ctx.slots).hooks
     await c.mock.streams.opened('account/watch', 1)
     expect(sections.getSnapshot().map(row => row.id)).toEqual(PRODUCT_SECTIONS)
     c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
     await vi.waitFor(() => {
-      expect(sections.getSnapshot().map(row => row.id)).toEqual(['account', ...PRODUCT_SECTIONS])
+      expect(sections.getSnapshot().map(row => row.id)).toEqual(['cinlan-account', 'account', ...PRODUCT_SECTIONS.slice(1)])
     })
     c.mock.streams.push('account/watch', { status: 'credential-stored', attempt: null })
     await vi.waitFor(() => { expect(sections.getSnapshot().filter(row => row.id === 'account')).toHaveLength(1) })

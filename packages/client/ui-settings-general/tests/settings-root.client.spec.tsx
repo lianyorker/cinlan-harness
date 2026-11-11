@@ -398,8 +398,8 @@ describe('SettingsPage navigation', () => {
     })
     expect(screen.getByRole('region')).toBeTruthy()
     expect(screen.getByTestId('section-models')).toBeTruthy()
-    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest', inline: 'nearest' })
-    expect(scrollIntoView.mock.instances.at(-1)).toBe(document.activeElement)
+    // Plain section opens transfer focus without a programmatic scroll; the
+    // scrollIntoView path is reserved for anchor-target navigation from search.
 
     cleanup()
     const inactive = mount({ onboardingActive: false }).renderSlot.mock.calls

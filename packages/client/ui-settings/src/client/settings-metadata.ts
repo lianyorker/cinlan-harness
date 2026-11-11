@@ -145,13 +145,15 @@ export class SettingsMetadataService extends Service {
    */
   registerSection(input: SettingsSectionMetadata): () => void {
     const dispose = this.ctx.effect(() => {
-      const { sectionId, groupId, heading } = input
+      const { sectionId, groupId, heading, title, description } = input
       if (this.snapshot.sections.some(section => section.sectionId === sectionId)) {
         throw new Error(`settings metadata section "${sectionId}" is already registered`)
       }
       const section = Object.freeze({
         sectionId, groupId,
         ...(heading === undefined ? {} : { heading }),
+        ...(title === undefined ? {} : { title }),
+        ...(description === undefined ? {} : { description }),
       })
       this.publish([...this.snapshot.sections, section], this.snapshot.items)
       return () => {
