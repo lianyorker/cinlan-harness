@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-impacket/README.md
+/:
+  en: eda029f7be74b971
+  zh: 5fd659b7ced13d44
+/cinlan-tool-impacket:
+  en: 52c8da99cfcbd9f7
+  zh: 04b1a37b511bab79
+/cinlan-tool-impacket/summary:
+  en: e1a6769eed8da4de
+  zh: 8123e3bfd6b4f55c
+/cinlan-tool-impacket/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-impacket/use-this-package:
+  en: feec2e361f2e5f8b
+  zh: d0aab25ceae3b3b6
+/cinlan-tool-impacket/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas:
+  en: b5b4f35a5e6a3624
+  zh: 08cbc45193553c55
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas/what-the-model-sees:
+  en: 4bfde9ec28a83ff9
+  zh: 3e4ad3ed63ec37ad
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas/token-effect:
+  en: 045653aa8337ce86
+  zh: b229145f6ef4b8ba
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 66143d86da335745
+/cinlan-tool-impacket/known-limitations-and-deferred-work:
+  en: ecd4fb8b74178d9e
+  zh: 23242cf09484750e
+/cinlan-tool-impacket/known-limitations-and-deferred-work/dev-note:
+  en: b9c12e272b276f7b
+  zh: ea64ce0bda9c660c

@@ -63,6 +63,9 @@
 | `@cinlan/tool-masscan` | `masscan_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-katana` | `katana_crawl` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-gau` | `gau_urls` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-bloodhound` | `bloodhound_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -3200,6 +3203,210 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-gau/src/index.ts`](../packages/security/tool-gau/src/index.ts)
+
+<a id="cinlantool-bloodhound"></a>
+
+## `@cinlan/tool-bloodhound`
+
+### `bloodhound_enum`
+
+用一个已认证账户从已授权评估域收集目录数据（bloodhound-python -c All）并返回分诊摘要：各收集器的行数，以及从 users.json 提取的可 Kerberoast 与可 AS-REP Roast 账户清单。域名必须匹配当前评估范围授权中声明的目标，且凭据引用必须为该目标授予；收集是只读的目录枚举，不是利用。原始收集器 JSON 留在聚合后即删除的临时目录中。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to collect from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the collection."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "nameserver": {
+      "type": "string",
+      "description": "Domain controller address used as the -ns nameserver to resolve the domain."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-bloodhound/src/index.ts`](../packages/security/tool-bloodhound/src/index.ts)
+
+<a id="cinlantool-impacket"></a>
+
+## `@cinlan/tool-impacket`
+
+### `asrep_roast`
+
+对已授权评估域内无 Kerberos 预认证的账户请求预认证数据（impacket GetNPUsers），并返回 hashcat 格式、带账户名的 AS-REP Roasting hash 行以供离线破解。域名必须匹配当前评估范围授权中声明的目标，且凭据引用必须为该目标授予。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to enumerate no-pre-auth accounts for, as declared in the assessment scope grant."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the enumeration."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip when the domain needs explicit routing."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
+### `kerberoast`
+
+对已授权评估域内所有带 SPN 的账户请求服务票据（impacket GetUserSPNs），并返回 hashcat 格式、带账户名的 Kerberoasting hash 行以供离线破解。域名必须匹配当前评估范围授权中声明的目标，且凭据引用必须为该目标授予；这是凭据使用，不是利用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to enumerate SPN accounts for, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the request."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip when the domain needs explicit routing."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
+### `secrets_dump`
+
+用一个已认证账户从已授权评估主机转储本地 SAM 或目录凭据（impacket secretsdump），并返回结构化凭据行（账户、RID、LM/NT hash）。`-just-dc` 切换为针对域控制器的目录 DRSUAPI（DCSync）转储。主机与域必须匹配当前评估范围授权中声明的目标，且凭据引用必须授予；hash 按授权 evidence policy 返回以供离线分析。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Host to dump, as declared in the assessment scope grant (hostname or IP)."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Fully-qualified domain of the authenticated account."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the dump."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip, required for directory (DCSync) dumps."
+    },
+    "just_dc": {
+      "type": "boolean",
+      "description": "Dump directory credentials through DRSUAPI (-just-dc) instead of the local registry."
+    }
+  },
+  "required": [
+    "target_id",
+    "domain",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
+<a id="cinlantool-nxc"></a>
+
+## `@cinlan/tool-nxc`
+
+### `nxc_spray`
+
+用 nxc（NetExec）把一个已授权凭据对已授权评估主机上的候选账户逐一验证，并返回已抹除密码的结构化命中行。主机必须匹配当前评估范围授权中声明的目标，且凭据引用必须为该目标授予；线程数受部署配置封顶。这是凭据验证，不是利用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Host to validate credentials against, as declared in the assessment scope grant (hostname or IP)."
+    },
+    "usernames": {
+      "type": "array",
+      "description": "Candidate account names to try with the granted secret (1-100 entries)."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "protocol": {
+      "type": "string",
+      "description": "Protocol subcommand: smb (default), ldap, mssql, winrm, or ssh."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Fully-qualified domain for domain-qualified authentication attempts (-d)."
+    },
+    "threads": {
+      "type": "integer",
+      "description": "Parallel workers (--threads). The deployment-configured cap (maxThreads) limits the accepted value."
+    }
+  },
+  "required": [
+    "target_id",
+    "usernames",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-nxc/src/index.ts`](../packages/security/tool-nxc/src/index.ts)
 
 <a id="cinlantool-knowledge-search"></a>
 

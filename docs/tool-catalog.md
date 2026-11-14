@@ -59,6 +59,9 @@ This table connects model-visible tool names to the plugin package and service s
 | `@cinlan/tool-masscan` | `masscan_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-katana` | `katana_crawl` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-gau` | `gau_urls` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-bloodhound` | `bloodhound_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -3193,6 +3196,210 @@ Fetch known URLs for one authorized assessment target domain from passive histor
 ```
 
 Source: [`packages/security/tool-gau/src/index.ts`](../packages/security/tool-gau/src/index.ts)
+
+<a id="cinlantool-bloodhound"></a>
+
+## `@cinlan/tool-bloodhound`
+
+### `bloodhound_enum`
+
+Collect directory data from one authorized assessment domain with an authenticated account (bloodhound-python -c All) and return a triage summary: per-collector row counts plus the Kerberoastable and AS-REP Roastable account lists extracted from users.json. The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target; collection is read-only directory enumeration, not exploitation. Raw collector JSON stays in a temporary directory that is removed after aggregation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to collect from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the collection."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "nameserver": {
+      "type": "string",
+      "description": "Domain controller address used as the -ns nameserver to resolve the domain."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-bloodhound/src/index.ts`](../packages/security/tool-bloodhound/src/index.ts)
+
+<a id="cinlantool-impacket"></a>
+
+## `@cinlan/tool-impacket`
+
+### `asrep_roast`
+
+Request pre-authentication data for accounts without Kerberos pre-authentication in one authorized assessment domain (impacket GetNPUsers) and return hashcat-format AS-REP Roasting hash rows with account names for offline cracking. The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to enumerate no-pre-auth accounts for, as declared in the assessment scope grant."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the enumeration."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip when the domain needs explicit routing."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
+### `kerberoast`
+
+Request service tickets for all SPN-bearing accounts in one authorized assessment domain (impacket GetUserSPNs) and return hashcat-format Kerberoasting hash rows with account names for offline cracking. The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target; this is credential use, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to enumerate SPN accounts for, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the request."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip when the domain needs explicit routing."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
+### `secrets_dump`
+
+Dump local SAM or directory credentials from one authorized assessment host with an authenticated account (impacket secretsdump) and return structured credential rows (account, rid, LM/NT hash). `-just-dc` switches to the directory DRSUAPI (DCSync) dump against a domain controller. The host and domain must match targets declared in the active assessment-scope grant and the credential reference must be granted; hashes are returned for offline analysis under the grant evidence policy.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Host to dump, as declared in the assessment scope grant (hostname or IP)."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Fully-qualified domain of the authenticated account."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the dump."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip, required for directory (DCSync) dumps."
+    },
+    "just_dc": {
+      "type": "boolean",
+      "description": "Dump directory credentials through DRSUAPI (-just-dc) instead of the local registry."
+    }
+  },
+  "required": [
+    "target_id",
+    "domain",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
+<a id="cinlantool-nxc"></a>
+
+## `@cinlan/tool-nxc`
+
+### `nxc_spray`
+
+Try one granted credential against candidate accounts on one authorized assessment host with nxc (NetExec) and return structured hit rows with the secret scrubbed. The host must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target; the thread count is bounded by deployment config. This is credential validation, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Host to validate credentials against, as declared in the assessment scope grant (hostname or IP)."
+    },
+    "usernames": {
+      "type": "array",
+      "description": "Candidate account names to try with the granted secret (1-100 entries)."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "protocol": {
+      "type": "string",
+      "description": "Protocol subcommand: smb (default), ldap, mssql, winrm, or ssh."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Fully-qualified domain for domain-qualified authentication attempts (-d)."
+    },
+    "threads": {
+      "type": "integer",
+      "description": "Parallel workers (--threads). The deployment-configured cap (maxThreads) limits the accepted value."
+    }
+  },
+  "required": [
+    "target_id",
+    "usernames",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-nxc/src/index.ts`](../packages/security/tool-nxc/src/index.ts)
 
 <a id="cinlantool-knowledge-search"></a>
 

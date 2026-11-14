@@ -1395,7 +1395,13 @@
       "path": "./packages/security/engagement-ledger"
     },
     {
+      "path": "./packages/security/tool-bloodhound"
+    },
+    {
       "path": "./packages/security/tool-gau"
+    },
+    {
+      "path": "./packages/security/tool-impacket"
     },
     {
       "path": "./packages/security/tool-katana"
@@ -1405,6 +1411,9 @@
     },
     {
       "path": "./packages/security/tool-naabu"
+    },
+    {
+      "path": "./packages/security/tool-nxc"
     },
     {
       "path": "./packages/security/tool-nmap"

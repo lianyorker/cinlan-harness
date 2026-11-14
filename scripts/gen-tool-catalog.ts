@@ -103,6 +103,9 @@ import * as ToolFfuf from '@cinlan/tool-ffuf'
 import * as ToolMasscan from '@cinlan/tool-masscan'
 import * as ToolKatana from '@cinlan/tool-katana'
 import * as ToolGau from '@cinlan/tool-gau'
+import * as ToolBloodhound from '@cinlan/tool-bloodhound'
+import * as ToolImpacket from '@cinlan/tool-impacket'
+import * as ToolNxc from '@cinlan/tool-nxc'
 import BrowserRuntime from '@deepseek-ai/dsh-browser'
 import ComputerUseRuntime from '@deepseek-ai/dsh-computer-use'
 import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
@@ -863,6 +866,39 @@ const TOOL_PACKAGES: ToolPackage[] = [
     async mount(ctx) {
       await ctx.plugin(LocalSubprocessRuntime)
       await ctx.plugin(ToolGau)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-bloodhound',
+    dir: 'tool-bloodhound',
+    source: 'packages/security/tool-bloodhound/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolBloodhound)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-impacket',
+    dir: 'tool-impacket',
+    source: 'packages/security/tool-impacket/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolImpacket)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-nxc',
+    dir: 'tool-nxc',
+    source: 'packages/security/tool-nxc/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolNxc)
     },
   },
   {

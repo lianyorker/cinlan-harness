@@ -24,6 +24,9 @@
       "path": "../assessment-scope-session"
     },
     {
+      "path": "../../credentials/credentials"
+    },
+    {
       "path": "../../execution-host/execution-host"
     },
     {

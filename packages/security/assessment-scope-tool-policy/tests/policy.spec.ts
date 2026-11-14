@@ -27,6 +27,7 @@ async function mount(outcome: 'allow' | 'deny' | 'approval-required' = 'allow', 
     ...(config.shellTools === undefined ? {} : { shellTools: [...config.shellTools] }),
     ...(config.networkTools === undefined ? {} : { networkTools: [...config.networkTools] }),
     ...(config.browserTools === undefined ? {} : { browserTools: [...config.browserTools] }),
+    ...(config.credentialTools === undefined ? {} : { credentialTools: [...config.credentialTools] }),
     ...(config.workspaceCommands === undefined ? {} : { workspaceCommands: config.workspaceCommands.map(entry => ({ ...entry })) }),
   })
   return { ctx, authorize }
@@ -97,5 +98,35 @@ describe('assessment scope tool policy', () => {
     const ctx = new Context(); contexts.push(ctx); await ctx.plugin(SystemPrompt); await ctx.plugin(ToolRuntime)
     ctx.provide('assessmentScopeSessions', {} as never); ctx.provide('executionHost', {} as never)
     await expect(ctx.plugin(Policy, { shellTools: ['bash', 'bash'] })).rejects.toThrow(/invalid shellTools/)
+  })
+
+  it('maps credential tools onto credential-use with the presented credential reference', async () => {
+    const b = await mount('allow', { credentialTools: ['kerberoast'] })
+    const execution = makeExecution('kerberoast', { target_id: 'example.test', credential_ref: 'ASSESS_AD_PASS' })
+    await expect(pre(b.ctx, execution)).resolves.toMatchObject({ kind: 'allow' })
+    expect(b.authorize).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      action: 'credential-use',
+      credential: { ref: 'ASSESS_AD_PASS', purpose: 'target-authentication' },
+    }))
+  })
+
+  it('denies credential tool calls without a well-formed credential_ref', async () => {
+    const b = await mount('allow', { credentialTools: ['kerberoast'] })
+    for (const args of [{ target_id: 'example.test' }, { target_id: 'example.test', credential_ref: '' }, { target_id: 'example.test', credential_ref: 'bad ref!' }]) {
+      await expect(pre(b.ctx, makeExecution('kerberoast', args))).resolves.toMatchObject({ kind: 'deny' })
+    }
+    expect(b.authorize).not.toHaveBeenCalled()
+  })
+
+  it('asks for approval when the scope service requires it for credential use', async () => {
+    const b = await mount('approval-required', { credentialTools: ['nxc_spray'] })
+    const execution = makeExecution('nxc_spray', { target_id: 'example.test', credential_ref: 'ASSESS_AD_PASS' })
+    await expect(pre(b.ctx, execution)).resolves.toMatchObject({ kind: 'ask' })
+  })
+
+  it('rejects invalid credentialTools configuration at load', async () => {
+    for (const credentialTools of [[''], [' keroboast'], ['dup', 'dup']]) {
+      await expect(mount('deny', { credentialTools })).rejects.toThrow(/invalid credentialTools/)
+    }
   })
 })

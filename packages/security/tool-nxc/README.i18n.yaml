@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-nxc/README.md
+/:
+  en: d2d42ac96b8fac1c
+  zh: 5793cb13cd2f80ff
+/cinlan-tool-nxc:
+  en: cba35ae34f12d184
+  zh: e2e0cb2051b020c2
+/cinlan-tool-nxc/summary:
+  en: 77d87067dcd21625
+  zh: 337eb413d5532734
+/cinlan-tool-nxc/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-nxc/use-this-package:
+  en: 844f3e7056e66a44
+  zh: c076a4c28a74733a
+/cinlan-tool-nxc/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-nxc/model-experience/nxc-spray-tool-schema:
+  en: 3586df6bdaa212c8
+  zh: 30c67691ba30b4c5
+/cinlan-tool-nxc/model-experience/nxc-spray-tool-schema/what-the-model-sees:
+  en: d2ae6790f042a879
+  zh: c88ff52e52e88b60
+/cinlan-tool-nxc/model-experience/nxc-spray-tool-schema/token-effect:
+  en: dc82d6e409f6be6b
+  zh: c89f820ecd4100e1
+/cinlan-tool-nxc/model-experience/nxc-spray-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 66143d86da335745
+/cinlan-tool-nxc/known-limitations-and-deferred-work:
+  en: bebfae8dfd9566ae
+  zh: 3684016be6154d65
+/cinlan-tool-nxc/known-limitations-and-deferred-work/dev-note:
+  en: 843954c9817aff4d
+  zh: 6639944c8e7ed1e3

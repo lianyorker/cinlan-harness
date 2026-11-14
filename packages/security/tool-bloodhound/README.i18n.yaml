@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-bloodhound/README.md
+/:
+  en: 14e108561887405f
+  zh: 08d0a3f05164ae2a
+/cinlan-tool-bloodhound:
+  en: 6975d57ec678eec1
+  zh: 3f4abe95a30ac3b6
+/cinlan-tool-bloodhound/summary:
+  en: a57303d8b1ce35a0
+  zh: 985b524252c44381
+/cinlan-tool-bloodhound/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-bloodhound/use-this-package:
+  en: 6de126bec5db733b
+  zh: abdd23fe17b038dc
+/cinlan-tool-bloodhound/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-bloodhound/model-experience/bloodhound-enum-tool-schema:
+  en: 05d03ec5402964ba
+  zh: b3b06dde3f44ab32
+/cinlan-tool-bloodhound/model-experience/bloodhound-enum-tool-schema/what-the-model-sees:
+  en: 6108a1468051c914
+  zh: 6162e21c574f50d8
+/cinlan-tool-bloodhound/model-experience/bloodhound-enum-tool-schema/token-effect:
+  en: dc82d6e409f6be6b
+  zh: c89f820ecd4100e1
+/cinlan-tool-bloodhound/model-experience/bloodhound-enum-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 66143d86da335745
+/cinlan-tool-bloodhound/known-limitations-and-deferred-work:
+  en: 92eb32f738ea7f69
+  zh: 720ac9dd6ee5bf62
+/cinlan-tool-bloodhound/known-limitations-and-deferred-work/dev-note:
+  en: aae0b9234fc3222c
+  zh: 988ab30986319d09

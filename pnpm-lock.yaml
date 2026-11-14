@@ -34,6 +34,9 @@ importers:
       '@cinlan/knowledge-base':
         specifier: workspace:*
         version: link:packages/knowledge/knowledge-base
+      '@cinlan/tool-bloodhound':
+        specifier: workspace:*
+        version: link:packages/security/tool-bloodhound
       '@cinlan/tool-ffuf':
         specifier: workspace:*
         version: link:packages/security/tool-ffuf
@@ -43,6 +46,9 @@ importers:
       '@cinlan/tool-httpx':
         specifier: workspace:*
         version: link:packages/security/tool-httpx
+      '@cinlan/tool-impacket':
+        specifier: workspace:*
+        version: link:packages/security/tool-impacket
       '@cinlan/tool-katana':
         specifier: workspace:*
         version: link:packages/security/tool-katana
@@ -61,6 +67,9 @@ importers:
       '@cinlan/tool-nuclei':
         specifier: workspace:*
         version: link:packages/security/tool-nuclei
+      '@cinlan/tool-nxc':
+        specifier: workspace:*
+        version: link:packages/security/tool-nxc
       '@cinlan/tool-subfinder':
         specifier: workspace:*
         version: link:packages/security/tool-subfinder
@@ -4530,6 +4539,9 @@ importers:
       '@cinlan/security-skills':
         specifier: workspace:^
         version: link:../../security/security-skills
+      '@cinlan/tool-bloodhound':
+        specifier: workspace:^
+        version: link:../../security/tool-bloodhound
       '@cinlan/tool-ffuf':
         specifier: workspace:^
         version: link:../../security/tool-ffuf
@@ -4539,6 +4551,9 @@ importers:
       '@cinlan/tool-httpx':
         specifier: workspace:^
         version: link:../../security/tool-httpx
+      '@cinlan/tool-impacket':
+        specifier: workspace:^
+        version: link:../../security/tool-impacket
       '@cinlan/tool-katana':
         specifier: workspace:^
         version: link:../../security/tool-katana
@@ -4554,6 +4569,9 @@ importers:
       '@cinlan/tool-nuclei':
         specifier: workspace:^
         version: link:../../security/tool-nuclei
+      '@cinlan/tool-nxc':
+        specifier: workspace:^
+        version: link:../../security/tool-nxc
       '@cinlan/tool-subfinder':
         specifier: workspace:^
         version: link:../../security/tool-subfinder
@@ -18790,6 +18808,9 @@ importers:
       '@deepseek-ai/dsh-browser':
         specifier: workspace:^
         version: link:../../browser/browser
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@deepseek-ai/dsh-execution-host':
         specifier: workspace:^
         version: link:../../execution-host/execution-host
@@ -18963,6 +18984,21 @@ importers:
         specifier: workspace:^
         version: link:../../core/system-prompt
 
+  packages/security/tool-bloodhound:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-ffuf:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -19042,6 +19078,21 @@ importers:
         specifier: workspace:^
         version: link:../../core/tools
 
+  packages/security/tool-impacket:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-katana:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -19095,6 +19146,21 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-nxc:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess

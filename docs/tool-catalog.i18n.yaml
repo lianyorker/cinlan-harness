@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 8eb80fb8549dddde
-  zh: b97e9b2f71233683
+  en: 2e5804e1655baadf
+  zh: 20633d536062e9b0
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -399,8 +399,32 @@
   en: 1ecdc2b91ee85851
   zh: 1ecdc2b91ee85851
 /tool-schema-catalog/cinlan-tool-gau/gau-urls:
-  en: 4ca34247e80f4057
-  zh: 19bb937e1cd1b6d8
+  en: ffaa048ae97b43f9
+  zh: 900d6e7d6db1c869
+/tool-schema-catalog/cinlan-tool-bloodhound:
+  en: 6128f4f3d2253b3a
+  zh: 6128f4f3d2253b3a
+/tool-schema-catalog/cinlan-tool-bloodhound/bloodhound-enum:
+  en: 7dbf60e9ee7a6e56
+  zh: 52650fa0438a6aa1
+/tool-schema-catalog/cinlan-tool-impacket:
+  en: 1f09216e7ea59b9e
+  zh: 1f09216e7ea59b9e
+/tool-schema-catalog/cinlan-tool-impacket/asrep-roast:
+  en: aab55384924a1437
+  zh: 9a912c3387a28908
+/tool-schema-catalog/cinlan-tool-impacket/kerberoast:
+  en: 16cf18bc00e320cd
+  zh: f48e98c114202192
+/tool-schema-catalog/cinlan-tool-impacket/secrets-dump:
+  en: f6b2fa6dad963c5b
+  zh: f692cba68be331fb
+/tool-schema-catalog/cinlan-tool-nxc:
+  en: 303c481addf10a03
+  zh: 303c481addf10a03
+/tool-schema-catalog/cinlan-tool-nxc/nxc-spray:
+  en: e1351d32839d0281
+  zh: 148be75ccf4d132c
 /tool-schema-catalog/cinlan-tool-knowledge-search:
   en: ae89aad320d90482
   zh: ae89aad320d90482

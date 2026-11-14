@@ -6,6 +6,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { AssessmentTargetId } from '@deepseek-ai/dsh-assessment-scope'
 import type { AssessmentAction, AssessmentOperationEgress, AssessmentTarget } from '@deepseek-ai/dsh-assessment-scope'
 import type { AssessmentScopeSessions, AssessmentSessionOperation } from '@deepseek-ai/dsh-assessment-scope-session'
+import { credentialRef, isCredentialRefName } from '@deepseek-ai/dsh-credentials'
 import type { ExecutionHostService } from '@deepseek-ai/dsh-execution-host'
 import type { PreToolDecision, ToolExecution } from '@deepseek-ai/dsh-tools'
 
@@ -20,6 +21,8 @@ export interface Config {
   readonly networkTools?: readonly string[]
   /** Tool names that inspect or operate Browser pages. */
   readonly browserTools?: readonly string[]
+  /** Tool names that resolve an assessment credential and constitute credential use. */
+  readonly credentialTools?: readonly string[]
   /** Exact shell commands admitted in the calling Session's workspace without assessment authority. Sandbox policy still applies. */
   readonly workspaceCommands?: readonly {
     /** Configured shell tool name. */
@@ -34,6 +37,7 @@ export const Config = schema.object({
   shellTools: schema.array(schema.string()),
   networkTools: schema.array(schema.string()),
   browserTools: schema.array(schema.string()),
+  credentialTools: schema.array(schema.string()),
   workspaceCommands: schema.array(schema.object({ tool: schema.string().required(), command: schema.string().required() })),
 })
 
@@ -48,7 +52,7 @@ const DEFAULT_BROWSER = [
   'browser_history', 'browser_network', 'browser_home', 'browser_search', 'browser_back',
   'browser_forward', 'browser_open', 'browser_navigate', 'browser_click', 'browser_close',
 ] as const
-const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools', 'workspaceCommands'])
+const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools', 'credentialTools', 'workspaceCommands'])
 
 function selected(value: readonly string[] | undefined, fallback: readonly string[], name: string): Set<string> {
   const result = value === undefined || value.length === 0 ? fallback : value
@@ -56,6 +60,19 @@ function selected(value: readonly string[] | undefined, fallback: readonly strin
     || new Set(result).size !== result.length
   if (invalid) throw new TypeError(`assessment-scope-tool-policy: invalid ${name}`)
   return new Set(result)
+}
+
+/**
+ * Resolve the credential tool list: absent or empty means no credential
+ * tools are enforced (the loader schema normalizes an unset array to []);
+ * a provided list must be trimmed and duplicate-free.
+ */
+function credentialSelected(value: readonly string[] | undefined): Set<string> {
+  if (value === undefined || value.length === 0) return new Set<string>()
+  const invalid = value.some(item => item.length === 0 || item.trim() !== item)
+    || new Set(value).size !== value.length
+  if (invalid) throw new TypeError('assessment-scope-tool-policy: invalid credentialTools')
+  return new Set(value)
 }
 function argsOf(exec: ToolExecution): Record<string, unknown> { return typeof exec.arguments === 'object' && exec.arguments !== null && !Array.isArray(exec.arguments) ? exec.arguments as Record<string, unknown> : {} }
 function urlOf(value: unknown): URL | undefined { if (typeof value !== 'string') return undefined; try { const url = new URL(value); return url.protocol === 'http:' || url.protocol === 'https:' ? url : undefined } catch { return undefined } }
@@ -72,6 +89,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const shell = selected(config.shellTools, DEFAULT_SHELL, 'shellTools')
   const network = selected(config.networkTools, DEFAULT_NETWORK, 'networkTools')
   const browser = selected(config.browserTools, DEFAULT_BROWSER, 'browserTools')
+  const credential = credentialSelected(config.credentialTools)
   const workspaceCommands = config.workspaceCommands ?? []
   const commandKeys = new Set<string>()
   for (const entry of workspaceCommands) {
@@ -115,18 +133,35 @@ export function apply(ctx: Context, config: Config = {}): void {
     if (url !== undefined) target = targetFor(grant, url.hostname) ?? target
     const browserRead = exec.name === 'browser_list' || exec.name === 'browser_snapshot' || exec.name === 'browser_screenshot'
       || exec.name === 'browser_history' || exec.name === 'browser_network' || exec.name === 'browser_downloads'
-    const action: AssessmentAction = browser.has(exec.name)
-      ? (browserRead ? 'reconnaissance' : 'active-validation')
-      : network.has(exec.name) ? 'reconnaissance' : 'active-validation'
+    const action: AssessmentAction = credential.has(exec.name)
+      ? 'credential-use'
+      : browser.has(exec.name)
+        ? (browserRead ? 'reconnaissance' : 'active-validation')
+        : network.has(exec.name) ? 'reconnaissance' : 'active-validation'
     const egress: AssessmentOperationEgress | undefined = url === undefined ? undefined : {
       protocol: url.protocol.slice(0, -1) as 'http' | 'https', host: url.hostname,
       port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)), purpose: 'target-access',
     }
-    return { action, targetId: target?.id ?? AssessmentTargetId('missing-target'), executionHostId: hosts.current().hostId, ...(egress === undefined ? {} : { egress }) }
+    const refName = typeof args.credential_ref === 'string' ? args.credential_ref : undefined
+    if (credential.has(exec.name) && (refName === undefined || !isCredentialRefName(refName))) {
+      throw new Error('Assessment scope authorization requires a well-formed credential_ref argument.')
+    }
+    return {
+      action,
+      targetId: target?.id ?? AssessmentTargetId('missing-target'),
+      executionHostId: hosts.current().hostId,
+      ...(egress === undefined ? {} : { egress }),
+      ...(credential.has(exec.name) && refName !== undefined ? {
+        credential: { ref: credentialRef(refName), purpose: 'target-authentication' as const },
+      } : {}),
+    }
   }
   ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
     const agent = exec.agent
-    if (agent === undefined || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name))) return next()
+    if (agent === undefined
+      || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name) && !credential.has(exec.name))) {
+      return next()
+    }
     try {
       if (await workspaceCommand(exec)) { admitted.add(exec); return await next() }
       const decision = sessions.authorize(agent.session, operationFor(exec))
@@ -136,7 +171,10 @@ export function apply(ctx: Context, config: Config = {}): void {
     } catch (error) { return { kind: 'deny', reason: error instanceof Error ? error.message : 'Assessment scope authorization failed.' } }
   })
   ctx.tools.guard((exec) => {
-    if (exec.agent === undefined || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name))) return undefined
+    if (exec.agent === undefined
+      || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name) && !credential.has(exec.name))) {
+      return undefined
+    }
     return admitted.delete(exec) ? undefined : 'Assessment scope authorization was not admitted for this tool call.'
   })
 }

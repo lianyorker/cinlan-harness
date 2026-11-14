@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-此可选 Consumer 在 shell、网络和 Browser 模型工具执行前检查评估范围，支持显式配置的工作区命令例外，并安装防止监听器绕过的单调守卫。
+此可选 Consumer 在 shell、网络、Browser 和凭据模型工具执行前检查评估范围，支持显式配置的工作区命令例外，并安装防止监听器绕过的单调守卫。
 
 ## 目录
 
@@ -22,6 +22,8 @@ kind: "package-reference"
 ## 使用本包
 
 在 assessment-scope-session 和 execution-host 之后挂载。默认集合覆盖 `bash`、`pwsh`、`web_search`、`web_fetch` 和原生 Browser 工具。无法解析目标的调用会被拒绝；URL 调用还需要目标范围网络出口。`finding_export` 由自身 Consumer 使用相同的 report-download 操作单独校验。
+
+`credentialTools` 默认为空（不启用任何凭据工具）。每个列入的工具调用映射为 `credential-use` 动作，且必须携带格式合法的 `credential_ref` 参数（已授权密钥的 env-var 语法名字，绝不是值）；Consumer 把该引用解析为运算凭据，供范围服务按 `target-authentication` 用途与授权的 `credentials` 条目匹配。把 `credential-use` 列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示。缺省或空列表均不启用凭据工具；提供的列表必须无首尾空白且无重复。
 
 `workspaceCommands` 默认为空列表。每项指定已配置的 shell `tool` 和精确 `command`；空值、首尾空白、重复项或非 shell 项会在加载时失败。匹配调用必须具有绝对路径的 Session 工作区，且实际工作目录存在、解析后的路径位于工作区内。显式目标或 URL 参数、sandbox 权限覆盖及后台执行不适用此例外。未匹配的调用继续检查评估范围；获准的工作区命令仍经过下游守卫和 sandbox policy。
 
