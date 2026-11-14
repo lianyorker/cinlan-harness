@@ -276,4 +276,56 @@ securityInstallCommand: 'dsh --profile security-research',
 
 ### 9.3 P0 后续批次
 
-1. 域环境批次：`bloodhound_enum` / `impacket_*` / `nxc_spray`（P0 第二半，凭据类动作需接 `approvalRequiredActions`）
+1. 域环境批次：`bloodhound_enum` / `impacket_*` / `nxc_spray`（设计见 9.4，待确认后实施）
+
+### 9.4 域环境批次设计草案（待确认，不写码）
+
+#### 授权模型现状（设计依据）
+
+- `AssessmentAction` 已含 `credential-use`；grant 的 `approvalRequiredActions` 含 `credential-use` 时 `authorize()` 返回 `approval-required`，`assessment-scope-tool-policy` 的 pre-execute 会将其转为 `kind:'ask'` 走现有人工审批链路——**审批机制零新增代码**。
+- `credential-use` 授权强制要求 `operation.credential = {ref, purpose:'target-authentication'}` 且与 `grant.credentials` 条目精确匹配（ref + targetId）；缺 credential 直接 deny。
+- 现缺口：`assessment-scope-tool-policy` 只有 shellTools/networkTools/browserTools 三类，从不构造 `operation.credential`。
+
+#### 第一波工具（5 个，全部映射 `credential-use`）
+
+| 工具名 | 外部命令 | 包 | 说明 |
+|--------|----------|-----|------|
+| `bloodhound_enum` | `bloodhound-python -c All` | `tool-bloodhound` | LDAP 收集，产物聚合为摘要行（DC/管理员/可 Kerberoast 账户计数与清单），mkdtemp 临时目录执行后清理 |
+| `kerberoast` | `impacket-GetUserSPNs` | `tool-impacket` | 导出 hashcat/john 格式 hash 行 |
+| `asrep_roast` | `impacket-GetNPUsers` | `tool-impacket` | 无预认证账户 hash 行 |
+| `secrets_dump` | `impacket-secretsdump` | `tool-impacket` | SAM/LDAP/NTDS 导出（含 DCSync 路径 `-just-dc`） |
+| `nxc_spray` | `nxc <protocol> --continue-on-success` | `tool-nxc` | 密码喷洒，命中行解析 |
+
+impacket 采用一包多工具（`tool-subagent-control` 先例；catalog source 用 map）。`command` Config 可覆盖为 venv 绝对路径。
+
+推迟项：`Responder`/`ntlmrelayx`（投毒+本地监听器，生命周期为常驻监听而非一次性 subprocess，与"不发出回连参数"约束冲突，需先设计 listener 生命周期——ctx.jobs 后台作业 + 本地 bind 白名单 + `exploit-execution` 动作，放第二批）；DCSync 单列（secretsdump 已覆盖）、委派/ADCS（certipy、rbcd）第二批增量。
+
+#### `assessment-scope-tool-policy` 扩展（唯一授权侧改动）
+
+新增第 4 类 `credentialTools: readonly string[]`：
+
+- action 映射为 `credential-use`；
+- 从 tool args 读 `credential_ref`（必填参数，`isCredentialRefName` 语法校验，非法即 deny），构造 `operation.credential = {ref, purpose:'target-authentication'}`；
+- 需要负路径 spec（无 ref、ref 语法错、grant 未列该 ref、approval 弹 `ask`）。
+
+#### 凭据安全链路
+
+- 模型参数只带 `username`（UPN，非机密可见）+ `credential_ref`（env-var 名，模型永远见不到密码值）；resolve 在工具 execute 内经 `ctx.get('credentials')`（optional service，缺 provider 报明确错误）。
+- 密码以 argv 注入子进程（impacket/nxc 原生方式）；session log 只记 tool args（ref 名），密码不进日志。已知限制：argv 本机 process listing 可见，README 记录。
+- Kerberos 票据（ccache）第一版不做。
+
+#### 解析与红线
+
+- `secrets_dump` 结果含 hash/明文：默认 `full` 回显（核心工作流需要 hash 走离线破解；留存期限由 grant evidence policy 约束），Config `redactionLevel: 'full'|'masked'` 备选部署收紧。
+- egress 第一版不构造（与现有 9 个侦察工具一致，授权由 target + action + credential 三重把关）；逐端口 egress 白名单留作后续收紧项。
+- 其余红线同现有包：scope 检查全在上游、固定输出标志、无文件输出/回连参数（bloodhound 的 mkdtemp 产物目录例外，工具自清理）、32MiB stdout 上限 + `enforceResultBytes`。
+
+#### 待 LY 决策
+
+1. 第一波 5 工具范围（Responder/ntlmrelayx 推迟）是否 OK；
+2. `secrets_dump` 默认 `full` 还是 `masked`；
+3. egress 第一版不构造是否 OK；
+4. impacket 一包三工具 vs 拆三包；
+5. 用户名模型可见、密码走 `credential_ref` 是否 OK。
+
+确认后按 9.1 接线清单实施（多一项 `credentialTools` 配置）。
