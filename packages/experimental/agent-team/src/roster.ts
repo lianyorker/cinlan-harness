@@ -152,7 +152,10 @@ export class TeamRoster {
           ? 'failed'
           : member.phase === 'provisioning'
             ? 'provisioning'
-            : live?.status ?? 'inactive',
+            // The model-facing member contract collapses runtime `idle` into
+            // `inactive` ("no turn executing"); the Lead pseudo-row keeps the
+            // live Agent status vocabulary.
+            : live === undefined || live.status === 'idle' ? 'inactive' : live.status,
         description: member.description,
         provider: member.provider,
         context: member.context,
@@ -194,7 +197,7 @@ export class TeamRoster {
    * @param targetName - durable teammate name.
    * @returns the target status sampled before cancellation.
    */
-  interrupt(caller: Agent, targetName: string): { previousStatus: 'running' | 'idle' | 'inactive' } {
+  interrupt(caller: Agent, targetName: string): { previousStatus: 'running' | 'inactive' } {
     const membership = this.membership(caller)
     if (membership.role !== 'lead') throw new TeamError('only the Team Lead can interrupt teammates', 'TEAM_LEAD_REQUIRED')
     const state = this.journal.state(membership.root)
@@ -202,7 +205,9 @@ export class TeamRoster {
     if (target.id === membership.root.id) throw new TeamError('the Team Lead cannot interrupt itself', 'TEAM_INVALID_TARGET')
     const live = this.ctx.agents.get(target.id)
     if (live === undefined) return { previousStatus: 'inactive' }
-    const previousStatus = live.status
+    // The model-facing member contract collapses runtime `idle` into `inactive`
+    // ("no turn executing"); the sampled pre-cancellation status reports the same.
+    const previousStatus = live.status === 'idle' ? 'inactive' : live.status
     this.ctx.subagents.interrupt(target.id, { kind: 'ancestor', agent: caller })
     return { previousStatus }
   }
@@ -588,7 +593,9 @@ export class TeamRoster {
       id: member.id,
       name: member.name,
       role: 'teammate',
-      status: live?.status ?? 'inactive',
+      // The model-facing member contract collapses runtime `idle` into
+      // `inactive` ("no turn executing").
+      status: live === undefined || live.status === 'idle' ? 'inactive' : live.status,
       description: member.description,
       provider: member.provider,
       context: member.context,

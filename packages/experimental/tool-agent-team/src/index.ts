@@ -59,14 +59,14 @@ function resolveToolNames(toolNaming: 'override' | 'team-prefixed'): ToolNames {
 
 
 /** Model-facing collaboration guidance shared by Lead and teammates. */
-function teamPolicy(interrupt: boolean): string {
+function teamPolicy(interrupt: boolean, names: ToolNames): string {
   return `Agent Teams is available in this session
 
 The Team Lead and all teammates share the same working directory and filesystem by default. When a teammate is spawned with workspace_mode: 'worktree', it runs in an isolated Git worktree checkout. Edits in shared workspaces are immediately visible to every member. Split write work into disjoint scopes, record expected write scopes on shared tasks, and use task dependencies when work must be ordered. Write-scope overlap is advisory, not a lock.
 
 Prefer read/edit/write for file changes. If a file operation returns FS_STALE_VERSION, read the current file, rebase your intended change onto the new content, and retry. Bash, formatters, code generators, and scripts are not fully protected by the filesystem version guard; coordinate them explicitly and have the Lead review the final diff and run tests.
 
-Use the target returned by spawn_teammate or list_agents for send_message${interrupt ? ' and interrupt_agent' : ''}, or as owner when assigning or filtering shared tasks. send_message steers a running target at its nearest step boundary and starts or resumes an inactive target. inactive means no turn is executing; it does not describe task completion, success, failure, or waiting for other agents. provisioning means member creation is in progress; failed means member creation failed. A peer message starts with its sender name. A successful send does not mean the recipient has processed it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. Before wait_agent, use list_agents and make sure another required member is running or provisioning; use send_message first when the required member is inactive. wait_agent observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`
+Use the target returned by spawn_teammate or ${names.listAgents} for ${names.sendMessage}${interrupt ? ` and ${names.interruptAgent}` : ''}, or as owner when assigning or filtering shared tasks. ${names.sendMessage} steers a running target at its nearest step boundary and starts or resumes an inactive target. inactive means no turn is executing; it does not describe task completion, success, failure, or waiting for other agents. provisioning means member creation is in progress; failed means member creation failed. A peer message starts with its sender name. A successful send does not mean the recipient has processed it. Shared-task workflow is list, get, claim with the current revision, perform the work, then complete. Task readiness never starts an owner. Before ${names.waitAgent}, use ${names.listAgents} and make sure another required member is running or provisioning; use ${names.sendMessage} first when the required member is inactive. ${names.waitAgent} observes only changes after that call starts, never wakes a member, and returns noProgress immediately when no other member can produce a change. Re-list after wakeup or timeout. The Lead must wait for required teammates before giving the final answer.`
 }
 
 const ACTIVE_WAIT_STATUSES: ReadonlySet<TeamMemberView['status']> = new Set(['running', 'provisioning'])
@@ -76,38 +76,43 @@ function buildNoActivePeerMessage(names: ToolNames): string {
 }
 
 /**
- * One roster row, matching `TeamMemberView`. The Lead pseudo-row omits the
- * teammate-only provisioning fields, so only identity, role, status, and
- * diagnostics are required.
+ * One model-facing roster row. `target` names the member for message,
+ * interrupt, and task-assignment calls; runtime ids and provider plumbing
+ * stay behind the service. Runtime `idle` collapses into `inactive` because
+ * the model contract defines inactive as "no turn executing". The Lead
+ * pseudo-row omits the teammate-only description field.
  */
 const MEMBER_VIEW_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    id: { type: 'string', required: true },
-    name: { type: 'string', required: true },
+    target: { type: 'string', required: true },
     role: { type: 'string', required: true, enum: ['lead', 'teammate'] },
-    status: { type: 'string', required: true, enum: ['running', 'idle', 'inactive', 'provisioning', 'failed'] },
+    status: { type: 'string', required: true, enum: ['running', 'inactive', 'provisioning', 'failed'] },
     description: { type: 'string' },
-    provider: { type: 'string' },
-    context: { type: 'string', enum: ['fresh', 'fork'] },
-    workspaceMode: { type: 'string', enum: ['inherit', 'worktree', 'integrated'] },
-    worktreeTaskId: { type: 'string' },
-    integration: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        taskId: { type: 'string', required: true },
-        branch: { type: 'string', required: true },
-        sourceBranch: { type: 'string', required: true },
-        sourceHeadBefore: { type: 'string', required: true },
-        sourceHeadAfter: { type: 'string', required: true },
-      },
-    },
-    model: { type: 'string' },
     diagnostics: { type: 'array', required: true, items: { type: 'string' } },
   },
 } as const
+
+/** Model-facing projection of one runtime roster row. */
+interface MemberRow {
+  target: string
+  role: TeamMemberView['role']
+  status: 'running' | 'inactive' | 'provisioning' | 'failed'
+  description?: string
+  diagnostics: string[]
+}
+
+/** Project one runtime roster row onto the model-facing member fields. */
+function memberValue(member: TeamMemberView): MemberRow {
+  return {
+    target: member.name,
+    role: member.role,
+    status: member.status === 'idle' ? 'inactive' : member.status,
+    ...(member.description === undefined ? {} : { description: member.description }),
+    diagnostics: member.diagnostics,
+  }
+}
 
 /** One shared task, matching the public `TeamTaskView`. */
 const TASK_VIEW_SCHEMA = {
@@ -181,7 +186,7 @@ const INTERRUPT_VALUE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    previousStatus: { type: 'string', required: true, enum: ['running', 'idle', 'inactive'] },
+    previousStatus: { type: 'string', required: true, enum: ['running', 'inactive'] },
   },
 } as const
 
@@ -228,7 +233,7 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
     register(scoped.systemPrompt.section({
       name: 'team:policy',
       order: scoped.systemPrompt.getSectionOrder('TEAM_POLICY'),
-      text: teamPolicy(config.interrupt),
+      text: teamPolicy(config.interrupt, names),
     }))
     register(scoped.systemPrompt.context({
       name: 'team:identity',
@@ -238,9 +243,9 @@ function install(agent: Agent, ctx: Context, config: Required<Config>): () => vo
         const { role, name } = ctx.agentTeams.membership(agent)
         return `${role === 'lead'
           ? 'You are the Team Lead named "lead".'
-          : `You are teammate "${name}".\nYour Team Lead is named "lead".\nTo message your Team Lead, use send_message({ target: "lead", message: "..." }).`}
-Use list_agents({}) to find your teammates and their names.
-To message another teammate, use send_message({ target: "<teammate name>", message: "..." }).`
+          : `You are teammate "${name}".\nYour Team Lead is named "lead".\nTo message your Team Lead, use ${names.sendMessage}({ target: "lead", message: "..." }).`}
+Use ${names.listAgents}({}) to find your teammates and their names.
+To message another teammate, use ${names.sendMessage}({ target: "<teammate name>", message: "..." }).`
       },
     }))
 
@@ -267,7 +272,7 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
         const agent = callingAgent(exec.agent, 'spawn_teammate')
         const context = args.context ?? 'fresh'
         const workspaceMode = args.workspace_mode ?? 'inherit'
-        return await ctx.agentTeams.spawnTeammate(agent, {
+        const { member } = await ctx.agentTeams.spawnTeammate(agent, {
           name: args.name,
           description: args.description,
           prompt: [{ type: 'text', text: args.prompt }],
@@ -276,6 +281,7 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
           workspaceMode,
           signal: exec.signal,
         })
+        return { member: memberValue(member) }
       },
     })))
 
@@ -319,12 +325,12 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
       parameters: {},
       output: jsonOutput(MEMBER_LIST_VALUE_SCHEMA),
       async execute(_args, exec) {
-        return Promise.resolve(ctx.agentTeams.listMembers(callingAgent(exec.agent, names.listAgents)))
+        return Promise.resolve(ctx.agentTeams.listMembers(callingAgent(exec.agent, names.listAgents)).map(memberValue))
       },
     })))
 
     register(scoped.tools.register(defineTool({
-      name: 'wait_agent',
+      name: names.waitAgent,
       description: 'Wait for the next teammate status, message, or shared-task change after this call starts. This never wakes inactive members and returns noProgress immediately when no other member is running or provisioning. Re-list after wakeup or timeout instead of polling.',
       parameters: {
         timeout_ms: {
@@ -360,14 +366,14 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
 
     if (config.interrupt) {
       register(scoped.tools.register(defineTool({
-        name: 'interrupt_agent',
+        name: names.interruptAgent,
         description: 'Interrupt one teammate\'s current turn while preserving its pending inbox. Team Lead only.',
         parameters: {
           target: { type: 'string', required: true, description: 'Teammate target returned by spawn_teammate or list_agents.' },
         },
         output: jsonOutput(INTERRUPT_VALUE_SCHEMA),
         execute(args, exec) {
-          return Promise.resolve(ctx.agentTeams.interrupt(callingAgent(exec.agent, 'interrupt_agent'), args.target))
+          return Promise.resolve(ctx.agentTeams.interrupt(callingAgent(exec.agent, names.interruptAgent), args.target))
         },
       })))
     }
