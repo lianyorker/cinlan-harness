@@ -43,13 +43,31 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.sessionProjections`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The load-time `toolName` selects the delegation name (default `subagent`); `modelSelection` adds optional route fields. `modelDiscovery` defaults off and registers shared discovery on one instance per scope. Web and Desktop presets enable spawn discovery and route fields and leave `subagent_fork` route fields disabled. The Host settings service records authorization for each new top-level Session; child Sessions inherit it. Without a recorded policy, discovery and explicit selection permit only the current parent route. Every delegation returns a child id promptly; local children accept follow-ups, while external backends report their single execution automatically. |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named discovery, interruption, and local-message tools over managed subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while one instance of this package registers `send_message`, `interrupt_agent`, and `list_agents`. |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands and PTY sends are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
-| `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/task`, `agent/inbox/spliced`, `user/message on inbox claim`, `tool/result` | - | All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
+| `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_merge_worktree`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/task`, `agent/inbox/spliced`, `user/message on inbox claim`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-working-directory` | `working_directory` | `ctx.tools`, `ctx.workingDirectory` | `tool/call`, `working-directory/change`, `user context for directory changes`, `tool/result` | - | Reads or changes the calling Session directory. Existing shells and processes retain their own directories; origin metadata and permission roots stay fixed. |
 | `@deepseek-ai/dsh-experimental-tool-worktree` | `create_worktree` | `ctx.tools`, `ctx.worktrees`, `a calling Agent` | `tool/call`, `Git branch and checkout`, `working-directory/change`, `tool/result` | - | Explicit experimental composition only. Creates a new branch and checkout from a pinned local commit under existing write permissions, then changes the Session directory. Leaving retains the branch and checkout. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
+| `@cinlan/tool-nmap` | `nmap_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-httpx` | `httpx_probe` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-subfinder` | `subfinder_enum` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-naabu` | `naabu_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-nuclei` | `nuclei_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-ffuf` | `ffuf_fuzz` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-computer-use` | `computer_accessibility`, `computer_keyboard`, `computer_list_apps`, `computer_list_windows`, `computer_observe`, `computer_pointer` | `ctx.tools`, `ctx.computerUse`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (screenshots)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-coordination` | `coordination_add_task`, `coordination_cancel`, `coordination_send_message`, `coordination_start`, `coordination_status`, `coordination_wait` | `ctx.tools`, `ctx.coordination`, `ctx.agents` | `tool/call`, `coordination run and task state`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-finding` | `finding_export`, `finding_query`, `finding_record`, `finding_transition` | `ctx.tools`, `ctx.findings`, `ctx.artifacts`, `ctx.executionHost` | `tool/call`, `durable finding records via ctx.findings`, `report artifacts via ctx.artifacts`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-git` | `git_diff`, `git_log`, `git_status` | `ctx.tools`, `ctx.git`, `ctx.agents`, `a calling Agent (execution-world workspace)` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-mobile-device` | `mobile_button`, `mobile_list_devices`, `mobile_observe`, `mobile_touch`, `mobile_type` | `ctx.tools`, `ctx.mobileDevice`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (screenshots)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-recall` | `history_read`, `history_search` | `ctx.tools`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-task-surface` | `show_task_surface` | `ctx.tools`, `ctx.sessionProjections` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-vuln-kb` | `vuln_query`, `vuln_read` | `ctx.tools`, `ctx.vulnKb` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-work-items` | `work_items_boards`, `work_items_cancel_write`, `work_items_confirm_write`, `work_items_get`, `work_items_list`, `work_items_list_writes`, `work_items_prepare_write` | `ctx.tools`, `ctx.workItems`, `ctx.systemPrompt` | `tool/call`, `durable Work Items write previews and receipts`, `tool/result` | - | - |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -2266,7 +2284,7 @@ Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/exper
 
 ### `list_agents`
 
-List the Lead and every durable teammate with an addressable target and current availability. inactive means no turn is executing, not a task result. provisioning and failed describe member creation.
+List the Lead and every durable teammate with current runtime status.
 
 ```json
 {
@@ -2279,7 +2297,7 @@ Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/exper
 
 ### `send_message`
 
-Send one message to another Team member. A running target receives it at the nearest step boundary; an inactive target starts or resumes a turn.
+Send one durable message to another Team member. A running target receives it at the nearest step boundary; an idle target starts a turn; an inactive teammate cold-resumes.
 
 ```json
 {
@@ -2287,7 +2305,7 @@ Send one message to another Team member. A running target receives it at the nea
   "properties": {
     "target": {
       "type": "string",
-      "description": "Member target returned by spawn_teammate or list_agents, including lead."
+      "description": "Team member name, or lead."
     },
     "message": {
       "type": "string",
@@ -2330,12 +2348,41 @@ Create one named, durable teammate. Only the Team Lead may call this tool.
         "fresh",
         "fork"
       ]
+    },
+    "workspace_mode": {
+      "type": "string",
+      "description": "inherit shares the Lead working directory; worktree provisions a dedicated Git branch and checkout. Defaults to inherit.",
+      "enum": [
+        "inherit",
+        "worktree"
+      ]
     }
   },
   "required": [
     "name",
     "description",
     "prompt"
+  ]
+}
+```
+
+Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+
+### `team_merge_worktree`
+
+Stop a completed teammate, merge its isolated worktree branch into the Lead source branch, and retain the teammate Session as read-only. Lead only.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "teammate": {
+      "type": "string",
+      "description": "Completed teammate name."
+    }
+  },
+  "required": [
+    "teammate"
   ]
 }
 ```
@@ -2422,7 +2469,7 @@ List shared tasks, including readiness, owner, revision, blockers, and write-sco
     },
     "owner": {
       "type": "string",
-      "description": "Optional member target from spawn_teammate or list_agents, matching ownerName; use unowned for tasks without an owner."
+      "description": "Optional member-name filter; use unowned for tasks without an owner."
     },
     "ready": {
       "type": "boolean",
@@ -2496,7 +2543,7 @@ Compare-and-set a shared task action using the latest revision from team_task_ge
     },
     "owner": {
       "type": "string",
-      "description": "Member target from spawn_teammate or list_agents for Lead-only reassign; omit to unassign."
+      "description": "Member name for Lead-only reassign; omit to unassign."
     }
   },
   "required": [
@@ -2527,7 +2574,7 @@ Wait for the next teammate status, message, or shared-task change after this cal
 
 Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
-All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.
+All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.
 
 <a id="deepseek-aidsh-tool-todo"></a>
 
@@ -2793,3 +2840,2745 @@ Search the web for current information. Returns an optional summary answer and a
 Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.
+
+<a id="cinlantool-nmap"></a>
+
+## `@cinlan/tool-nmap`
+
+### `nmap_scan`
+
+Run an nmap port scan against one authorized assessment target and return structured host/port/service results parsed from XML output. The target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. No vulnerability scripts are run — this is reconnaissance only.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Scan target as declared in the assessment scope grant: hostname, IPv4/IPv6 address, or CIDR range (e.g. 192.0.2.10, scanme.nmap.org, 10.0.0.0/24)."
+    },
+    "ports": {
+      "type": "string",
+      "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1024). Mutually exclusive with topPorts."
+    },
+    "topPorts": {
+      "type": "integer",
+      "description": "Scan the N most common ports (--top-ports). Mutually exclusive with ports."
+    },
+    "serviceDetection": {
+      "type": "boolean",
+      "description": "Enable -sV service/version detection (slower, more accurate service names)."
+    },
+    "osDetection": {
+      "type": "boolean",
+      "description": "Enable -O OS fingerprinting. Requires elevated privileges on most platforms."
+    },
+    "openOnly": {
+      "type": "boolean",
+      "description": "Report only open ports (--open). Defaults to true."
+    },
+    "timing": {
+      "type": "integer",
+      "description": "nmap timing template -T0 (paranoid) through -T5 (insane). Defaults to nmap's -T3."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-nmap/src/index.ts`](../packages/security/tool-nmap/src/index.ts)
+
+<a id="cinlantool-httpx"></a>
+
+## `@cinlan/tool-httpx`
+
+### `httpx_probe`
+
+Probe authorized assessment targets for live HTTP/HTTPS services and return structured rows: URL, status code, title, technologies, web server, and CDN. Each target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. This is reconnaissance only — no injection, fuzzing, or exploitation payloads are sent.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Whitespace/comma-separated probe targets as declared in the assessment scope grant: hostnames, IPv4/IPv6 addresses, URLs, or CIDR ranges (at most 1000)."
+    },
+    "statusCode": {
+      "type": "boolean",
+      "description": "Include the HTTP status code (-status-code). Defaults to false."
+    },
+    "title": {
+      "type": "boolean",
+      "description": "Extract the page title (-title). Defaults to false."
+    },
+    "techDetect": {
+      "type": "boolean",
+      "description": "Report detected technologies (-tech-detect). Defaults to false."
+    },
+    "followRedirects": {
+      "type": "boolean",
+      "description": "Follow 3xx responses (-follow-redirects). Defaults to false."
+    },
+    "https": {
+      "type": "boolean",
+      "description": "Probe https:// scheme (-no-https when false). Defaults to true."
+    },
+    "http": {
+      "type": "boolean",
+      "description": "Probe http:// scheme (-no-http when false). Defaults to true."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-httpx/src/index.ts`](../packages/security/tool-httpx/src/index.ts)
+
+<a id="cinlantool-subfinder"></a>
+
+## `@cinlan/tool-subfinder`
+
+### `subfinder_enum`
+
+Passively enumerate subdomains of one authorized assessment target domain and return structured rows: hostname, data source, and resolved addresses. Queries third-party passive data sources and DNS; never sends requests to the target itself. The domain must match a target declared in the active assessment-scope grant; out-of-scope domains are denied before execution.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Root domain to enumerate as declared in the assessment scope grant (e.g. example.com). Do not include a scheme, path, or port."
+    },
+    "resolve": {
+      "type": "boolean",
+      "description": "Resolve each discovered subdomain to IP addresses (-resolve). Defaults to false."
+    },
+    "active": {
+      "type": "boolean",
+      "description": "Report only resolved and active hosts (-active). Defaults to false."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-subfinder/src/index.ts`](../packages/security/tool-subfinder/src/index.ts)
+
+<a id="cinlantool-naabu"></a>
+
+## `@cinlan/tool-naabu`
+
+### `naabu_scan`
+
+Run a naabu fast TCP port scan against authorized assessment targets and return structured open-port rows (host, IP, port). Discovers open ports only — no service fingerprinting, vulnerability probing, or payload delivery. Each target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. SYN scanning requires elevated privileges on most platforms.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Whitespace/comma-separated scan targets as declared in the assessment scope grant: hostnames, IPv4/IPv6 addresses, or CIDR ranges (at most 1000)."
+    },
+    "ports": {
+      "type": "string",
+      "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1000). Required unless topPorts is given."
+    },
+    "topPorts": {
+      "type": "integer",
+      "description": "Scan the N most common ports (-top-ports). Mutually exclusive with ports."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-naabu/src/index.ts`](../packages/security/tool-naabu/src/index.ts)
+
+<a id="cinlantool-nuclei"></a>
+
+## `@cinlan/tool-nuclei`
+
+### `nuclei_scan`
+
+Run nuclei template-based vulnerability checks against authorized assessment targets and return structured finding rows (template, severity, matched URL). Template selection and severity filtering are exposed; DAST/exploit-grade flags and out-of-band callbacks are disabled by default. Each target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Whitespace/comma-separated scan targets as declared in the assessment scope grant: URLs or bare hosts (at most 100)."
+    },
+    "templates": {
+      "type": "string",
+      "description": "Whitespace/comma-separated template IDs or local template paths (-t). Omit to run the default template set."
+    },
+    "severities": {
+      "type": "string",
+      "description": "Whitespace/comma-separated severity filter (-severity): info, low, medium, high, critical."
+    },
+    "followRedirects": {
+      "type": "boolean",
+      "description": "Follow 3xx responses (-follow-redirects). Defaults to false."
+    },
+    "timeoutSeconds": {
+      "type": "integer",
+      "description": "Per-request timeout in seconds (-timeout). Defaults to nuclei's 10."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-nuclei/src/index.ts`](../packages/security/tool-nuclei/src/index.ts)
+
+<a id="cinlantool-ffuf"></a>
+
+## `@cinlan/tool-ffuf`
+
+### `ffuf_fuzz`
+
+Fuzz one authorized assessment target URL with ffuf and a local wordlist: directory/file discovery, parameter names, or header values depending on where the FUZZ keyword sits. Returns structured match rows (keyword, URL, status, length). The URL host must match a target declared in the active assessment-scope grant; out-of-scope URLs are denied before execution. Rate is left at ffuf defaults — no aggressive fuzzing flags are emitted.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Target URL containing the literal FUZZ keyword where wordlist entries are substituted, e.g. https://target.example.com/FUZZ or https://target.example.com/search?q=FUZZ."
+    },
+    "wordlist": {
+      "type": "string",
+      "description": "Absolute or relative wordlist file path on the execution host (-w)."
+    },
+    "method": {
+      "type": "string",
+      "description": "HTTP method (-X), e.g. POST. Defaults to GET."
+    },
+    "matchCodes": {
+      "type": "string",
+      "description": "Whitespace/comma-separated status codes to keep (-mc), e.g. 200,301,403."
+    },
+    "autoCalibrate": {
+      "type": "boolean",
+      "description": "Auto-filter noise responses (-ac). Defaults to true."
+    },
+    "followRedirects": {
+      "type": "boolean",
+      "description": "Follow redirects (-r). Defaults to false."
+    },
+    "timeoutSeconds": {
+      "type": "integer",
+      "description": "Per-request timeout in seconds (-timeout). Defaults to ffuf's 10."
+    }
+  },
+  "required": [
+    "url",
+    "wordlist"
+  ]
+}
+```
+
+Source: [`packages/security/tool-ffuf/src/index.ts`](../packages/security/tool-ffuf/src/index.ts)
+
+<a id="cinlantool-knowledge-search"></a>
+
+## `@cinlan/tool-knowledge-search`
+
+### `knowledge_list_documents`
+
+List every document currently indexed in the knowledge base, with path, title, and index time. Use it to see what the search covers.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/knowledge/tool-knowledge-search/src/index.ts`](../packages/knowledge/tool-knowledge-search/src/index.ts)
+
+### `knowledge_search`
+
+Search the knowledge base (indexed local documents) for paragraphs relevant to the query. Chinese and English queries both work; results are ordered by relevance with heading context. Use this before answering questions that may be covered by indexed documents.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Free-text query; terms are combined with AND."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Maximum hits to return (1-20)."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/knowledge/tool-knowledge-search/src/index.ts`](../packages/knowledge/tool-knowledge-search/src/index.ts)
+
+<a id="deepseek-aidsh-tool-browser"></a>
+
+## `@deepseek-ai/dsh-tool-browser`
+
+### `browser_back`
+
+Navigate one persistent browser page one step backward.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_click`
+
+Click an element from the latest browser_snapshot observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Observation id returned by the latest browser_snapshot for this page."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id from that exact browser_snapshot observation."
+    }
+  },
+  "required": [
+    "page_id",
+    "observation_id",
+    "element_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_close`
+
+Close one persistent browser page.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_downloads`
+
+List captured downloads belonging to one open browser page.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_forward`
+
+Navigate one persistent browser page one step forward.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_history`
+
+Read bounded navigation history for one persistent browser page.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum entries from 1 through 100."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_home`
+
+Open the configured Browser home page in a new persistent page.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_list`
+
+List persistent browser pages and their stable page ids.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_navigate`
+
+Navigate one persistent browser page to an HTTP or HTTPS URL.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "url": {
+      "type": "string",
+      "description": "Absolute HTTP or HTTPS destination URL."
+    }
+  },
+  "required": [
+    "page_id",
+    "url"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_network`
+
+Read bounded network request observations captured by one persistent browser page.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum entries from 1 through 100."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_open`
+
+Open an HTTP or HTTPS URL in a new persistent browser page.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Absolute HTTP or HTTPS URL to open."
+    }
+  },
+  "required": [
+    "url"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_save_download`
+
+Persist one completed browser download as a file attachment; returns metadata, never file contents.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "download_id": {
+      "type": "string",
+      "description": "Download id returned by browser_downloads."
+    }
+  },
+  "required": [
+    "page_id",
+    "download_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_screenshot`
+
+Capture the current browser viewport and return it as an image.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_search`
+
+Search the configured Browser search engine in a new persistent page.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Search text."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_snapshot`
+
+Read a persistent browser page accessibility tree and fresh element ids.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_upload`
+
+Set a browser file input from a workspace file. Page input/change handlers may upload data. Requires a fresh browser_snapshot.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Latest page observation."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "File input element from that observation."
+    },
+    "file_path": {
+      "type": "string",
+      "description": "File inside the calling Session workspace."
+    }
+  },
+  "required": [
+    "page_id",
+    "observation_id",
+    "element_id",
+    "file_path"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+<a id="deepseek-aidsh-tool-browser-element-capture"></a>
+
+## `@deepseek-ai/dsh-tool-browser-element-capture`
+
+### `browser_capture_element`
+
+Capture a verified cropped image using either browser_snapshot ids or a browser_select_element selection id.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent browser page id."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation_id returned by browser_snapshot; use with element_id."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id from the same browser_snapshot observation."
+    },
+    "selection_id": {
+      "type": "string",
+      "description": "Temporary selection id returned by browser_select_element."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
+
+### `browser_select_element`
+
+Show a temporary hover highlight on a persistent browser page and wait for one user-selected element.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+Source: [`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
+
+<a id="deepseek-aidsh-tool-computer-use"></a>
+
+## `@deepseek-ai/dsh-tool-computer-use`
+
+### `computer_accessibility`
+
+Perform a secondary accessibility action or set one element value using an exact observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "secondary_action",
+        "set_value"
+      ]
+    },
+    "element_id": {
+      "type": "string"
+    },
+    "action_name": {
+      "type": "string",
+      "description": "Provider-advertised action name for secondary_action."
+    },
+    "value": {
+      "type": "string",
+      "description": "Exact value for set_value."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action",
+    "element_id"
+  ]
+}
+```
+
+Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_keyboard`
+
+Type, paste, press one key, or press one hotkey using one exact desktop observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "type_text",
+        "paste_text",
+        "press_key",
+        "hotkey"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "description": "Literal text for type_text or paste_text."
+    },
+    "key": {
+      "type": "string",
+      "description": "Single key or modifier chord for press_key or hotkey."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_list_apps`
+
+List local desktop applications available to Computer Use.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_list_windows`
+
+List current windows for one desktop application.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    }
+  },
+  "required": [
+    "app_id"
+  ]
+}
+```
+
+Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_observe`
+
+Read one desktop application accessibility tree and fresh element ids.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Optional window id; omit only when the application has one unambiguous window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the target window forward before observing it."
+    }
+  },
+  "required": [
+    "app_id"
+  ]
+}
+```
+
+Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_pointer`
+
+Click, scroll, or drag using one exact desktop observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "click",
+        "scroll",
+        "drag"
+      ]
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id for click/scroll or drag start."
+    },
+    "to_element_id": {
+      "type": "string",
+      "description": "Element id for drag destination."
+    },
+    "x": {
+      "type": "number",
+      "description": "Window-local x for click/scroll or drag start."
+    },
+    "y": {
+      "type": "number",
+      "description": "Window-local y for click/scroll or drag start."
+    },
+    "to_x": {
+      "type": "number",
+      "description": "Window-local drag destination x."
+    },
+    "to_y": {
+      "type": "number",
+      "description": "Window-local drag destination y."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ]
+    },
+    "pages": {
+      "type": "integer"
+    },
+    "click_count": {
+      "type": "integer"
+    },
+    "mouse_button": {
+      "type": "string",
+      "enum": [
+        "left",
+        "right",
+        "middle"
+      ]
+    },
+    "modifiers": {
+      "type": "string",
+      "description": "One provider-supported modifier chord."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+Source: [`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+<a id="deepseek-aidsh-tool-coordination"></a>
+
+## `@deepseek-ai/dsh-tool-coordination`
+
+### `coordination_add_task`
+
+Add one task to a live coordination run. Its dependencies and parent must already belong to that run.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id returned by coordination_start."
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
+        },
+        "label": {
+          "type": "string",
+          "description": "Short task label."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Standalone instructions for the task executor."
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Task ids that must succeed first.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "executor": {
+          "type": "string",
+          "description": "Registered executor kind. Omit to use the configured default."
+        },
+        "parent_task_id": {
+          "type": "string",
+          "description": "Optional acyclic parent task for subtree cancellation."
+        }
+      },
+      "required": [
+        "label",
+        "prompt"
+      ]
+    }
+  },
+  "required": [
+    "run_id",
+    "task"
+  ]
+}
+```
+
+Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_cancel`
+
+Cancel one owned run, or one owned task parent-subtree plus tasks transitively blocked by cancelled dependencies. Running executors receive the reason through their AbortSignal.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to cancel; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id whose parent-subtree and dependency-blocked descendants should be cancelled; mutually exclusive with run_id."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Optional cancellation reason."
+    }
+  }
+}
+```
+
+Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_send_message`
+
+Commit a message addressed to one owned task. Message listeners decide delivery; the coordination record itself does not imply that an executor supports live steering.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Recipient task id."
+    },
+    "message": {
+      "type": "string",
+      "description": "Non-empty message for the task."
+    }
+  },
+  "required": [
+    "task_id",
+    "message"
+  ]
+}
+```
+
+Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_start`
+
+Start a background task DAG. Independent tasks may run concurrently; dependency tasks start only after every named dependency succeeds. Keep the returned run and task ids for status, messages, cancellation, and waits.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "description": "Complete initial task graph.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
+          },
+          "label": {
+            "type": "string",
+            "description": "Short task label."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Standalone instructions for the task executor."
+          },
+          "dependencies": {
+            "type": "array",
+            "description": "Task ids that must succeed first.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "executor": {
+            "type": "string",
+            "description": "Registered executor kind. Omit to use the configured default."
+          },
+          "parent_task_id": {
+            "type": "string",
+            "description": "Optional acyclic parent task for subtree cancellation."
+          }
+        },
+        "required": [
+          "label",
+          "prompt"
+        ]
+      }
+    }
+  },
+  "required": [
+    "tasks"
+  ]
+}
+```
+
+Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_status`
+
+Read one owned coordination run with all of its tasks, or one owned task. This call never waits.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to inspect; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id to inspect; mutually exclusive with run_id."
+    }
+  }
+}
+```
+
+Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_wait`
+
+Wait for one owned run or task to become terminal, up to the configured timeout cap. A timeout returns current state with timedOut: true and leaves work running.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to wait for; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id to wait for; mutually exclusive with run_id."
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "description": "Optional positive wait duration, capped by deployment configuration."
+    }
+  }
+}
+```
+
+Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+<a id="deepseek-aidsh-tool-finding"></a>
+
+## `@deepseek-ai/dsh-tool-finding`
+
+### `finding_export`
+
+Export every matching same-session finding as deterministic JSON, Markdown, or SARIF 2.1.0 and publish one report Artifact.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "hypothesis",
+          "reproduced-vulnerability",
+          "remediation",
+          "unresolved"
+        ]
+      }
+    },
+    "severities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "informational",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    },
+    "ruleIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "json",
+        "markdown",
+        "sarif"
+      ]
+    }
+  },
+  "required": [
+    "format"
+  ]
+}
+```
+
+Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_query`
+
+Read a bounded deterministic page of same-session findings. Use exact ids and revisions before a transition.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "hypothesis",
+          "reproduced-vulnerability",
+          "remediation",
+          "unresolved"
+        ]
+      }
+    },
+    "severities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "informational",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    },
+    "ruleIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cursor": {
+      "type": "string"
+    },
+    "limit": {
+      "type": "integer"
+    },
+    "detail": {
+      "type": "string",
+      "enum": [
+        "summary",
+        "full"
+      ]
+    }
+  }
+}
+```
+
+Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_record`
+
+Record a typed same-session security finding. The service derives id and fingerprint; repeated identities add one occurrence without promoting state.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ruleId": {
+      "type": "string",
+      "description": "Stable detector or rule identifier."
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "observation",
+        "hypothesis",
+        "reproduced-vulnerability"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "host",
+              "service",
+              "url",
+              "repository",
+              "package",
+              "file",
+              "component",
+              "other"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "displayName"
+        ]
+      }
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "code"
+                ]
+              },
+              "targetId": {
+                "type": "string"
+              },
+              "uri": {
+                "type": "string"
+              },
+              "startLine": {
+                "type": "integer"
+              },
+              "startColumn": {
+                "type": "integer"
+              },
+              "endLine": {
+                "type": "integer"
+              },
+              "endColumn": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "targetId",
+              "uri"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "dependency"
+                ]
+              },
+              "targetId": {
+                "type": "string"
+              },
+              "ecosystem": {
+                "type": "string"
+              },
+              "packageName": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "manifestUri": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "targetId",
+              "ecosystem",
+              "packageName"
+            ]
+          }
+        ]
+      }
+    },
+    "cweIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cveIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cvss": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "3.1",
+            "4.0"
+          ]
+        },
+        "vector": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "version",
+        "vector",
+        "score"
+      ]
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reachability": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unreachable"
+              ]
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "reason"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "reachable"
+              ]
+            },
+            "entrypoint": {
+              "type": "string"
+            },
+            "pathEvidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "artifactId": {
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "bytes": {
+                  "type": "integer"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "producerId": {
+                      "type": "string"
+                    },
+                    "executionHostId": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    },
+                    "taskId": {
+                      "type": "string"
+                    },
+                    "engagementId": {
+                      "type": "string"
+                    },
+                    "scopeRef": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "producerId",
+                    "executionHostId"
+                  ]
+                },
+                "retention": {
+                  "type": "string",
+                  "enum": [
+                    "ephemeral",
+                    "session",
+                    "task",
+                    "engagement",
+                    "pinned",
+                    "managed"
+                  ]
+                },
+                "redaction": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "redacted",
+                    "unknown"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "artifactId",
+                "mediaType",
+                "kind",
+                "bytes",
+                "sha256",
+                "createdAt",
+                "provenance",
+                "retention",
+                "redaction"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "entrypoint"
+          ]
+        }
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "reproduction",
+              "remediation-validation",
+              "supporting"
+            ]
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifactId": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "producerId": {
+                    "type": "string"
+                  },
+                  "executionHostId": {
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "engagementId": {
+                    "type": "string"
+                  },
+                  "scopeRef": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "producerId",
+                  "executionHostId"
+                ]
+              },
+              "retention": {
+                "type": "string",
+                "enum": [
+                  "ephemeral",
+                  "session",
+                  "task",
+                  "engagement",
+                  "pinned",
+                  "managed"
+                ]
+              },
+              "redaction": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "redacted",
+                  "unknown"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "artifactId",
+              "mediaType",
+              "kind",
+              "bytes",
+              "sha256",
+              "createdAt",
+              "provenance",
+              "retention",
+              "redaction"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "artifact"
+        ]
+      }
+    }
+  },
+  "required": [
+    "ruleId",
+    "title",
+    "summary",
+    "state",
+    "severity",
+    "confidence",
+    "targets",
+    "locations",
+    "reachability"
+  ]
+}
+```
+
+Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_transition`
+
+Transition one exact finding revision. Reproduction and remediation states require their typed evidence prerequisites.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "findingId": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer"
+    },
+    "to": {
+      "type": "string",
+      "enum": [
+        "hypothesis",
+        "reproduced-vulnerability",
+        "remediation",
+        "unresolved"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "reproduction",
+              "remediation-validation",
+              "supporting"
+            ]
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifactId": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "producerId": {
+                    "type": "string"
+                  },
+                  "executionHostId": {
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "engagementId": {
+                    "type": "string"
+                  },
+                  "scopeRef": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "producerId",
+                  "executionHostId"
+                ]
+              },
+              "retention": {
+                "type": "string",
+                "enum": [
+                  "ephemeral",
+                  "session",
+                  "task",
+                  "engagement",
+                  "pinned",
+                  "managed"
+                ]
+              },
+              "redaction": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "redacted",
+                  "unknown"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "artifactId",
+              "mediaType",
+              "kind",
+              "bytes",
+              "sha256",
+              "createdAt",
+              "provenance",
+              "retention",
+              "redaction"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "artifact"
+        ]
+      }
+    },
+    "fixGuidance": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "findingId",
+    "revision",
+    "to"
+  ]
+}
+```
+
+Source: [`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+<a id="deepseek-aidsh-tool-git"></a>
+
+## `@deepseek-ai/dsh-tool-git`
+
+### `git_diff`
+
+Read the bounded diff observation for the calling agent workspace repository. This tool never changes the repository.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "max_bytes": {
+      "type": "integer",
+      "description": "Optional positive byte cap within the configured provider limit."
+    }
+  }
+}
+```
+
+Source: [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+### `git_log`
+
+Read recent commits from the calling agent workspace repository as bounded structured entries. This tool never changes the repository.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "description": "Optional positive entry limit within the configured provider limit."
+    }
+  }
+}
+```
+
+Source: [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+### `git_status`
+
+Read structured branch, divergence, and working-tree counts for the calling agent workspace repository. This tool never changes the repository.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+<a id="deepseek-aidsh-tool-mobile-device"></a>
+
+## `@deepseek-ai/dsh-tool-mobile-device`
+
+### `mobile_button`
+
+Press one provider-supported device navigation button using an exact observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by the latest mobile_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "button": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "button"
+  ]
+}
+```
+
+Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_list_devices`
+
+List exact device ids and availability from the configured mobile provider.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_observe`
+
+Read one fresh mobile-device tree and optional native PNG image.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by mobile_list_devices. Omit to use the saved default device; it must be currently available and there is no fallback."
+    }
+  }
+}
+```
+
+Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_touch`
+
+Tap or swipe with normalized coordinates using one exact observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by the latest mobile_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "tap",
+        "swipe"
+      ]
+    },
+    "x": {
+      "type": "number",
+      "description": "Normalized tap x from 0 to 1."
+    },
+    "y": {
+      "type": "number",
+      "description": "Normalized tap y from 0 to 1."
+    },
+    "from_x": {
+      "type": "number",
+      "description": "Normalized swipe start x from 0 to 1."
+    },
+    "from_y": {
+      "type": "number",
+      "description": "Normalized swipe start y from 0 to 1."
+    },
+    "to_x": {
+      "type": "number",
+      "description": "Normalized swipe destination x from 0 to 1."
+    },
+    "to_y": {
+      "type": "number",
+      "description": "Normalized swipe destination y from 0 to 1."
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_type`
+
+Type literal text through stdin using one exact mobile observation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by the latest mobile_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "text"
+  ]
+}
+```
+
+Source: [`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+<a id="deepseek-aidsh-tool-recall"></a>
+
+## `@deepseek-ai/dsh-tool-recall`
+
+### `history_read`
+
+Retrieve the full transcript of original messages shadowed by a compaction checkpoint. Output includes original user prompts, assistant turns, and tool results, paginated when long. Provide the checkpoint ID (e.g. "c42") found in checkpoint footers.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "checkpoint": {
+      "type": "string",
+      "description": "The checkpoint ID (e.g. \"c42\") whose shadowed span to retrieve."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "0-based message offset for paginating long transcripts."
+    }
+  },
+  "required": [
+    "checkpoint"
+  ]
+}
+```
+
+Source: [`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+### `history_search`
+
+Search across all compacted history spans for exact keywords, error strings, configuration flags, or paths. Performs a case-insensitive literal scan and returns matching snippets tagged with checkpoint IDs.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "The literal string to search for across shadowed conversation spans."
+    },
+    "checkpoint": {
+      "type": "string",
+      "description": "Optional specific checkpoint ID to restrict the search to."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum matching occurrences to return (defaults to 25)."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+<a id="deepseek-aidsh-tool-task-surface"></a>
+
+## `@deepseek-ai/dsh-tool-task-surface`
+
+### `show_task_surface`
+
+Present a structured, interactive Task Surface to the user for review, configuration, or decision-making. The surface ends the agent turn, presenting declarative sections and input fields. The user can submit field values or dismiss the surface to continue the conversation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "model": {
+      "description": "Declarative Task Surface v1 model defining title, sections, blocks, optional input fields, and submit button."
+    }
+  },
+  "required": [
+    "model"
+  ]
+}
+```
+
+Source: [`packages/task-surface/tool-task-surface/src/index.ts`](../packages/task-surface/tool-task-surface/src/index.ts)
+
+<a id="deepseek-aidsh-tool-vuln-kb"></a>
+
+## `@deepseek-ai/dsh-tool-vuln-kb`
+
+### `vuln_query`
+
+Query the vulnerability knowledge base for CVEs by package name and ecosystem, optionally filtered by version. Returns compact matching entries with severity and fix availability; use vuln_read for affected ranges and references.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "cveId": {
+      "type": "string",
+      "description": "Specific CVE id (e.g., CVE-2024-12345). If provided, ecosystem/package/version are ignored."
+    },
+    "ecosystem": {
+      "type": "string",
+      "description": "Package ecosystem (e.g., npm, pypi, maven, go, nuget). Required if cveId is not provided."
+    },
+    "package": {
+      "type": "string",
+      "description": "Package name within the ecosystem. Required if cveId is not provided."
+    },
+    "version": {
+      "type": "string",
+      "description": "Specific version to check for affectedness. Optional."
+    },
+    "maxResults": {
+      "type": "integer",
+      "description": "Positive maximum number of results to return. The active provider supplies the default."
+    }
+  }
+}
+```
+
+Source: [`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
+
+### `vuln_read`
+
+Read full details of a single vulnerability by CVE id, including description, CVSS vector, affected package ranges, and reference URLs.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "cveId": {
+      "type": "string",
+      "description": "The CVE id (e.g., CVE-2024-12345)."
+    }
+  },
+  "required": [
+    "cveId"
+  ]
+}
+```
+
+Source: [`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
+
+<a id="deepseek-aidsh-tool-work-items"></a>
+
+## `@deepseek-ai/dsh-tool-work-items`
+
+### `work_items_boards`
+
+Read bounded normalized boards with ordered columns and item ids from the configured provider; only providers exposing a native board surface answer.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "Optional provider family; omit only when exactly one provider is usable.",
+      "enum": [
+        "github",
+        "linear",
+        "gitlab",
+        "jira",
+        "gitee"
+      ]
+    },
+    "board": {
+      "type": "string",
+      "description": "Optional provider board id or title selecting one board."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum item ids retained per column, from 1 through 100."
+    }
+  }
+}
+```
+
+Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_cancel_write`
+
+Cancel one unexecuted Work Items preview by its exact persisted operation_id.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
+    }
+  },
+  "required": [
+    "operation_id"
+  ]
+}
+```
+
+Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_confirm_write`
+
+Confirm exactly one previously persisted Work Items preview by operation_id; no replacement mutation is accepted.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
+    }
+  },
+  "required": [
+    "operation_id"
+  ]
+}
+```
+
+Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_get`
+
+Read one normalized Work Item by its opaque provider id.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Opaque id returned by work_items_list, such as github:owner/repository#123."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_list`
+
+List normalized Work Items from the configured GitHub, GitLab, Jira, or Linear provider.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "Optional provider family; omit only when exactly one provider is usable.",
+      "enum": [
+        "github",
+        "linear",
+        "gitlab",
+        "jira",
+        "gitee"
+      ]
+    },
+    "scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "github"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured GitHub repository owner."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured GitHub repository name."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "linear"
+            },
+            "team": {
+              "type": "string",
+              "description": "Configured Linear team id."
+            },
+            "project": {
+              "type": "string",
+              "description": "Configured Linear project id."
+            }
+          },
+          "required": [
+            "source"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "gitlab"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured GitLab namespace."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured GitLab project path."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "jira"
+            },
+            "project": {
+              "type": "string",
+              "description": "Configured Jira project key."
+            }
+          },
+          "required": [
+            "source",
+            "project"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "gitee"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured Gitee repository owner."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured Gitee repository path."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
+        }
+      ],
+      "description": "Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project; GitLab requires owner and repository; Jira requires project."
+    },
+    "query": {
+      "type": "string",
+      "description": "Optional bounded title/body text filter."
+    },
+    "state": {
+      "type": "string",
+      "description": "Optional provider-neutral state filter; defaults to open.",
+      "enum": [
+        "open",
+        "closed",
+        "all"
+      ]
+    },
+    "cursor": {
+      "type": "string",
+      "description": "Opaque cursor returned by a prior page."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum items to request, from 1 through 100."
+    }
+  }
+}
+```
+
+Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_list_writes`
+
+Read durable Work Items previews and receipts for one provider family without issuing provider mutation requests.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "github",
+        "linear",
+        "gitlab",
+        "jira",
+        "gitee"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum history rows, from 1 through 100."
+    }
+  },
+  "required": [
+    "source",
+    "limit"
+  ]
+}
+```
+
+Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_prepare_write`
+
+Validate and durably preview one Work Item mutation without contacting the external provider to mutate it.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "mutation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "create"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "github",
+                "linear",
+                "gitlab",
+                "jira",
+                "gitee"
+              ]
+            },
+            "title": {
+              "type": "string",
+              "description": "New Work Item title."
+            },
+            "body": {
+              "type": "string",
+              "description": "New Work Item body."
+            }
+          },
+          "required": [
+            "kind",
+            "source",
+            "title",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "comment"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "body": {
+              "type": "string",
+              "description": "Comment body."
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "state"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "state": {
+              "type": "string",
+              "description": "Provider state value."
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "state"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "assign"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "assignees": {
+              "type": "array",
+              "description": "Provider assignee ids; an empty list clears assignment.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "assignees"
+          ]
+        }
+      ],
+      "description": "Exact external mutation to preview. The returned operation_id is required for confirmation."
+    }
+  },
+  "required": [
+    "mutation"
+  ]
+}
+```
+
+Source: [`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)

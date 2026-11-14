@@ -82,6 +82,36 @@ import McpResources from '@deepseek-ai/dsh-mcp-resources'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolSubagentOar from '@deepseek-ai/dsh-experimental-tool-subagent-oar'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
+import * as ToolBrowser from '@deepseek-ai/dsh-tool-browser'
+import * as ToolBrowserElementCapture from '@deepseek-ai/dsh-tool-browser-element-capture'
+import * as ToolComputerUse from '@deepseek-ai/dsh-tool-computer-use'
+import * as ToolCoordination from '@deepseek-ai/dsh-tool-coordination'
+import * as ToolFinding from '@deepseek-ai/dsh-tool-finding'
+import * as ToolGit from '@deepseek-ai/dsh-tool-git'
+import * as ToolMobileDevice from '@deepseek-ai/dsh-tool-mobile-device'
+import * as ToolRecall from '@deepseek-ai/dsh-tool-recall'
+import * as ToolTaskSurface from '@deepseek-ai/dsh-tool-task-surface'
+import * as ToolVulnKb from '@deepseek-ai/dsh-tool-vuln-kb'
+import * as ToolWorkItems from '@deepseek-ai/dsh-tool-work-items'
+import * as ToolKnowledgeSearch from '@cinlan/tool-knowledge-search'
+import * as ToolNmap from '@cinlan/tool-nmap'
+import * as ToolHttpx from '@cinlan/tool-httpx'
+import * as ToolSubfinder from '@cinlan/tool-subfinder'
+import * as ToolNaabu from '@cinlan/tool-naabu'
+import * as ToolNuclei from '@cinlan/tool-nuclei'
+import * as ToolFfuf from '@cinlan/tool-ffuf'
+import BrowserRuntime from '@deepseek-ai/dsh-browser'
+import ComputerUseRuntime from '@deepseek-ai/dsh-computer-use'
+import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
+import VulnKbRuntime from '@deepseek-ai/dsh-vuln-kb-service'
+import WorkItemsRuntime from '@cinlan/work-items'
+import type CoordinationService from '@cinlan/coordination'
+import type KnowledgeBaseService from '@cinlan/knowledge-base'
+import type GitRuntime from '@deepseek-ai/dsh-git'
+import type FindingService from '@deepseek-ai/dsh-finding'
+import type ArtifactService from '@deepseek-ai/dsh-artifact'
+import ExecutionHostService, { ExecutionHostId } from '@deepseek-ai/dsh-execution-host'
+import type { ExecutionHostInfo } from '@deepseek-ai/dsh-execution-host'
 import WorkflowEngine from '@deepseek-ai/dsh-workflow'
 import type { WorkflowRun, WorkflowStartRequest } from '@deepseek-ai/dsh-workflow'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
@@ -115,6 +145,20 @@ class CatalogAttachmentStore extends AttachmentStore {
 
 const root = resolve(import.meta.dirname, '..')
 const OUT = 'docs/tool-catalog.md'
+
+/**
+ * Fixed execution-host identity for the tool-finding harvest. Registration
+ * reads `executionHost.current()` to resolve the report host id; the harvest
+ * never records findings or publishes artifacts, so the finding and artifact
+ * seams are provided but answer nothing.
+ */
+const catalogExecutionHostInfo: ExecutionHostInfo = {
+  hostId: ExecutionHostId('tool-catalog'),
+  hostname: 'tool-catalog',
+  pid: 0,
+  platform: process.platform,
+  createdAt: '1970-01-01T00:00:00.000Z',
+}
 
 /** Workflow tools expose their schemas without executing a program. */
 class CatalogWorkflowEngine extends WorkflowEngine {
@@ -639,7 +683,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     scope: ctx => catalogChildScopes.get(ctx) as Agent,
     note:
-      'All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
+      'All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-todo',
@@ -718,6 +762,229 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.',
+  },
+  {
+    pkg: '@cinlan/tool-nmap',
+    dir: 'tool-nmap',
+    source: 'packages/security/tool-nmap/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolNmap)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-httpx',
+    dir: 'tool-httpx',
+    source: 'packages/security/tool-httpx/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolHttpx)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-subfinder',
+    dir: 'tool-subfinder',
+    source: 'packages/security/tool-subfinder/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolSubfinder)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-naabu',
+    dir: 'tool-naabu',
+    source: 'packages/security/tool-naabu/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolNaabu)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-nuclei',
+    dir: 'tool-nuclei',
+    source: 'packages/security/tool-nuclei/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolNuclei)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-ffuf',
+    dir: 'tool-ffuf',
+    source: 'packages/security/tool-ffuf/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolFfuf)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-knowledge-search',
+    dir: 'tool-knowledge-search',
+    source: 'packages/knowledge/tool-knowledge-search/src/index.ts',
+    requires: ['ctx.tools', 'ctx.knowledgeBase'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // Schema harvest never queries the knowledge base; the seam is provided
+      // but answers nothing.
+      ctx.provide('knowledgeBase', {} as unknown as KnowledgeBaseService)
+      await ctx.plugin(ToolKnowledgeSearch)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-browser',
+    dir: 'tool-browser',
+    source: 'packages/browser/tool-browser/src/index.ts',
+    requires: ['ctx.tools', 'ctx.browser', 'ctx.attachments', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'durable attachment (download persistence, screenshot admission)', 'tool/result'],
+    async mount(ctx) {
+      // The attachments-conditional screenshot schema needs the seam marker;
+      // provider registration is execution-time and the schema set is static.
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(BrowserRuntime)
+      await ctx.plugin(ToolBrowser)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-browser-element-capture',
+    dir: 'tool-browser-element-capture',
+    source: 'packages/browser/tool-browser-element-capture/src/index.ts',
+    requires: ['ctx.tools', 'ctx.browser', 'ctx.coordination', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'durable attachment (element captures)', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(BrowserRuntime)
+      // Registration never drives a coordination executor; the seam is
+      // provided but answers nothing.
+      ctx.provide('coordination', {} as unknown as CoordinationService)
+      await ctx.plugin(ToolBrowserElementCapture)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-computer-use',
+    dir: 'tool-computer-use',
+    source: 'packages/computer-use/tool-computer-use/src/index.ts',
+    requires: ['ctx.tools', 'ctx.computerUse', 'ctx.attachments', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'durable attachment (screenshots)', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(ComputerUseRuntime)
+      await ctx.plugin(ToolComputerUse)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-coordination',
+    dir: 'tool-coordination',
+    source: 'packages/coordination/tool-coordination/src/index.ts',
+    requires: ['ctx.tools', 'ctx.coordination', 'ctx.agents'],
+    writes: ['tool/call', 'coordination run and task state', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      // Registration subscribes to run eviction events only; the harvest
+      // never starts or cancels a run.
+      ctx.provide('coordination', {
+        onEvent: () => () => {},
+      } as unknown as CoordinationService)
+      await ctx.plugin(ToolCoordination)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-finding',
+    dir: 'tool-finding',
+    source: 'packages/security/tool-finding/src/index.ts',
+    requires: ['ctx.tools', 'ctx.findings', 'ctx.artifacts', 'ctx.executionHost'],
+    writes: ['tool/call', 'durable finding records via ctx.findings', 'report artifacts via ctx.artifacts', 'tool/result'],
+    async mount(ctx) {
+      // Registration resolves the report host id from executionHost.current();
+      // the harvest never records findings or publishes artifacts.
+      ctx.provide('findings', {} as unknown as FindingService)
+      ctx.provide('artifacts', {} as unknown as ArtifactService)
+      ctx.provide('executionHost', {
+        current: () => catalogExecutionHostInfo,
+      } as unknown as ExecutionHostService)
+      await ctx.plugin(ToolFinding, { reportExecutionHostId: 'tool-catalog' })
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-git',
+    dir: 'tool-git',
+    source: 'packages/git/tool-git/src/index.ts',
+    requires: ['ctx.tools', 'ctx.git', 'ctx.agents', 'a calling Agent (execution-world workspace)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      // Schema harvest never resolves a repository; the seam is provided but
+      // answers nothing.
+      ctx.provide('git', {} as unknown as GitRuntime)
+      await ctx.plugin(ToolGit)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-mobile-device',
+    dir: 'tool-mobile-device',
+    source: 'packages/mobile-device/tool-mobile-device/src/index.ts',
+    requires: ['ctx.tools', 'ctx.mobileDevice', 'ctx.attachments', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'durable attachment (screenshots)', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(MobileDeviceRuntime)
+      await ctx.plugin(ToolMobileDevice)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-recall',
+    dir: 'tool-recall',
+    source: 'packages/compaction/tool-recall/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ToolRecall)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-task-surface',
+    dir: 'tool-task-surface',
+    source: 'packages/task-surface/tool-task-surface/src/index.ts',
+    requires: ['ctx.tools', 'ctx.sessionProjections'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ToolTaskSurface)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-vuln-kb',
+    dir: 'tool-vuln-kb',
+    source: 'packages/security/tool-vuln-kb/src/index.ts',
+    requires: ['ctx.tools', 'ctx.vulnKb'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The registry is inert without a registered provider; schemas are static.
+      await ctx.plugin(VulnKbRuntime)
+      await ctx.plugin(ToolVulnKb)
+    },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-work-items',
+    dir: 'tool-work-items',
+    source: 'packages/work-items/tool-work-items/src/index.ts',
+    requires: ['ctx.tools', 'ctx.workItems', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'durable Work Items write previews and receipts', 'tool/result'],
+    async mount(ctx) {
+      // The write ledger persists through the session store only on confirmed
+      // writes; schema harvest never contacts a provider.
+      await ctx.plugin(WorkItemsRuntime)
+      await ctx.plugin(ToolWorkItems)
+    },
   },
 ]
 

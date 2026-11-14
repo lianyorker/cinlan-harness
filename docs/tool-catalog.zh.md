@@ -47,13 +47,31 @@
 | `@deepseek-ai/dsh-tool-subagent` | `list_subagent_models`、`subagent` | `ctx.tools`、`ctx.subagents`、`ctx.systemPrompt`、`ctx.sessionProjections`、`用于模型发现和所选路由校验的 ctx.llm` | `tool/call`、`tool/result`、`child session events through the chosen provider` | `subagent`、`subagent_fork` | 加载时的 `toolName` 选择委派名称（默认为 `subagent`）；`modelSelection` 增加可选路由字段。`modelDiscovery` 默认关闭，每个作用域由一个实例注册共享发现工具。Web 与 Desktop preset 启用 spawn 发现和路由字段，并为 `subagent_fork` 保持路由字段关闭。Host 设置服务为每个新顶层 Session 记录授权；子 Session 继承该授权。没有已记录策略时，发现和显式选择只允许当前父级路由。每次委派都会立即返回子代理 id；本地子代理接受后续消息，外部后端自动汇报单次执行结果。 |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`、`list_agents`、`send_message` | `ctx.tools`、`ctx.subagents`、`ctx.agents` | `tool/call`、`tool/result`、`child session events through ctx.subagents` | - | 这些是用于发现、中断托管 subagent 和向本地子代理发送消息的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包的一个实例注册 `send_message`、`interrupt_agent` 和 `list_agents`。 |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令与 PTY 发送 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
-| `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/task`、`agent/inbox/spliced`、`user/message on inbox claim`、`tool/result` | - | 这 9 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
+| `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_merge_worktree`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/task`、`agent/inbox/spliced`、`user/message on inbox claim`、`tool/result` | - | 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@deepseek-ai/dsh-tool-working-directory` | `working_directory` | `ctx.tools`, `ctx.workingDirectory` | `tool/call`, `working-directory/change`, `user context for directory changes`, `tool/result` | - | 读取或改变调用方 Session 的目录。已有 shell 和进程保留自己的目录；原始元数据和权限根目录保持不变。 |
 | `@deepseek-ai/dsh-experimental-tool-worktree` | `create_worktree` | `ctx.tools`, `ctx.worktrees`, `a calling Agent` | `tool/call`, `Git branch and checkout`, `working-directory/change`, `tool/result` | - | 仅通过显式实验组合加载。在现有写权限下从固定的本地提交创建新分支与检出目录，再改变 Session 工作目录。离开时保留分支与检出目录。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+| `@cinlan/tool-nmap` | `nmap_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-httpx` | `httpx_probe` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-subfinder` | `subfinder_enum` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-naabu` | `naabu_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-nuclei` | `nuclei_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-ffuf` | `ffuf_fuzz` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-computer-use` | `computer_accessibility`, `computer_keyboard`, `computer_list_apps`, `computer_list_windows`, `computer_observe`, `computer_pointer` | `ctx.tools`, `ctx.computerUse`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (screenshots)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-coordination` | `coordination_add_task`, `coordination_cancel`, `coordination_send_message`, `coordination_start`, `coordination_status`, `coordination_wait` | `ctx.tools`, `ctx.coordination`, `ctx.agents` | `tool/call`, `coordination run and task state`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-finding` | `finding_export`, `finding_query`, `finding_record`, `finding_transition` | `ctx.tools`, `ctx.findings`, `ctx.artifacts`, `ctx.executionHost` | `tool/call`, `durable finding records via ctx.findings`, `report artifacts via ctx.artifacts`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-git` | `git_diff`, `git_log`, `git_status` | `ctx.tools`, `ctx.git`, `ctx.agents`, `a calling Agent (execution-world workspace)` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-mobile-device` | `mobile_button`, `mobile_list_devices`, `mobile_observe`, `mobile_touch`, `mobile_type` | `ctx.tools`, `ctx.mobileDevice`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (screenshots)`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-recall` | `history_read`, `history_search` | `ctx.tools`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-task-surface` | `show_task_surface` | `ctx.tools`, `ctx.sessionProjections` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-vuln-kb` | `vuln_query`, `vuln_read` | `ctx.tools`, `ctx.vulnKb` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-work-items` | `work_items_boards`, `work_items_cancel_write`, `work_items_confirm_write`, `work_items_get`, `work_items_list`, `work_items_list_writes`, `work_items_prepare_write` | `ctx.tools`, `ctx.workItems`, `ctx.systemPrompt` | `tool/call`, `durable Work Items write previews and receipts`, `tool/result` | - | - |
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 
@@ -2293,7 +2311,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
   "properties": {
     "target": {
       "type": "string",
-      "description": "Member target returned by spawn_teammate or list_agents, including lead."
+      "description": "Team member name, or lead."
     },
     "message": {
       "type": "string",
@@ -2336,12 +2354,41 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
         "fresh",
         "fork"
       ]
+    },
+    "workspace_mode": {
+      "type": "string",
+      "description": "inherit shares the Lead working directory; worktree provisions a dedicated Git branch and checkout. Defaults to inherit.",
+      "enum": [
+        "inherit",
+        "worktree"
+      ]
     }
   },
   "required": [
     "name",
     "description",
     "prompt"
+  ]
+}
+```
+
+来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+
+### `team_merge_worktree`
+
+停止一个已完成的 teammate，将其隔离 worktree 分支合并进 Lead 源分支，并将该 teammate Session 保留为只读。仅 Lead 可用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "teammate": {
+      "type": "string",
+      "description": "Completed teammate name."
+    }
+  },
+  "required": [
+    "teammate"
   ]
 }
 ```
@@ -2428,7 +2475,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
     },
     "owner": {
       "type": "string",
-      "description": "Optional member target from spawn_teammate or list_agents, matching ownerName; use unowned for tasks without an owner."
+      "description": "Optional member-name filter; use unowned for tasks without an owner."
     },
     "ready": {
       "type": "boolean",
@@ -2502,7 +2549,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
     },
     "owner": {
       "type": "string",
-      "description": "Member target from spawn_teammate or list_agents for Lead-only reassign; omit to unassign."
+      "description": "Member name for Lead-only reassign; omit to unassign."
     }
   },
   "required": [
@@ -2801,3 +2848,2744 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 来源：[`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。
+<a id="cinlantool-nmap"></a>
+
+## `@cinlan/tool-nmap`
+
+### `nmap_scan`
+
+对一个已授权评估目标运行 nmap 端口扫描并返回从 XML 输出解析的结构化主机/端口/服务结果。目标必须匹配当前评估范围授权中声明的目标；越权目标在执行前被拒绝。不运行漏洞脚本——仅用于侦察。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Scan target as declared in the assessment scope grant: hostname, IPv4/IPv6 address, or CIDR range (e.g. 192.0.2.10, scanme.nmap.org, 10.0.0.0/24)."
+    },
+    "ports": {
+      "type": "string",
+      "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1024). Mutually exclusive with topPorts."
+    },
+    "topPorts": {
+      "type": "integer",
+      "description": "Scan the N most common ports (--top-ports). Mutually exclusive with ports."
+    },
+    "serviceDetection": {
+      "type": "boolean",
+      "description": "Enable -sV service/version detection (slower, more accurate service names)."
+    },
+    "osDetection": {
+      "type": "boolean",
+      "description": "Enable -O OS fingerprinting. Requires elevated privileges on most platforms."
+    },
+    "openOnly": {
+      "type": "boolean",
+      "description": "Report only open ports (--open). Defaults to true."
+    },
+    "timing": {
+      "type": "integer",
+      "description": "nmap timing template -T0 (paranoid) through -T5 (insane). Defaults to nmap's -T3."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-nmap/src/index.ts`](../packages/security/tool-nmap/src/index.ts)
+
+<a id="cinlantool-httpx"></a>
+
+## `@cinlan/tool-httpx`
+
+### `httpx_probe`
+
+探测已授权评估目标上存活的 HTTP/HTTPS 服务并返回结构化行：URL、状态码、标题、技术栈、Web 服务器与 CDN。每个目标必须匹配当前评估范围授权中声明的目标；越权目标在执行前被拒绝。仅用于侦察——不发送注入、Fuzz 或利用载荷。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Whitespace/comma-separated probe targets as declared in the assessment scope grant: hostnames, IPv4/IPv6 addresses, URLs, or CIDR ranges (at most 1000)."
+    },
+    "statusCode": {
+      "type": "boolean",
+      "description": "Include the HTTP status code (-status-code). Defaults to false."
+    },
+    "title": {
+      "type": "boolean",
+      "description": "Extract the page title (-title). Defaults to false."
+    },
+    "techDetect": {
+      "type": "boolean",
+      "description": "Report detected technologies (-tech-detect). Defaults to false."
+    },
+    "followRedirects": {
+      "type": "boolean",
+      "description": "Follow 3xx responses (-follow-redirects). Defaults to false."
+    },
+    "https": {
+      "type": "boolean",
+      "description": "Probe https:// scheme (-no-https when false). Defaults to true."
+    },
+    "http": {
+      "type": "boolean",
+      "description": "Probe http:// scheme (-no-http when false). Defaults to true."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-httpx/src/index.ts`](../packages/security/tool-httpx/src/index.ts)
+
+<a id="cinlantool-subfinder"></a>
+
+## `@cinlan/tool-subfinder`
+
+### `subfinder_enum`
+
+被动枚举一个已授权评估目标域名的子域名并返回结构化行：主机名、数据源与解析地址。查询第三方被动数据源与 DNS；从不向目标本身发送请求。域名必须匹配当前评估范围授权中声明的目标；越权域名在执行前被拒绝。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Root domain to enumerate as declared in the assessment scope grant (e.g. example.com). Do not include a scheme, path, or port."
+    },
+    "resolve": {
+      "type": "boolean",
+      "description": "Resolve each discovered subdomain to IP addresses (-resolve). Defaults to false."
+    },
+    "active": {
+      "type": "boolean",
+      "description": "Report only resolved and active hosts (-active). Defaults to false."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-subfinder/src/index.ts`](../packages/security/tool-subfinder/src/index.ts)
+
+<a id="cinlantool-naabu"></a>
+
+## `@cinlan/tool-naabu`
+
+### `naabu_scan`
+
+对已授权评估目标运行 naabu 快速 TCP 端口扫描并返回结构化开放端口行（主机、IP、端口）。仅发现开放端口——不做服务指纹识别、漏洞探测或载荷投递。每个目标必须匹配当前评估范围授权中声明的目标；越权目标在执行前被拒绝。SYN 扫描在多数平台需要提升权限。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Whitespace/comma-separated scan targets as declared in the assessment scope grant: hostnames, IPv4/IPv6 addresses, or CIDR ranges (at most 1000)."
+    },
+    "ports": {
+      "type": "string",
+      "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1000). Required unless topPorts is given."
+    },
+    "topPorts": {
+      "type": "integer",
+      "description": "Scan the N most common ports (-top-ports). Mutually exclusive with ports."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-naabu/src/index.ts`](../packages/security/tool-naabu/src/index.ts)
+
+<a id="cinlantool-nuclei"></a>
+
+## `@cinlan/tool-nuclei`
+
+### `nuclei_scan`
+
+对已授权评估目标运行基于模板的 nuclei 漏洞检查并返回结构化发现行（模板、严重级别、命中 URL）。模板选择与严重级别过滤已开放；DAST/利用级标志与带外回调默认关闭。每个目标必须匹配当前评估范围授权中声明的目标；越权目标在执行前被拒绝。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Whitespace/comma-separated scan targets as declared in the assessment scope grant: URLs or bare hosts (at most 100)."
+    },
+    "templates": {
+      "type": "string",
+      "description": "Whitespace/comma-separated template IDs or local template paths (-t). Omit to run the default template set."
+    },
+    "severities": {
+      "type": "string",
+      "description": "Whitespace/comma-separated severity filter (-severity): info, low, medium, high, critical."
+    },
+    "followRedirects": {
+      "type": "boolean",
+      "description": "Follow 3xx responses (-follow-redirects). Defaults to false."
+    },
+    "timeoutSeconds": {
+      "type": "integer",
+      "description": "Per-request timeout in seconds (-timeout). Defaults to nuclei's 10."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-nuclei/src/index.ts`](../packages/security/tool-nuclei/src/index.ts)
+
+<a id="cinlantool-ffuf"></a>
+
+## `@cinlan/tool-ffuf`
+
+### `ffuf_fuzz`
+
+使用 ffuf 与本地字典对一个已授权评估目标 URL 做 Fuzz：按 FUZZ 关键字所在位置发现目录/文件、参数名或 Header 值。返回结构化命中行（关键字、URL、状态码、长度）。URL 主机必须匹配当前评估范围授权中声明的目标；越权 URL 在执行前被拒绝。速率保持 ffuf 默认——不发出任何激进 Fuzz 标志。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Target URL containing the literal FUZZ keyword where wordlist entries are substituted, e.g. https://target.example.com/FUZZ or https://target.example.com/search?q=FUZZ."
+    },
+    "wordlist": {
+      "type": "string",
+      "description": "Absolute or relative wordlist file path on the execution host (-w)."
+    },
+    "method": {
+      "type": "string",
+      "description": "HTTP method (-X), e.g. POST. Defaults to GET."
+    },
+    "matchCodes": {
+      "type": "string",
+      "description": "Whitespace/comma-separated status codes to keep (-mc), e.g. 200,301,403."
+    },
+    "autoCalibrate": {
+      "type": "boolean",
+      "description": "Auto-filter noise responses (-ac). Defaults to true."
+    },
+    "followRedirects": {
+      "type": "boolean",
+      "description": "Follow redirects (-r). Defaults to false."
+    },
+    "timeoutSeconds": {
+      "type": "integer",
+      "description": "Per-request timeout in seconds (-timeout). Defaults to ffuf's 10."
+    }
+  },
+  "required": [
+    "url",
+    "wordlist"
+  ]
+}
+```
+
+来源：[`packages/security/tool-ffuf/src/index.ts`](../packages/security/tool-ffuf/src/index.ts)
+
+<a id="cinlantool-knowledge-search"></a>
+
+## `@cinlan/tool-knowledge-search`
+
+### `knowledge_list_documents`
+
+列出知识库当前已索引的全部文档，包含路径、标题与索引时间。用于查看搜索的覆盖范围。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/knowledge/tool-knowledge-search/src/index.ts`](../packages/knowledge/tool-knowledge-search/src/index.ts)
+
+### `knowledge_search`
+
+在知识库（已索引的本地文档）中搜索与查询相关的段落。中英文查询均可；结果按相关性排序并附带标题上下文。回答可能被已索引文档覆盖的问题前先使用本工具。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Free-text query; terms are combined with AND."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Maximum hits to return (1-20)."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+来源：[`packages/knowledge/tool-knowledge-search/src/index.ts`](../packages/knowledge/tool-knowledge-search/src/index.ts)
+
+<a id="deepseek-aidsh-tool-browser"></a>
+
+## `@deepseek-ai/dsh-tool-browser`
+
+### `browser_back`
+
+将一个持久化浏览器页面向后导航一步。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_click`
+
+点击最近一次 browser_snapshot 观测中的元素。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Observation id returned by the latest browser_snapshot for this page."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id from that exact browser_snapshot observation."
+    }
+  },
+  "required": [
+    "page_id",
+    "observation_id",
+    "element_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_close`
+
+关闭一个持久化浏览器页面。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_downloads`
+
+列出一个打开的浏览器页面已捕获的下载。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_forward`
+
+将一个持久化浏览器页面向前导航一步。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_history`
+
+读取一个持久化浏览器页面的有界导航历史。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum entries from 1 through 100."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_home`
+
+在新的持久化页面中打开已配置的 Browser 主页。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_list`
+
+列出持久化浏览器页面及其稳定的页面 id。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_navigate`
+
+将一个持久化浏览器页面导航到 HTTP 或 HTTPS URL。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "url": {
+      "type": "string",
+      "description": "Absolute HTTP or HTTPS destination URL."
+    }
+  },
+  "required": [
+    "page_id",
+    "url"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_network`
+
+读取一个持久化浏览器页面捕获的有界网络请求观测。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum entries from 1 through 100."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_open`
+
+在新的持久化浏览器页面中打开一个 HTTP 或 HTTPS URL。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Absolute HTTP or HTTPS URL to open."
+    }
+  },
+  "required": [
+    "url"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_save_download`
+
+将一个已完成的浏览器下载持久化为文件附件；返回元数据，绝不返回文件内容。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "download_id": {
+      "type": "string",
+      "description": "Download id returned by browser_downloads."
+    }
+  },
+  "required": [
+    "page_id",
+    "download_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_screenshot`
+
+捕获当前浏览器视口并以图片返回。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_search`
+
+在新的持久化页面中用已配置的 Browser 搜索引擎搜索。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Search text."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_snapshot`
+
+读取持久化浏览器页面的无障碍树与新的元素 id。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+### `browser_upload`
+
+将工作区文件设置到浏览器文件输入框。页面的 input/change 处理器可能上传数据。需要一次新的 browser_snapshot。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Latest page observation."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "File input element from that observation."
+    },
+    "file_path": {
+      "type": "string",
+      "description": "File inside the calling Session workspace."
+    }
+  },
+  "required": [
+    "page_id",
+    "observation_id",
+    "element_id",
+    "file_path"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser/src/index.ts`](../packages/browser/tool-browser/src/index.ts)
+
+<a id="deepseek-aidsh-tool-browser-element-capture"></a>
+
+## `@deepseek-ai/dsh-tool-browser-element-capture`
+
+### `browser_capture_element`
+
+使用 browser_snapshot id 或 browser_select_element 的选择 id 捕获经校验的裁剪图片。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent browser page id."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation_id returned by browser_snapshot; use with element_id."
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id from the same browser_snapshot observation."
+    },
+    "selection_id": {
+      "type": "string",
+      "description": "Temporary selection id returned by browser_select_element."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
+
+### `browser_select_element`
+
+在持久化浏览器页面上显示临时悬停高亮并等待用户选中一个元素。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "page_id": {
+      "type": "string",
+      "description": "Persistent page id returned by browser_list or browser_open."
+    }
+  },
+  "required": [
+    "page_id"
+  ]
+}
+```
+
+来源：[`packages/browser/tool-browser-element-capture/src/index.ts`](../packages/browser/tool-browser-element-capture/src/index.ts)
+
+<a id="deepseek-aidsh-tool-computer-use"></a>
+
+## `@deepseek-ai/dsh-tool-computer-use`
+
+### `computer_accessibility`
+
+基于一次精确观测执行次级无障碍操作或设置一个元素的值。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "secondary_action",
+        "set_value"
+      ]
+    },
+    "element_id": {
+      "type": "string"
+    },
+    "action_name": {
+      "type": "string",
+      "description": "Provider-advertised action name for secondary_action."
+    },
+    "value": {
+      "type": "string",
+      "description": "Exact value for set_value."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action",
+    "element_id"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_keyboard`
+
+基于一次精确桌面观测键入、粘贴、按一个键或按一个热键。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "type_text",
+        "paste_text",
+        "press_key",
+        "hotkey"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "description": "Literal text for type_text or paste_text."
+    },
+    "key": {
+      "type": "string",
+      "description": "Single key or modifier chord for press_key or hotkey."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_list_apps`
+
+列出可供 Computer Use 使用的本地桌面应用。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_list_windows`
+
+列出一个桌面应用的当前窗口。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    }
+  },
+  "required": [
+    "app_id"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_observe`
+
+读取一个桌面应用的无障碍树与新的元素 id。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Optional window id; omit only when the application has one unambiguous window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the target window forward before observing it."
+    }
+  },
+  "required": [
+    "app_id"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+### `computer_pointer`
+
+基于一次精确桌面观测点击、滚动或拖拽。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "Application id returned by computer_list_apps."
+    },
+    "window_id": {
+      "type": "string",
+      "description": "Window id returned by computer_list_windows or computer_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "Exact observation id returned by the latest computer_observe or action for this window."
+    },
+    "restore_window": {
+      "type": "boolean",
+      "description": "Bring the exact target window forward before acting."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "click",
+        "scroll",
+        "drag"
+      ]
+    },
+    "element_id": {
+      "type": "string",
+      "description": "Element id for click/scroll or drag start."
+    },
+    "to_element_id": {
+      "type": "string",
+      "description": "Element id for drag destination."
+    },
+    "x": {
+      "type": "number",
+      "description": "Window-local x for click/scroll or drag start."
+    },
+    "y": {
+      "type": "number",
+      "description": "Window-local y for click/scroll or drag start."
+    },
+    "to_x": {
+      "type": "number",
+      "description": "Window-local drag destination x."
+    },
+    "to_y": {
+      "type": "number",
+      "description": "Window-local drag destination y."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ]
+    },
+    "pages": {
+      "type": "integer"
+    },
+    "click_count": {
+      "type": "integer"
+    },
+    "mouse_button": {
+      "type": "string",
+      "enum": [
+        "left",
+        "right",
+        "middle"
+      ]
+    },
+    "modifiers": {
+      "type": "string",
+      "description": "One provider-supported modifier chord."
+    }
+  },
+  "required": [
+    "app_id",
+    "window_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+来源：[`packages/computer-use/tool-computer-use/src/index.ts`](../packages/computer-use/tool-computer-use/src/index.ts)
+
+<a id="deepseek-aidsh-tool-coordination"></a>
+
+## `@deepseek-ai/dsh-tool-coordination`
+
+### `coordination_add_task`
+
+向一个存活的协调运行中添加一个任务。其依赖与父任务必须已属于该运行。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id returned by coordination_start."
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
+        },
+        "label": {
+          "type": "string",
+          "description": "Short task label."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Standalone instructions for the task executor."
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Task ids that must succeed first.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "executor": {
+          "type": "string",
+          "description": "Registered executor kind. Omit to use the configured default."
+        },
+        "parent_task_id": {
+          "type": "string",
+          "description": "Optional acyclic parent task for subtree cancellation."
+        }
+      },
+      "required": [
+        "label",
+        "prompt"
+      ]
+    }
+  },
+  "required": [
+    "run_id",
+    "task"
+  ]
+}
+```
+
+来源：[`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_cancel`
+
+取消一个自有运行，或一个自有任务父子树及其因被取消依赖而传递性阻塞的任务。运行中的执行器通过 AbortSignal 收到原因。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to cancel; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id whose parent-subtree and dependency-blocked descendants should be cancelled; mutually exclusive with run_id."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Optional cancellation reason."
+    }
+  }
+}
+```
+
+来源：[`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_send_message`
+
+提交一条发给自有任务的消息。消息监听器决定投递；协调记录本身不代表执行器支持实时引导。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Recipient task id."
+    },
+    "message": {
+      "type": "string",
+      "description": "Non-empty message for the task."
+    }
+  },
+  "required": [
+    "task_id",
+    "message"
+  ]
+}
+```
+
+来源：[`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_start`
+
+启动一个后台任务 DAG。独立任务可并发运行；依赖任务仅在所有具名依赖成功后启动。保留返回的运行与任务 id 以供状态查询、消息、取消与等待使用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "description": "Complete initial task graph.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Optional stable id. Assign ids to tasks referenced by dependencies."
+          },
+          "label": {
+            "type": "string",
+            "description": "Short task label."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Standalone instructions for the task executor."
+          },
+          "dependencies": {
+            "type": "array",
+            "description": "Task ids that must succeed first.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "executor": {
+            "type": "string",
+            "description": "Registered executor kind. Omit to use the configured default."
+          },
+          "parent_task_id": {
+            "type": "string",
+            "description": "Optional acyclic parent task for subtree cancellation."
+          }
+        },
+        "required": [
+          "label",
+          "prompt"
+        ]
+      }
+    }
+  },
+  "required": [
+    "tasks"
+  ]
+}
+```
+
+来源：[`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_status`
+
+读取一个自有协调运行及其全部任务，或一个自有任务。此调用从不等待。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to inspect; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id to inspect; mutually exclusive with run_id."
+    }
+  }
+}
+```
+
+来源：[`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+### `coordination_wait`
+
+等待一个自有运行或任务到达终态，上限为配置的超时值。超时返回带 timedOut: true 的当前状态，工作继续运行。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Run id to wait for; mutually exclusive with task_id."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id to wait for; mutually exclusive with run_id."
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "description": "Optional positive wait duration, capped by deployment configuration."
+    }
+  }
+}
+```
+
+来源：[`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+<a id="deepseek-aidsh-tool-finding"></a>
+
+## `@deepseek-ai/dsh-tool-finding`
+
+### `finding_export`
+
+将全部匹配的同会话发现导出为确定性 JSON、Markdown 或 SARIF 2.1.0，并发布一份报告 Artifact。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "hypothesis",
+          "reproduced-vulnerability",
+          "remediation",
+          "unresolved"
+        ]
+      }
+    },
+    "severities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "informational",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    },
+    "ruleIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "json",
+        "markdown",
+        "sarif"
+      ]
+    }
+  },
+  "required": [
+    "format"
+  ]
+}
+```
+
+来源：[`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_query`
+
+读取一页有界且确定性的同会话发现。做状态转换前使用精确 id 与修订号。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "hypothesis",
+          "reproduced-vulnerability",
+          "remediation",
+          "unresolved"
+        ]
+      }
+    },
+    "severities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "informational",
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      }
+    },
+    "ruleIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "targetIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cursor": {
+      "type": "string"
+    },
+    "limit": {
+      "type": "integer"
+    },
+    "detail": {
+      "type": "string",
+      "enum": [
+        "summary",
+        "full"
+      ]
+    }
+  }
+}
+```
+
+来源：[`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_record`
+
+记录一条带类型的同会话安全发现。服务生成 id 与指纹；相同身份的记录只增加一次出现次数，不提升状态。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ruleId": {
+      "type": "string",
+      "description": "Stable detector or rule identifier."
+    },
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "observation",
+        "hypothesis",
+        "reproduced-vulnerability"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "host",
+              "service",
+              "url",
+              "repository",
+              "package",
+              "file",
+              "component",
+              "other"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "displayName"
+        ]
+      }
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "code"
+                ]
+              },
+              "targetId": {
+                "type": "string"
+              },
+              "uri": {
+                "type": "string"
+              },
+              "startLine": {
+                "type": "integer"
+              },
+              "startColumn": {
+                "type": "integer"
+              },
+              "endLine": {
+                "type": "integer"
+              },
+              "endColumn": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "targetId",
+              "uri"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "dependency"
+                ]
+              },
+              "targetId": {
+                "type": "string"
+              },
+              "ecosystem": {
+                "type": "string"
+              },
+              "packageName": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "manifestUri": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "targetId",
+              "ecosystem",
+              "packageName"
+            ]
+          }
+        ]
+      }
+    },
+    "cweIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cveIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cvss": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "3.1",
+            "4.0"
+          ]
+        },
+        "vector": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "version",
+        "vector",
+        "score"
+      ]
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reachability": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unreachable"
+              ]
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "reason"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "reachable"
+              ]
+            },
+            "entrypoint": {
+              "type": "string"
+            },
+            "pathEvidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "artifactId": {
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "bytes": {
+                  "type": "integer"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "provenance": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "producerId": {
+                      "type": "string"
+                    },
+                    "executionHostId": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    },
+                    "taskId": {
+                      "type": "string"
+                    },
+                    "engagementId": {
+                      "type": "string"
+                    },
+                    "scopeRef": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "producerId",
+                    "executionHostId"
+                  ]
+                },
+                "retention": {
+                  "type": "string",
+                  "enum": [
+                    "ephemeral",
+                    "session",
+                    "task",
+                    "engagement",
+                    "pinned",
+                    "managed"
+                  ]
+                },
+                "redaction": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "redacted",
+                    "unknown"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "artifactId",
+                "mediaType",
+                "kind",
+                "bytes",
+                "sha256",
+                "createdAt",
+                "provenance",
+                "retention",
+                "redaction"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "entrypoint"
+          ]
+        }
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "reproduction",
+              "remediation-validation",
+              "supporting"
+            ]
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifactId": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "producerId": {
+                    "type": "string"
+                  },
+                  "executionHostId": {
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "engagementId": {
+                    "type": "string"
+                  },
+                  "scopeRef": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "producerId",
+                  "executionHostId"
+                ]
+              },
+              "retention": {
+                "type": "string",
+                "enum": [
+                  "ephemeral",
+                  "session",
+                  "task",
+                  "engagement",
+                  "pinned",
+                  "managed"
+                ]
+              },
+              "redaction": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "redacted",
+                  "unknown"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "artifactId",
+              "mediaType",
+              "kind",
+              "bytes",
+              "sha256",
+              "createdAt",
+              "provenance",
+              "retention",
+              "redaction"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "artifact"
+        ]
+      }
+    }
+  },
+  "required": [
+    "ruleId",
+    "title",
+    "summary",
+    "state",
+    "severity",
+    "confidence",
+    "targets",
+    "locations",
+    "reachability"
+  ]
+}
+```
+
+来源：[`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+### `finding_transition`
+
+对一个精确的发现修订号做状态转换。复现与修复状态要求各自的类型化证据前置条件。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "findingId": {
+      "type": "string"
+    },
+    "revision": {
+      "type": "integer"
+    },
+    "to": {
+      "type": "string",
+      "enum": [
+        "hypothesis",
+        "reproduced-vulnerability",
+        "remediation",
+        "unresolved"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "observation",
+              "reproduction",
+              "remediation-validation",
+              "supporting"
+            ]
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "artifactId": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "producerId": {
+                    "type": "string"
+                  },
+                  "executionHostId": {
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "engagementId": {
+                    "type": "string"
+                  },
+                  "scopeRef": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "producerId",
+                  "executionHostId"
+                ]
+              },
+              "retention": {
+                "type": "string",
+                "enum": [
+                  "ephemeral",
+                  "session",
+                  "task",
+                  "engagement",
+                  "pinned",
+                  "managed"
+                ]
+              },
+              "redaction": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "redacted",
+                  "unknown"
+                ]
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "artifactId",
+              "mediaType",
+              "kind",
+              "bytes",
+              "sha256",
+              "createdAt",
+              "provenance",
+              "retention",
+              "redaction"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "artifact"
+        ]
+      }
+    },
+    "fixGuidance": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "findingId",
+    "revision",
+    "to"
+  ]
+}
+```
+
+来源：[`packages/security/tool-finding/src/index.ts`](../packages/security/tool-finding/src/index.ts)
+
+<a id="deepseek-aidsh-tool-git"></a>
+
+## `@deepseek-ai/dsh-tool-git`
+
+### `git_diff`
+
+读取调用 Agent 工作区仓库的有界 diff 观测。此工具从不修改仓库。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "max_bytes": {
+      "type": "integer",
+      "description": "Optional positive byte cap within the configured provider limit."
+    }
+  }
+}
+```
+
+来源：[`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+### `git_log`
+
+以有界结构化条目读取调用 Agent 工作区仓库的近期提交。此工具从不修改仓库。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "description": "Optional positive entry limit within the configured provider limit."
+    }
+  }
+}
+```
+
+来源：[`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+### `git_status`
+
+读取调用 Agent 工作区仓库的结构化分支、分歧与工作树计数。此工具从不修改仓库。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/git/tool-git/src/index.ts`](../packages/git/tool-git/src/index.ts)
+
+<a id="deepseek-aidsh-tool-mobile-device"></a>
+
+## `@deepseek-ai/dsh-tool-mobile-device`
+
+### `mobile_button`
+
+基于一次精确观测按下一个 Provider 支持的设备导航按钮。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by the latest mobile_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "button": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "button"
+  ]
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_list_devices`
+
+列出已配置移动 Provider 的精确设备 id 与可用性。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_observe`
+
+读取一次新的移动设备视图树与可选的原生 PNG 图片。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by mobile_list_devices. Omit to use the saved default device; it must be currently available and there is no fallback."
+    }
+  }
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_touch`
+
+基于一次精确观测用归一化坐标轻点或滑动。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by the latest mobile_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "tap",
+        "swipe"
+      ]
+    },
+    "x": {
+      "type": "number",
+      "description": "Normalized tap x from 0 to 1."
+    },
+    "y": {
+      "type": "number",
+      "description": "Normalized tap y from 0 to 1."
+    },
+    "from_x": {
+      "type": "number",
+      "description": "Normalized swipe start x from 0 to 1."
+    },
+    "from_y": {
+      "type": "number",
+      "description": "Normalized swipe start y from 0 to 1."
+    },
+    "to_x": {
+      "type": "number",
+      "description": "Normalized swipe destination x from 0 to 1."
+    },
+    "to_y": {
+      "type": "number",
+      "description": "Normalized swipe destination y from 0 to 1."
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "action"
+  ]
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+### `mobile_type`
+
+基于一次精确移动观测通过 stdin 键入字面文本。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device_id": {
+      "type": "string",
+      "description": "Exact device id returned by the latest mobile_observe."
+    },
+    "observation_id": {
+      "type": "string",
+      "description": "One-use observation id returned by the latest mobile_observe for this device."
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_id",
+    "observation_id",
+    "text"
+  ]
+}
+```
+
+来源：[`packages/mobile-device/tool-mobile-device/src/index.ts`](../packages/mobile-device/tool-mobile-device/src/index.ts)
+
+<a id="deepseek-aidsh-tool-recall"></a>
+
+## `@deepseek-ai/dsh-tool-recall`
+
+### `history_read`
+
+取回被压缩检查点遮蔽的原始消息完整转录。输出包含原始用户提示、助手轮次与工具结果，过长时分页。提供检查点页脚中出现的检查点 ID（例如 "c42"）。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "checkpoint": {
+      "type": "string",
+      "description": "The checkpoint ID (e.g. \"c42\") whose shadowed span to retrieve."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "0-based message offset for paginating long transcripts."
+    }
+  },
+  "required": [
+    "checkpoint"
+  ]
+}
+```
+
+来源：[`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+### `history_search`
+
+在所有已压缩历史区段中搜索精确关键字、错误字符串、配置标志或路径。执行大小写不敏感的字面扫描，返回带检查点 ID 标记的匹配片段。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "The literal string to search for across shadowed conversation spans."
+    },
+    "checkpoint": {
+      "type": "string",
+      "description": "Optional specific checkpoint ID to restrict the search to."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum matching occurrences to return (defaults to 25)."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+来源：[`packages/compaction/tool-recall/src/index.ts`](../packages/compaction/tool-recall/src/index.ts)
+
+<a id="deepseek-aidsh-tool-task-surface"></a>
+
+## `@deepseek-ai/dsh-tool-task-surface`
+
+### `show_task_surface`
+
+向用户呈现结构化、可交互的任务面板，供审阅、配置或决策。面板结束本轮 Agent 回合，展示声明式区块与输入字段。用户可提交字段值或关闭面板以继续对话。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "model": {
+      "description": "Declarative Task Surface v1 model defining title, sections, blocks, optional input fields, and submit button."
+    }
+  },
+  "required": [
+    "model"
+  ]
+}
+```
+
+来源：[`packages/task-surface/tool-task-surface/src/index.ts`](../packages/task-surface/tool-task-surface/src/index.ts)
+
+<a id="deepseek-aidsh-tool-vuln-kb"></a>
+
+## `@deepseek-ai/dsh-tool-vuln-kb`
+
+### `vuln_query`
+
+按包名与生态查询漏洞知识库中的 CVE，可选按版本过滤。返回带严重级别与修复可用性的紧凑匹配条目；受影响范围与参考信息使用 vuln_read。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "cveId": {
+      "type": "string",
+      "description": "Specific CVE id (e.g., CVE-2024-12345). If provided, ecosystem/package/version are ignored."
+    },
+    "ecosystem": {
+      "type": "string",
+      "description": "Package ecosystem (e.g., npm, pypi, maven, go, nuget). Required if cveId is not provided."
+    },
+    "package": {
+      "type": "string",
+      "description": "Package name within the ecosystem. Required if cveId is not provided."
+    },
+    "version": {
+      "type": "string",
+      "description": "Specific version to check for affectedness. Optional."
+    },
+    "maxResults": {
+      "type": "integer",
+      "description": "Positive maximum number of results to return. The active provider supplies the default."
+    }
+  }
+}
+```
+
+来源：[`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
+
+### `vuln_read`
+
+按 CVE id 读取单个漏洞的完整详情，包含描述、CVSS 向量、受影响包范围与参考 URL。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "cveId": {
+      "type": "string",
+      "description": "The CVE id (e.g., CVE-2024-12345)."
+    }
+  },
+  "required": [
+    "cveId"
+  ]
+}
+```
+
+来源：[`packages/security/tool-vuln-kb/src/index.ts`](../packages/security/tool-vuln-kb/src/index.ts)
+
+<a id="deepseek-aidsh-tool-work-items"></a>
+
+## `@deepseek-ai/dsh-tool-work-items`
+
+### `work_items_boards`
+
+读取已配置 Provider 的有界归一化看板（有序列与条目 id）；只有暴露原生看板界面的 Provider 会应答。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "Optional provider family; omit only when exactly one provider is usable.",
+      "enum": [
+        "github",
+        "linear",
+        "gitlab",
+        "jira",
+        "gitee"
+      ]
+    },
+    "board": {
+      "type": "string",
+      "description": "Optional provider board id or title selecting one board."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum item ids retained per column, from 1 through 100."
+    }
+  }
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_cancel_write`
+
+按精确持久化的 operation_id 取消一个未执行的 Work Items 预览。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
+    }
+  },
+  "required": [
+    "operation_id"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_confirm_write`
+
+按 operation_id 确认一个此前持久化的 Work Items 预览；不接受替换变更。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation_id": {
+      "type": "string",
+      "description": "Exact operation_id returned by work_items_prepare_write or work_items_list_writes."
+    }
+  },
+  "required": [
+    "operation_id"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_get`
+
+按不透明的 Provider id 读取一条归一化 Work Item。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Opaque id returned by work_items_list, such as github:owner/repository#123."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_list`
+
+列出已配置的 GitHub、GitLab、Jira 或 Linear Provider 的归一化 Work Items。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "Optional provider family; omit only when exactly one provider is usable.",
+      "enum": [
+        "github",
+        "linear",
+        "gitlab",
+        "jira",
+        "gitee"
+      ]
+    },
+    "scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "github"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured GitHub repository owner."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured GitHub repository name."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "linear"
+            },
+            "team": {
+              "type": "string",
+              "description": "Configured Linear team id."
+            },
+            "project": {
+              "type": "string",
+              "description": "Configured Linear project id."
+            }
+          },
+          "required": [
+            "source"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "gitlab"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured GitLab namespace."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured GitLab project path."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "jira"
+            },
+            "project": {
+              "type": "string",
+              "description": "Configured Jira project key."
+            }
+          },
+          "required": [
+            "source",
+            "project"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string",
+              "const": "gitee"
+            },
+            "owner": {
+              "type": "string",
+              "description": "Configured Gitee repository owner."
+            },
+            "repository": {
+              "type": "string",
+              "description": "Configured Gitee repository path."
+            }
+          },
+          "required": [
+            "source",
+            "owner",
+            "repository"
+          ]
+        }
+      ],
+      "description": "Optional configured provider scope. GitHub requires owner and repository; Linear requires team or project; GitLab requires owner and repository; Jira requires project."
+    },
+    "query": {
+      "type": "string",
+      "description": "Optional bounded title/body text filter."
+    },
+    "state": {
+      "type": "string",
+      "description": "Optional provider-neutral state filter; defaults to open.",
+      "enum": [
+        "open",
+        "closed",
+        "all"
+      ]
+    },
+    "cursor": {
+      "type": "string",
+      "description": "Opaque cursor returned by a prior page."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum items to request, from 1 through 100."
+    }
+  }
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_list_writes`
+
+在不发出 Provider 变更请求的情况下，读取一个 Provider 家族的持久 Work Items 预览与回执。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "github",
+        "linear",
+        "gitlab",
+        "jira",
+        "gitee"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum history rows, from 1 through 100."
+    }
+  },
+  "required": [
+    "source",
+    "limit"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)
+
+### `work_items_prepare_write`
+
+校验一条 Work Item 变更并持久化预览，不联系外部 Provider 执行变更。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "mutation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "create"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "github",
+                "linear",
+                "gitlab",
+                "jira",
+                "gitee"
+              ]
+            },
+            "title": {
+              "type": "string",
+              "description": "New Work Item title."
+            },
+            "body": {
+              "type": "string",
+              "description": "New Work Item body."
+            }
+          },
+          "required": [
+            "kind",
+            "source",
+            "title",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "comment"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "body": {
+              "type": "string",
+              "description": "Comment body."
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "body"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "state"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "state": {
+              "type": "string",
+              "description": "Provider state value."
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "state"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "assign"
+            },
+            "id": {
+              "type": "string",
+              "description": "Opaque id returned by a Work Items read."
+            },
+            "assignees": {
+              "type": "array",
+              "description": "Provider assignee ids; an empty list clears assignment.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "assignees"
+          ]
+        }
+      ],
+      "description": "Exact external mutation to preview. The returned operation_id is required for confirmation."
+    }
+  },
+  "required": [
+    "mutation"
+  ]
+}
+```
+
+来源：[`packages/work-items/tool-work-items/src/index.ts`](../packages/work-items/tool-work-items/src/index.ts)

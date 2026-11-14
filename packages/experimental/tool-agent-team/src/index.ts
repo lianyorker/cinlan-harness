@@ -280,8 +280,8 @@ To message another teammate, use send_message({ target: "<teammate name>", messa
     })))
 
     register(scoped.tools.register(defineTool({
-      name: 'send_message',
-      description: 'Send one message to another Team member. A running target receives it at the nearest step boundary; an inactive target starts or resumes a turn.',
+      name: 'team_merge_worktree',
+      description: 'Stop a completed teammate, merge its isolated worktree branch into the Lead source branch, and retain the teammate Session as read-only. Lead only.',
       parameters: {
         teammate: { type: 'string', required: true, description: 'Completed teammate name.' },
       },
