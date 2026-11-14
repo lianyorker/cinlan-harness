@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-security-research",
   "description": "Security Research profile layer: authorized assessment scope, findings, evidence, vulnerability KB, skills, and workflow guidance",
-  "version": "0.1.7-rc.2",
+  "version": "0.2.2-alpha.2",
   "icon": "./icon.svg",
   "publishConfig": {
     "access": "public"
@@ -50,7 +50,15 @@
     "@deepseek-ai/dsh-execution-host": "workspace:^",
     "@deepseek-ai/dsh-finding": "workspace:^",
     "@deepseek-ai/dsh-finding-session": "workspace:^",
+    "@cinlan/engagement-ledger": "workspace:^",
     "@cinlan/security-skills": "workspace:^",
+    "@cinlan/tool-nmap": "workspace:^",
+    "@cinlan/tool-httpx": "workspace:^",
+    "@cinlan/tool-subfinder": "workspace:^",
+    "@cinlan/tool-naabu": "workspace:^",
+    "@cinlan/tool-nuclei": "workspace:^",
+    "@cinlan/tool-ffuf": "workspace:^",
+    "@cinlan/vuln-playbook": "workspace:^",
     "@deepseek-ai/dsh-security-workflow-prompt": "workspace:^",
     "@deepseek-ai/dsh-tool-finding": "workspace:^",
     "@deepseek-ai/dsh-tool-vuln-kb": "workspace:^",

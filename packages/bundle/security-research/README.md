@@ -96,9 +96,7 @@ See [`cordis.patch.yml`](cordis.patch.yml) for the composed rows and [`src/index
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the inserted finding, vulnerability, skill, and workflow packages and the optional research preset's persona, scoped skill catalog, and coding composition.
-
-The research persona is `执行器`, and keeps that identity when a loaded skill supplies another greeting or channel name.
+Indirectly, through the inserted finding, vulnerability, skill, and workflow packages and the optional research preset's persona (`执行器`, which keeps that identity when a loaded skill supplies another greeting or channel name), scoped skill catalog, and coding composition.
 
 #### KV Cache effect
 

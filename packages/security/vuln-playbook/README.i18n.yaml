@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/vuln-playbook/README.md
+/:
+  en: e625c076b6c64781
+  zh: e9f93f7f8505f1b2
+/cinlan-vuln-playbook:
+  en: ef5842d47cb8f286
+  zh: ef87ede93af27e4e
+/cinlan-vuln-playbook/summary:
+  en: 6cb916c330a00947
+  zh: bdbd3d62b70e5e31
+/cinlan-vuln-playbook/using-this-package:
+  en: 4c02e43d78439a99
+  zh: b27ce11b2b15c19c
+/cinlan-vuln-playbook/provenance-and-exclusions:
+  en: 171b95486dd876ec
+  zh: 56679b6d80e56edf
+/cinlan-vuln-playbook/model-experience:
+  en: b79abea83d954e55
+  zh: 2e7486603e9ac66e
+/cinlan-vuln-playbook/model-experience/kv-cache-effect:
+  en: 2c6adb1d095dcbfd
+  zh: 3a30e17ee5bf9cfe
+/cinlan-vuln-playbook/known-limitations-and-deferred-work:
+  en: 30a2c52ddb0885e8
+  zh: 38e98db9a505245a

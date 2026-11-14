@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-subfinder/README.md
+/:
+  en: e1c40bab88256a53
+  zh: bae944d30b0966ed
+/cinlan-tool-subfinder:
+  en: fff17f7256a27667
+  zh: 9ba1ec8ff393d258
+/cinlan-tool-subfinder/summary:
+  en: b44392dba3719397
+  zh: 31021fcb5c52231c
+/cinlan-tool-subfinder/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/cinlan-tool-subfinder/use-this-package:
+  en: a4f00fbe28e3604b
+  zh: a291ef3c03fc9df2
+/cinlan-tool-subfinder/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-subfinder/model-experience/subfinder-enum-tool-schema:
+  en: 365bc30e06319785
+  zh: 5bce9756662ebdfb
+/cinlan-tool-subfinder/model-experience/subfinder-enum-tool-schema/what-the-model-sees:
+  en: 3bfb7d9408bf84dd
+  zh: d0274df6ea2abaa8
+/cinlan-tool-subfinder/model-experience/subfinder-enum-tool-schema/token-effect:
+  en: 0a68d8ce5a740ae9
+  zh: 01b674bb467731d8
+/cinlan-tool-subfinder/model-experience/subfinder-enum-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 03e7f7a6973421be
+/cinlan-tool-subfinder/known-limitations-and-deferred-work:
+  en: 5e9598ba587b7b0c
+  zh: 2997a1a63f235615
+/cinlan-tool-subfinder/known-limitations-and-deferred-work/dev-note:
+  en: 2172b17e0d0f255a
+  zh: 8d2823495dcd270b

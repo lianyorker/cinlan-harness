@@ -28,24 +28,66 @@ importers:
 
   .:
     devDependencies:
+      '@cinlan/coordination':
+        specifier: workspace:*
+        version: link:packages/coordination/coordination
+      '@cinlan/knowledge-base':
+        specifier: workspace:*
+        version: link:packages/knowledge/knowledge-base
+      '@cinlan/tool-ffuf':
+        specifier: workspace:*
+        version: link:packages/security/tool-ffuf
+      '@cinlan/tool-httpx':
+        specifier: workspace:*
+        version: link:packages/security/tool-httpx
+      '@cinlan/tool-knowledge-search':
+        specifier: workspace:*
+        version: link:packages/knowledge/tool-knowledge-search
+      '@cinlan/tool-naabu':
+        specifier: workspace:*
+        version: link:packages/security/tool-naabu
+      '@cinlan/tool-nmap':
+        specifier: workspace:*
+        version: link:packages/security/tool-nmap
+      '@cinlan/tool-nuclei':
+        specifier: workspace:*
+        version: link:packages/security/tool-nuclei
+      '@cinlan/tool-subfinder':
+        specifier: workspace:*
+        version: link:packages/security/tool-subfinder
+      '@cinlan/work-items':
+        specifier: workspace:*
+        version: link:packages/work-items/work-items
       '@deepseek-ai/dsh-action-cards':
         specifier: workspace:*
         version: link:packages/experimental/action-cards
       '@deepseek-ai/dsh-agent':
         specifier: workspace:*
         version: link:packages/core/agent
+      '@deepseek-ai/dsh-artifact':
+        specifier: workspace:*
+        version: link:packages/artifact/artifact
+      '@deepseek-ai/dsh-browser':
+        specifier: workspace:*
+        version: link:packages/browser/browser
       '@deepseek-ai/dsh-browser-use':
         specifier: workspace:*
         version: link:packages/browser-use/browser-use
       '@deepseek-ai/dsh-computer-use':
         specifier: workspace:*
         version: link:packages/computer-use/computer-use
+      '@deepseek-ai/dsh-coordination-local':
+        specifier: workspace:*
+        version: link:packages/coordination/coordination-local
       '@deepseek-ai/dsh-cua':
         specifier: workspace:*
         version: link:packages/experimental/cua
       '@deepseek-ai/dsh-cua-bundle':
         specifier: workspace:*
         version: link:packages/experimental/cua-bundle
+      '@deepseek-ai/dsh-execution-host':
+        specifier: workspace:*
+        version: link:packages/execution-host/execution-host
       '@deepseek-ai/dsh-experimental-browser-use-chrome-devtools-mcp':
         specifier: workspace:*
         version: link:packages/experimental/browser-use-chrome-devtools-mcp
@@ -91,6 +133,12 @@ importers:
       '@deepseek-ai/dsh-experimental-worktree':
         specifier: workspace:*
         version: link:packages/experimental/worktree
+      '@deepseek-ai/dsh-finding':
+        specifier: workspace:*
+        version: link:packages/security/finding
+      '@deepseek-ai/dsh-git':
+        specifier: workspace:*
+        version: link:packages/git/git
       '@deepseek-ai/dsh-hooks-claude-code':
         specifier: workspace:*
         version: link:packages/experimental/hooks-claude-code
@@ -106,33 +154,72 @@ importers:
       '@deepseek-ai/dsh-mcp-client':
         specifier: workspace:*
         version: link:packages/mcp/mcp-client
+      '@deepseek-ai/dsh-mobile-device':
+        specifier: workspace:*
+        version: link:packages/mobile-device/mobile-device
       '@deepseek-ai/dsh-skill-office':
         specifier: workspace:*
         version: link:packages/skill/skill-office
       '@deepseek-ai/dsh-subagent-dsh-sdk':
         specifier: workspace:*
         version: link:packages/subagent/subagent-dsh-sdk
+      '@deepseek-ai/dsh-tool-browser':
+        specifier: workspace:*
+        version: link:packages/browser/tool-browser
+      '@deepseek-ai/dsh-tool-browser-element-capture':
+        specifier: workspace:*
+        version: link:packages/browser/tool-browser-element-capture
+      '@deepseek-ai/dsh-tool-computer-use':
+        specifier: workspace:*
+        version: link:packages/computer-use/tool-computer-use
+      '@deepseek-ai/dsh-tool-coordination':
+        specifier: workspace:*
+        version: link:packages/coordination/tool-coordination
       '@deepseek-ai/dsh-tool-executor-native':
         specifier: workspace:*
         version: link:packages/core/tool-executor-native
       '@deepseek-ai/dsh-tool-executor-ptc':
         specifier: workspace:*
         version: link:packages/core/tool-executor-ptc
+      '@deepseek-ai/dsh-tool-finding':
+        specifier: workspace:*
+        version: link:packages/security/tool-finding
+      '@deepseek-ai/dsh-tool-git':
+        specifier: workspace:*
+        version: link:packages/git/tool-git
+      '@deepseek-ai/dsh-tool-mobile-device':
+        specifier: workspace:*
+        version: link:packages/mobile-device/tool-mobile-device
       '@deepseek-ai/dsh-tool-ralph':
         specifier: workspace:*
         version: link:packages/experimental/tool-ralph
+      '@deepseek-ai/dsh-tool-recall':
+        specifier: workspace:*
+        version: link:packages/compaction/tool-recall
       '@deepseek-ai/dsh-tool-session-query':
         specifier: workspace:*
         version: link:packages/experimental/tool-session-query
+      '@deepseek-ai/dsh-tool-task-surface':
+        specifier: workspace:*
+        version: link:packages/task-surface/tool-task-surface
       '@deepseek-ai/dsh-tool-terminal':
         specifier: workspace:*
         version: link:packages/experimental/tool-terminal
+      '@deepseek-ai/dsh-tool-vuln-kb':
+        specifier: workspace:*
+        version: link:packages/security/tool-vuln-kb
+      '@deepseek-ai/dsh-tool-work-items':
+        specifier: workspace:*
+        version: link:packages/work-items/tool-work-items
       '@deepseek-ai/dsh-tool-working-directory':
         specifier: workspace:*
         version: link:packages/session/tool-working-directory
       '@deepseek-ai/dsh-tool-workspace-dependencies':
         specifier: workspace:*
         version: link:packages/skill/tool-workspace-dependencies
+      '@deepseek-ai/dsh-vuln-kb-service':
+        specifier: workspace:*
+        version: link:packages/security/vuln-kb-service
       '@deepseek-ai/dsh-web-fetch-http':
         specifier: workspace:*
         version: link:packages/web/web-fetch-http
@@ -550,6 +637,9 @@ importers:
       '@deepseek-ai/dsh-web-app':
         specifier: workspace:*
         version: link:../../packages/bundle/web-app
+      '@deepseek-ai/dsh-web-capability-defaults':
+        specifier: workspace:*
+        version: link:../../packages/bundle/web-capability-defaults
       '@deepseek-ai/dsh-workflow-ptc':
         specifier: workspace:*
         version: link:../../packages/workflow/workflow-ptc
@@ -4118,6 +4208,9 @@ importers:
       '@cinlan/worktree-task-workspace':
         specifier: workspace:*
         version: link:../../workspace/worktree-task-workspace
+      '@deepseek-ai/dsh-experimental-auto-review':
+        specifier: workspace:*
+        version: link:../../experimental/auto-review
       '@deepseek-ai/dsh-mcp-client':
         specifier: workspace:*
         version: link:../../mcp/mcp-client
@@ -4431,9 +4524,33 @@ importers:
 
   packages/bundle/security-research:
     dependencies:
+      '@cinlan/engagement-ledger':
+        specifier: workspace:^
+        version: link:../../security/engagement-ledger
       '@cinlan/security-skills':
         specifier: workspace:^
         version: link:../../security/security-skills
+      '@cinlan/tool-ffuf':
+        specifier: workspace:^
+        version: link:../../security/tool-ffuf
+      '@cinlan/tool-httpx':
+        specifier: workspace:^
+        version: link:../../security/tool-httpx
+      '@cinlan/tool-naabu':
+        specifier: workspace:^
+        version: link:../../security/tool-naabu
+      '@cinlan/tool-nmap':
+        specifier: workspace:^
+        version: link:../../security/tool-nmap
+      '@cinlan/tool-nuclei':
+        specifier: workspace:^
+        version: link:../../security/tool-nuclei
+      '@cinlan/tool-subfinder':
+        specifier: workspace:^
+        version: link:../../security/tool-subfinder
+      '@cinlan/vuln-playbook':
+        specifier: workspace:^
+        version: link:../../security/vuln-playbook
       '@deepseek-ai/cordis-plugin-include':
         specifier: workspace:^
         version: link:../../../vendor/include
@@ -18671,6 +18788,27 @@ importers:
         specifier: workspace:^
         version: link:../../core/tools
 
+  packages/security/engagement-ledger:
+    devDependencies:
+      '@cinlan/vuln-playbook':
+        specifier: workspace:^
+        version: link:../vuln-playbook
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-assessment-scope':
+        specifier: workspace:^
+        version: link:../assessment-scope
+      '@deepseek-ai/dsh-home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/dsh-util-values':
+        specifier: workspace:^
+        version: link:../../util/values
+
   packages/security/finding:
     dependencies:
       zod:
@@ -18816,6 +18954,18 @@ importers:
         specifier: workspace:^
         version: link:../../core/system-prompt
 
+  packages/security/tool-ffuf:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-finding:
     dependencies:
       '@deepseek-ai/dsh-finding-export':
@@ -18859,6 +19009,66 @@ importers:
         specifier: workspace:^
         version: link:../../core/tools
 
+  packages/security/tool-httpx:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-naabu:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-nmap:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-nuclei:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-subfinder:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-vuln-kb:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -18892,6 +19102,15 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:^
         version: link:../../util/brand
+
+  packages/security/vuln-playbook:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
 
   packages/session-query/session-log-export:
     dependencies:
@@ -21608,6 +21827,9 @@ importers:
 
   packages/terminal/terminal-quick-commands:
     dependencies:
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
       zod:
         specifier: ^4.4.3
         version: 4.4.3

@@ -17,10 +17,16 @@
           authorizationRef: security-research-profile
           notBefore: 0
           expiresAt: 9007199254740991
-          executionHostIds: []
-          targets: []
+          executionHostIds:
+            - local
+          targets:
+            - id: local-workspace
+              kind: hostname
+              value: localhost
           excludedTargetIds: []
-          actions: []
+          actions:
+            - active-validation
+            - reconnaissance
           approvalRequiredActions: []
           egress: []
           credentials: []
@@ -34,8 +40,43 @@
     - id: assessment-scope-tool-policy
       name: '@deepseek-ai/dsh-assessment-scope-tool-policy'
       config:
+        shellTools:
+          - bash
+          - pwsh
+          - mcp__rea__rizin_debug_command
+          - mcp__rea__install_adb_package
+        networkTools:
+          - web_search
+          - web_fetch
+          - nmap_scan
+          - httpx_probe
+          - subfinder_enum
+          - naabu_scan
+          - nuclei_scan
+          - ffuf_fuzz
+          - mcp__rea__capture_browser_scenario
+        browserTools:
+          - browser_list
+          - browser_snapshot
+          - browser_screenshot
+          - browser_select_element
+          - browser_capture_element
+          - browser_downloads
+          - browser_upload
+          - browser_save_download
+          - browser_history
+          - browser_network
+          - browser_home
+          - browser_search
+          - browser_back
+          - browser_forward
+          - browser_open
+          - browser_navigate
+          - browser_click
+          - browser_close
         workspaceCommands:
           - { tool: pwsh, command: pwd }
+          - { tool: pwsh, command: pnpm install }
           - { tool: pwsh, command: Get-Location }
           - { tool: pwsh, command: Get-ChildItem }
           - { tool: pwsh, command: pnpm --version }
@@ -59,6 +100,23 @@
       name: '@deepseek-ai/dsh-vuln-kb-nvd'
     - id: tool-vuln-kb
       name: '@deepseek-ai/dsh-tool-vuln-kb'
+
+    - id: vuln-playbook
+      name: '@cinlan/vuln-playbook'
+    - id: engagement-ledger
+      name: '@cinlan/engagement-ledger'
+    - id: tool-nmap
+      name: '@cinlan/tool-nmap'
+    - id: tool-httpx
+      name: '@cinlan/tool-httpx'
+    - id: tool-subfinder
+      name: '@cinlan/tool-subfinder'
+    - id: tool-naabu
+      name: '@cinlan/tool-naabu'
+    - id: tool-nuclei
+      name: '@cinlan/tool-nuclei'
+    - id: tool-ffuf
+      name: '@cinlan/tool-ffuf'
 
     - id: security-workflow-prompt
       name: '@deepseek-ai/dsh-security-workflow-prompt'

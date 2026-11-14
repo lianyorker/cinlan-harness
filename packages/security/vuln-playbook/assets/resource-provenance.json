@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": "operator-provided archive",
+  "archive": "dsh富江破甲插件.zip (@deepseek-ai/dsh-prompt-custom 0.20.13)",
+  "archiveSha256": "3a02480048409b191b68ab10ad4cccf8700ad52159e9f8e3ce7607c8b3ab6939",
+  "archivePath": "plugin/knowledge",
+  "revisionPolicy": "Version derives from the normalized corpus file inventory; the archive hash identifies the imported input, not an independently audited origin.",
+  "license": {
+    "declared": "Not established for imported playbook content",
+    "scope": "The repository MIT license applies to package source code only and does not grant rights to imported playbook files.",
+    "thirdPartyReview": "Entries state they compile public material (NVD / vendor advisories / public analyses); authorship, upstream revisions, and reuse or redistribution permissions have not been independently verified per entry."
+  },
+  "audit": {
+    "entryCount": 176,
+    "categories": {
+      "cloud-container": 15,
+      "edge-device": 17,
+      "exchange-ad": 15,
+      "gray-market": 60,
+      "java-deser": 10,
+      "java-web": 23,
+      "linux-priv": 12,
+      "triage": 4,
+      "web-cms": 20
+    },
+    "excludedArchiveContent": ["install.ps1", "点我执行脚本.cmd", "prompt-custom.json", "plugin/lib", "plugin/knowledge/*/SKILL.md indexes retained", "client UI", "loopback HTTP routes", "runtime downloaders (aboutsecurity.js, skills.js)", "autopilot follow-up", "Telegram channel assets"],
+    "excludedReason": "Only the offline playbook corpus was imported. The prompt-replacement configuration carries refusal-suppression and advertising instructions and is excluded outright; executable plugin code was reviewed but is reimplemented natively here rather than shipped.",
+    "contentPolicy": "All callback endpoints in playbook text are documentation placeholders (attacker/dnslog.cn). No injection directives targeting the model were found in the corpus.",
+    "textPolicy": "Normalized CRLF to LF, stripped UTF-8 BOM, preserved UTF-8 content otherwise.",
+    "executionPolicy": "Corpus files are data; the package never evaluates, downloads, or executes their content."
+  }
+}

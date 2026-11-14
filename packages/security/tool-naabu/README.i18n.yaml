@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-naabu/README.md
+/:
+  en: 02ab252141056b06
+  zh: d40c9413651b0f58
+/cinlan-tool-naabu:
+  en: 1b6510439c2de17f
+  zh: eb996037eabef8d4
+/cinlan-tool-naabu/summary:
+  en: 2bcf8f3561169251
+  zh: cc8c8a51005d9068
+/cinlan-tool-naabu/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/cinlan-tool-naabu/use-this-package:
+  en: 95f3580ee23196ab
+  zh: 8fba8f9648fcc90b
+/cinlan-tool-naabu/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-naabu/model-experience/naabu-scan-tool-schema:
+  en: f28899dd70189932
+  zh: 659b373d3f16c72d
+/cinlan-tool-naabu/model-experience/naabu-scan-tool-schema/what-the-model-sees:
+  en: 90046f04c4d70677
+  zh: bbbd7a519ef89963
+/cinlan-tool-naabu/model-experience/naabu-scan-tool-schema/token-effect:
+  en: d9260467006da8d4
+  zh: f1d9efbb01528e8b
+/cinlan-tool-naabu/model-experience/naabu-scan-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 03e7f7a6973421be
+/cinlan-tool-naabu/known-limitations-and-deferred-work:
+  en: 8b0300f7ae899236
+  zh: 1eaa0bb74b58d6ac
+/cinlan-tool-naabu/known-limitations-and-deferred-work/dev-note:
+  en: 8ae642b0cafa153b
+  zh: 5a4beb1fbae5ffd8

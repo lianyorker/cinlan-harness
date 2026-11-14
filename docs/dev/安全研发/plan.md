@@ -248,3 +248,39 @@ securityInstallCommand: 'dsh --profile security-research',
 - 不需要大量新代码，主要是修改现有组件
 
 **建议迁移顺序：最高优先级，在编排之后立即处理。**
+
+## 9. P0 信息收集工具链集成（进行中）
+
+按 `官方功能差距对比.md` 的 P0 项推进，目标模式：每个外部工具一个 `@cinlan/tool-<name>` 包（`ctx.tools.register` + `ctx.subprocess`），argv 构造与结果解析为纯函数（无二进制也可单测），授权统一由 `assessment-scope-tool-policy` 上游强制（`target_id` 匹配授权目标 + 工具名进 `networkTools`），包内不做 scope 检查。
+
+### 9.1 已完成
+
+| 包 | 工具名 | 说明 |
+|----|--------|------|
+| `tool-nmap` | `nmap_scan` | 端口扫描，`-oX -` XML 解析，禁止 `--script` |
+| `tool-httpx` | `httpx_probe` | Web 存活/指纹探测，`-json` 行解析，`-no-color -silent` 固定 |
+| `tool-subfinder` | `subfinder_enum` | 被动子域名枚举，`-json` 行解析，去重 |
+| `tool-naabu` | `naabu_scan` | 快速端口发现，`-json` 行解析，`-silent -exclude-cdn` 固定，不做服务识别 |
+| `tool-nuclei` | `nuclei_scan` | 模板化漏洞验证，`-json` 行解析，固定 `-ni`（无带外回调），不发出 `-dast`/payload 变异参数 |
+| `tool-ffuf` | `ffuf_fuzz` | 目录/参数 Fuzz，`-json` stdout 单文档解析，`-ac` 默认开，无激进速率参数 |
+
+接线点（每包相同清单）：`package.json`（`@cinlan/*`，peer/devDep cordis+dsh-subprocess+dsh-tools）、`tsconfig.json`（引用 vendor/cordis、core/tools、subprocess/subprocess）、`src/<tool>.ts` 纯函数、`src/index.ts` 注册、`tests/*.spec.ts`、README（英/中/`README.i18n.yaml` pending 占位）、`packages/bundle/security-research/cordis.patch.yml`（insert + `networkTools`）、`packages/bundle/security-research/package.json` 依赖、`tsconfig.host.json` references（本次一并补登了此前漏登记的 `vuln-playbook`/`engagement-ledger`/`tool-nmap`）。
+
+### 9.2 待验证（须在用户终端执行）
+
+本会话的 shell 受双重约束：`workspaceCommands` 豁免只放行精确白名单命令且拒绝带 `sandbox_permissions` 的调用，而受限沙箱下 esbuild/tsx 的 service 子进程因 pipe stdio 被 EPERM 阻断（已记录的沙箱边界）。`pnpm run build` 已实测放行但停在上述 EPERM，提权重试被策略拒绝。以下命令需在仓库根的普通终端执行：
+
+```sh
+pnpm install          # 链接六个新包并刷新 lockfile（不在白名单内）
+pnpm run build        # 编译聚合（含新登记的 6 个 security 包）
+pnpm run test         # 单测（含五个新包的 argv/解析 spec）
+pnpm run verify-translation-pairing --write packages/security/tool-nmap/README.md   # 其余 4 个 tool-* 同理
+```
+
+注意：`README.i18n.yaml` 中的哈希目前为 `pending` 占位，需在文档定稿后用上述 pairing 命令重录；`pnpm-lock.yaml` 在 `pnpm install` 前为陈旧状态。
+
+### 9.3 P0 后续批次
+
+1. `masscan_scan`（大网段扫描；SYN 速率需 Config 上限，`-oJ -` JSON 数组解析）
+2. 域环境批次：`bloodhound_enum` / `impacket_*` / `nxc_spray`（P0 第二半，凭据类动作需接 `approvalRequiredActions`）
+3. `katana_crawl` / `gau_urls`（URL 发现批次）

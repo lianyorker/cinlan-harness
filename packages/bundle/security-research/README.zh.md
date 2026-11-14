@@ -96,9 +96,7 @@ Host 通过 runtime context 提供当前有效工作目录。研究 persona 不�
 <a id="model-experience"></a>
 ## 模型体验
 
-间接通过插入的 Finding、漏洞、Skill 与工作流包，以及可选研究预设的 persona、作用域内技能目录和编码组装产生影响。
-
-研究 persona 使用 `执行器` 身份；加载的技能即使包含其他问候语或通道名称，也保留该身份。
+间接通过插入的 Finding、漏洞、Skill 与工作流包，以及可选研究预设的 persona（`执行器`，加载的技能即使包含其他问候语或通道名称也保留该身份）、作用域内技能目录和编码组装产生影响。
 
 #### KV Cache 影响
 

@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/engagement-ledger/README.md
+/:
+  en: e5018162de176f0f
+  zh: e47052d036cd9ee4
+/cinlan-engagement-ledger:
+  en: cde95bccfa23c899
+  zh: 2f874cff72c7ee6a
+/cinlan-engagement-ledger/summary:
+  en: d1244b8ee5dafc7a
+  zh: 2c9f3a86d4fa6989
+/cinlan-engagement-ledger/using-this-package:
+  en: 42a564d67a14e2d3
+  zh: 2525b1b7ea4ba9a4
+/cinlan-engagement-ledger/origin:
+  en: b9a9f7e97f2122e9
+  zh: 3953594d4862f00d
+/cinlan-engagement-ledger/model-experience:
+  en: b9778b339b3bbe20
+  zh: b129a84b2aa361c1
+/cinlan-engagement-ledger/model-experience/kv-cache-effect:
+  en: aa1708e9487a0201
+  zh: 89f3abb49cfee84f
+/cinlan-engagement-ledger/known-limitations-and-deferred-work:
+  en: d881177a730b2195
+  zh: 357632bcf6769235

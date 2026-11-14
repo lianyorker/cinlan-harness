@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-ffuf/README.md
+/:
+  en: b2b26bc762dc1d91
+  zh: c0f3ea1667a0048d
+/cinlan-tool-ffuf:
+  en: 560031d2bdddda85
+  zh: e944fa409d3e27e9
+/cinlan-tool-ffuf/summary:
+  en: 11d9b5890b287686
+  zh: 72c8b03523d1c68a
+/cinlan-tool-ffuf/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/cinlan-tool-ffuf/use-this-package:
+  en: 8c041fd1e8f7e406
+  zh: bf6f4ee3114cfca2
+/cinlan-tool-ffuf/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-ffuf/model-experience/ffuf-fuzz-tool-schema:
+  en: 68bf44e50f61f6b3
+  zh: 6c80a3ed9a0c7083
+/cinlan-tool-ffuf/model-experience/ffuf-fuzz-tool-schema/what-the-model-sees:
+  en: 75a2fd488333deaf
+  zh: 2d927674ae4719d4
+/cinlan-tool-ffuf/model-experience/ffuf-fuzz-tool-schema/token-effect:
+  en: c54f1687fd0564b4
+  zh: 1619bdc7af678c1d
+/cinlan-tool-ffuf/model-experience/ffuf-fuzz-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 03e7f7a6973421be
+/cinlan-tool-ffuf/known-limitations-and-deferred-work:
+  en: 92a368af06843f64
+  zh: 62552bc0143f3f2b
+/cinlan-tool-ffuf/known-limitations-and-deferred-work/dev-note:
+  en: 50f9cabbf810dc45
+  zh: 80009670f4dbf63b

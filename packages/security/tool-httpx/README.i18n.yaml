@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-httpx/README.md
+/:
+  en: e592e1c903bb27fa
+  zh: 957e2df9fe5bc182
+/cinlan-tool-httpx:
+  en: a50b4794cbb53918
+  zh: ec9dc4103c4ad66a
+/cinlan-tool-httpx/summary:
+  en: 5f566225980db022
+  zh: 92a3bc38c7bf6437
+/cinlan-tool-httpx/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 5b9aa0e046408356
+/cinlan-tool-httpx/use-this-package:
+  en: 7195c8e60fb2def6
+  zh: 6716014857841f6e
+/cinlan-tool-httpx/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-httpx/model-experience/httpx-probe-tool-schema:
+  en: 62200946c0f699e3
+  zh: 0e8172f9b55d76d7
+/cinlan-tool-httpx/model-experience/httpx-probe-tool-schema/what-the-model-sees:
+  en: 4c7fc0e76e7b26a1
+  zh: e227dee3cdf75522
+/cinlan-tool-httpx/model-experience/httpx-probe-tool-schema/token-effect:
+  en: 8eca4d9313c0c31c
+  zh: c9010d339c0b56af
+/cinlan-tool-httpx/model-experience/httpx-probe-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 03e7f7a6973421be
+/cinlan-tool-httpx/known-limitations-and-deferred-work:
+  en: d10809c6a785ad0f
+  zh: 87d7a8622476270d
+/cinlan-tool-httpx/known-limitations-and-deferred-work/dev-note:
+  en: 76a6b36ed55a1438
+  zh: 0494bd2058e2b493
