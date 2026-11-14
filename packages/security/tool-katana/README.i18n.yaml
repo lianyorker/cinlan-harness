@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-katana/README.md
+/:
+  en: 760f8db66c451328
+  zh: 2f20f30ff2e8a35f
+/cinlan-tool-katana:
+  en: f6969437aca3518a
+  zh: 805d4626d8a2cbdf
+/cinlan-tool-katana/summary:
+  en: a8bd4ad567c833a0
+  zh: 377f18556ddce1ec
+/cinlan-tool-katana/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-katana/use-this-package:
+  en: 11f2c8bb6696d692
+  zh: 148970ea9ca4e876
+/cinlan-tool-katana/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-katana/model-experience/katana-crawl-tool-schema:
+  en: 51f43809476d013b
+  zh: 34044eb523c6d0cb
+/cinlan-tool-katana/model-experience/katana-crawl-tool-schema/what-the-model-sees:
+  en: 94b0364304d4a696
+  zh: fd5946c6ae581910
+/cinlan-tool-katana/model-experience/katana-crawl-tool-schema/token-effect:
+  en: 9c9a335a673f1e14
+  zh: d3d6cf4802567a3e
+/cinlan-tool-katana/model-experience/katana-crawl-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 66143d86da335745
+/cinlan-tool-katana/known-limitations-and-deferred-work:
+  en: 530109c41b6a3e1e
+  zh: e6a31d8b8707f580
+/cinlan-tool-katana/known-limitations-and-deferred-work/dev-note:
+  en: 3c58105acb8c431b
+  zh: 4117df0f7d972dab

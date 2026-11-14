@@ -60,6 +60,9 @@
 | `@cinlan/tool-naabu` | `naabu_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-nuclei` | `nuclei_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-ffuf` | `ffuf_fuzz` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-masscan` | `masscan_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-katana` | `katana_crawl` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-gau` | `gau_urls` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -3102,6 +3105,101 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-ffuf/src/index.ts`](../packages/security/tool-ffuf/src/index.ts)
+
+<a id="cinlantool-masscan"></a>
+
+## `@cinlan/tool-masscan`
+
+### `masscan_scan`
+
+对一个已授权评估目标运行 masscan SYN 限速扫描并返回结构化开放端口行（ip、端口）。目标必须匹配当前评估范围授权中声明的目标；越权目标在执行前被拒绝。扫描速率受部署配置封顶，不做服务探测、漏洞验证或载荷投递。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Scan target as declared in the assessment scope grant: IPv4/IPv6 address, CIDR range, or start-end IP range (e.g. 192.0.2.10, 10.0.0.0/24, 10.0.0.1-10.0.0.9)."
+    },
+    "ports": {
+      "type": "string",
+      "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1024)."
+    },
+    "rate": {
+      "type": "integer",
+      "description": "Packets per second (--rate). Defaults to 100; the deployment-configured cap (maxRate) limits the accepted value."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-masscan/src/index.ts`](../packages/security/tool-masscan/src/index.ts)
+
+<a id="cinlantool-katana"></a>
+
+## `@cinlan/tool-katana`
+
+### `katana_crawl`
+
+用 katana 爬取一个已授权评估目标 URL 并返回结构化发现行（url、方法、状态码、来源、标记）。URL 主机必须匹配当前评估范围授权中声明的目标；越权 URL 在执行前被拒绝。爬取只跟随被授权主机上的链接与表单——不投递利用载荷。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Absolute http(s) crawl start URL whose host is declared in the assessment scope grant (e.g. https://example.invalid/)."
+    },
+    "depth": {
+      "type": "integer",
+      "description": "Maximum crawl depth (-d), 1 through 5. Defaults to 3."
+    },
+    "concurrency": {
+      "type": "integer",
+      "description": "Concurrent workers (-c). The deployment-configured cap (maxConcurrency) limits the accepted value."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-katana/src/index.ts`](../packages/security/tool-katana/src/index.ts)
+
+<a id="cinlantool-gau"></a>
+
+## `@cinlan/tool-gau`
+
+### `gau_urls`
+
+从被动历史数据源（wayback、commoncrawl、otx、urlscan）获取一个已授权评估目标域名的已知 URL 并返回去重后的 URL 行。此工具从不接触目标域名本身——全部查询发给第三方档案。域名必须匹配当前评估范围授权中声明的目标；越权域名在执行前被拒绝。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Root domain as declared in the assessment scope grant (e.g. example.invalid)."
+    },
+    "providers": {
+      "type": "array",
+      "description": "Restrict the passive sources (--providers) to a subset of wayback, commoncrawl, otx, urlscan. Omit to use the tool default of all sources."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-gau/src/index.ts`](../packages/security/tool-gau/src/index.ts)
 
 <a id="cinlantool-knowledge-search"></a>
 

@@ -54,6 +54,9 @@
           - naabu_scan
           - nuclei_scan
           - ffuf_fuzz
+          - masscan_scan
+          - katana_crawl
+          - gau_urls
           - mcp__rea__capture_browser_scenario
         browserTools:
           - browser_list
@@ -117,6 +120,12 @@
       name: '@cinlan/tool-nuclei'
     - id: tool-ffuf
       name: '@cinlan/tool-ffuf'
+    - id: tool-masscan
+      name: '@cinlan/tool-masscan'
+    - id: tool-katana
+      name: '@cinlan/tool-katana'
+    - id: tool-gau
+      name: '@cinlan/tool-gau'
 
     - id: security-workflow-prompt
       name: '@deepseek-ai/dsh-security-workflow-prompt'

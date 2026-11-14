@@ -1392,6 +1392,39 @@
       "path": "./packages/security/vuln-kb-service"
     },
     {
+      "path": "./packages/security/engagement-ledger"
+    },
+    {
+      "path": "./packages/security/tool-gau"
+    },
+    {
+      "path": "./packages/security/tool-katana"
+    },
+    {
+      "path": "./packages/security/tool-masscan"
+    },
+    {
+      "path": "./packages/security/tool-naabu"
+    },
+    {
+      "path": "./packages/security/tool-nmap"
+    },
+    {
+      "path": "./packages/security/tool-nuclei"
+    },
+    {
+      "path": "./packages/security/tool-subfinder"
+    },
+    {
+      "path": "./packages/security/tool-httpx"
+    },
+    {
+      "path": "./packages/security/tool-ffuf"
+    },
+    {
+      "path": "./packages/security/vuln-playbook"
+    },
+    {
       "path": "./packages/voice/voice"
     },
     {

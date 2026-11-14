@@ -263,24 +263,17 @@ securityInstallCommand: 'dsh --profile security-research',
 | `tool-naabu` | `naabu_scan` | 快速端口发现，`-json` 行解析，`-silent -exclude-cdn` 固定，不做服务识别 |
 | `tool-nuclei` | `nuclei_scan` | 模板化漏洞验证，`-json` 行解析，固定 `-ni`（无带外回调），不发出 `-dast`/payload 变异参数 |
 | `tool-ffuf` | `ffuf_fuzz` | 目录/参数 Fuzz，`-json` stdout 单文档解析，`-ac` 默认开，无激进速率参数 |
+| `tool-masscan` | `masscan_scan` | 大网段 SYN 限速扫描，`-oJ -` JSON 数组解析（容忍流式截断），速率受模型侧 `1..1000000` 校验与部署 `maxRate` 双重上限 |
+| `tool-katana` | `katana_crawl` | URL 爬取发现，`-json` 行解析，固定 `-json -silent -no-color`，深度上限 5，并发受部署 `maxConcurrency` 上限 |
+| `tool-gau` | `gau_urls` | 被动历史 URL 获取（wayback/commoncrawl/otx/urlscan 白名单），JSON 行/纯文本行兼容去重，纯被动不接触目标 |
 
-接线点（每包相同清单）：`package.json`（`@cinlan/*`，peer/devDep cordis+dsh-subprocess+dsh-tools）、`tsconfig.json`（引用 vendor/cordis、core/tools、subprocess/subprocess）、`src/<tool>.ts` 纯函数、`src/index.ts` 注册、`tests/*.spec.ts`、README（英/中/`README.i18n.yaml` pending 占位）、`packages/bundle/security-research/cordis.patch.yml`（insert + `networkTools`）、`packages/bundle/security-research/package.json` 依赖、`tsconfig.host.json` references（本次一并补登了此前漏登记的 `vuln-playbook`/`engagement-ledger`/`tool-nmap`）。
+接线点（每包相同清单）：`package.json`（`@cinlan/*`，peer/devDep cordis+dsh-subprocess+dsh-tools）、`tsconfig.json`（引用 vendor/cordis、core/tools、subprocess/subprocess）、`src/<tool>.ts` 纯函数、`src/index.ts` 注册、`tests/*.spec.ts`、README（英/中/`README.i18n.yaml`，哈希已用 pairing 命令重录）、`packages/bundle/security-research/cordis.patch.yml`（insert + `networkTools`）、`packages/bundle/security-research/package.json` 依赖、`tsconfig.host.json` references（九个 tool-* 与 `vuln-playbook`/`engagement-ledger` 均已登记）、`tsconfig.base.json` paths（`@cinlan/tool-*` 源码映射，供脚本源码面解析）。
 
-### 9.2 待验证（须在用户终端执行）
+### 9.2 验证状态
 
-本会话的 shell 受双重约束：`workspaceCommands` 豁免只放行精确白名单命令且拒绝带 `sandbox_permissions` 的调用，而受限沙箱下 esbuild/tsx 的 service 子进程因 pipe stdio 被 EPERM 阻断（已记录的沙箱边界）。`pnpm run build` 已实测放行但停在上述 EPERM，提权重试被策略拒绝。以下命令需在仓库根的普通终端执行：
-
-```sh
-pnpm install          # 链接六个新包并刷新 lockfile（不在白名单内）
-pnpm run build        # 编译聚合（含新登记的 6 个 security 包）
-pnpm run test         # 单测（含五个新包的 argv/解析 spec）
-pnpm run verify-translation-pairing --write packages/security/tool-nmap/README.md   # 其余 4 个 tool-* 同理
-```
-
-注意：`README.i18n.yaml` 中的哈希目前为 `pending` 占位，需在文档定稿后用上述 pairing 命令重录；`pnpm-lock.yaml` 在 `pnpm install` 前为陈旧状态。
+- 批次 1（六包）：`pnpm install`、README pairing 重录、lockfile 同步已完成；`docs/tool-catalog.md`/`tool-catalog.zh.md` 已随目录生成器登记 18 个工具包并重生成（双语配对校验绿）。
+- 批次 2（masscan/katana/gau）：随包提交一并跑 `pnpm run test`（三个新包 spec）与 `pnpm run gen-tool-catalog`/`verify-tool-catalog`；全量 `pnpm run build` 仍需在普通终端执行（历史会话受限沙箱下 esbuild/tsx 的 service 子进程因 pipe stdio 被 EPERM 阻断）。
 
 ### 9.3 P0 后续批次
 
-1. `masscan_scan`（大网段扫描；SYN 速率需 Config 上限，`-oJ -` JSON 数组解析）
-2. 域环境批次：`bloodhound_enum` / `impacket_*` / `nxc_spray`（P0 第二半，凭据类动作需接 `approvalRequiredActions`）
-3. `katana_crawl` / `gau_urls`（URL 发现批次）
+1. 域环境批次：`bloodhound_enum` / `impacket_*` / `nxc_spray`（P0 第二半，凭据类动作需接 `approvalRequiredActions`）

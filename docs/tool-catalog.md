@@ -56,6 +56,9 @@ This table connects model-visible tool names to the plugin package and service s
 | `@cinlan/tool-naabu` | `naabu_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-nuclei` | `nuclei_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-ffuf` | `ffuf_fuzz` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-masscan` | `masscan_scan` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-katana` | `katana_crawl` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-gau` | `gau_urls` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -3095,6 +3098,101 @@ Fuzz one authorized assessment target URL with ffuf and a local wordlist: direct
 ```
 
 Source: [`packages/security/tool-ffuf/src/index.ts`](../packages/security/tool-ffuf/src/index.ts)
+
+<a id="cinlantool-masscan"></a>
+
+## `@cinlan/tool-masscan`
+
+### `masscan_scan`
+
+Run a masscan SYN rate-scan against one authorized assessment target and return structured open-port rows (ip, port). The target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. The scan rate is capped by deployment config and no service probing, vulnerability checking, or payload delivery is performed.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Scan target as declared in the assessment scope grant: IPv4/IPv6 address, CIDR range, or start-end IP range (e.g. 192.0.2.10, 10.0.0.0/24, 10.0.0.1-10.0.0.9)."
+    },
+    "ports": {
+      "type": "string",
+      "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1024)."
+    },
+    "rate": {
+      "type": "integer",
+      "description": "Packets per second (--rate). Defaults to 100; the deployment-configured cap (maxRate) limits the accepted value."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-masscan/src/index.ts`](../packages/security/tool-masscan/src/index.ts)
+
+<a id="cinlantool-katana"></a>
+
+## `@cinlan/tool-katana`
+
+### `katana_crawl`
+
+Crawl one authorized assessment target URL with katana and return structured discovery rows (url, method, status, source, tag). The URL host must match a target declared in the active assessment-scope grant; out-of-scope URLs are denied before execution. Crawling follows links and forms on the granted host only — no exploitation payloads are delivered.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Absolute http(s) crawl start URL whose host is declared in the assessment scope grant (e.g. https://example.invalid/)."
+    },
+    "depth": {
+      "type": "integer",
+      "description": "Maximum crawl depth (-d), 1 through 5. Defaults to 3."
+    },
+    "concurrency": {
+      "type": "integer",
+      "description": "Concurrent workers (-c). The deployment-configured cap (maxConcurrency) limits the accepted value."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-katana/src/index.ts`](../packages/security/tool-katana/src/index.ts)
+
+<a id="cinlantool-gau"></a>
+
+## `@cinlan/tool-gau`
+
+### `gau_urls`
+
+Fetch known URLs for one authorized assessment target domain from passive historical data sources (wayback, commoncrawl, otx, urlscan) and return deduplicated URL rows. This tool never contacts the target domain itself — all queries go to third-party archives. The domain must match a target declared in the active assessment-scope grant; out-of-scope domains are denied before execution.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Root domain as declared in the assessment scope grant (e.g. example.invalid)."
+    },
+    "providers": {
+      "type": "array",
+      "description": "Restrict the passive sources (--providers) to a subset of wayback, commoncrawl, otx, urlscan. Omit to use the tool default of all sources."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-gau/src/index.ts`](../packages/security/tool-gau/src/index.ts)
 
 <a id="cinlantool-knowledge-search"></a>
 

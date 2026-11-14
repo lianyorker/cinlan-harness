@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 6ef254a4ce93b2a2
-  zh: fdecfea101f89b7f
+  en: 8eb80fb8549dddde
+  zh: b97e9b2f71233683
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -381,8 +381,26 @@
   en: 2074a65aed8301bd
   zh: 2074a65aed8301bd
 /tool-schema-catalog/cinlan-tool-ffuf/ffuf-fuzz:
-  en: 499c875cdd5aeb0a
-  zh: 6224b151042aac58
+  en: 385460b57bc09e85
+  zh: 80f1720907246786
+/tool-schema-catalog/cinlan-tool-masscan:
+  en: 1a5a469f3400f6e0
+  zh: 1a5a469f3400f6e0
+/tool-schema-catalog/cinlan-tool-masscan/masscan-scan:
+  en: 707519fe82368bb3
+  zh: 2de42652f8e97b2f
+/tool-schema-catalog/cinlan-tool-katana:
+  en: a0ea36a183989284
+  zh: a0ea36a183989284
+/tool-schema-catalog/cinlan-tool-katana/katana-crawl:
+  en: 3a6aeeb71d29f8bf
+  zh: 361cc7103c68c04e
+/tool-schema-catalog/cinlan-tool-gau:
+  en: 1ecdc2b91ee85851
+  zh: 1ecdc2b91ee85851
+/tool-schema-catalog/cinlan-tool-gau/gau-urls:
+  en: 4ca34247e80f4057
+  zh: 19bb937e1cd1b6d8
 /tool-schema-catalog/cinlan-tool-knowledge-search:
   en: ae89aad320d90482
   zh: ae89aad320d90482

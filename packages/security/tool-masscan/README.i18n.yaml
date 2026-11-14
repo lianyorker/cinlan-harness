@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-masscan/README.md
+/:
+  en: e555e700432ef657
+  zh: a9b573b5386e1506
+/cinlan-tool-masscan:
+  en: 915a062db1107e5c
+  zh: 3e538e9c66fd291a
+/cinlan-tool-masscan/summary:
+  en: 890a0c4e1297b1ce
+  zh: ca325eba9aaa0cda
+/cinlan-tool-masscan/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-masscan/use-this-package:
+  en: dfae8b0a16627c0c
+  zh: d58e20a08a063cf9
+/cinlan-tool-masscan/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-masscan/model-experience/masscan-scan-tool-schema:
+  en: 1182c605f41f329f
+  zh: e641bdbbb78a6634
+/cinlan-tool-masscan/model-experience/masscan-scan-tool-schema/what-the-model-sees:
+  en: cc102b6154a7c9c9
+  zh: 43a8c63e275148d6
+/cinlan-tool-masscan/model-experience/masscan-scan-tool-schema/token-effect:
+  en: b7e8c3febecdb7f6
+  zh: 2e1443f67c5b3a49
+/cinlan-tool-masscan/model-experience/masscan-scan-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 66143d86da335745
+/cinlan-tool-masscan/known-limitations-and-deferred-work:
+  en: 6b65c7b35fcb1167
+  zh: acd19896882fcd94
+/cinlan-tool-masscan/known-limitations-and-deferred-work/dev-note:
+  en: 803b0cd4cb863e7a
+  zh: d8d8201a2a426869

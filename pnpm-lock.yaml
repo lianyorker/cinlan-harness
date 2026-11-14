@@ -37,12 +37,21 @@ importers:
       '@cinlan/tool-ffuf':
         specifier: workspace:*
         version: link:packages/security/tool-ffuf
+      '@cinlan/tool-gau':
+        specifier: workspace:*
+        version: link:packages/security/tool-gau
       '@cinlan/tool-httpx':
         specifier: workspace:*
         version: link:packages/security/tool-httpx
+      '@cinlan/tool-katana':
+        specifier: workspace:*
+        version: link:packages/security/tool-katana
       '@cinlan/tool-knowledge-search':
         specifier: workspace:*
         version: link:packages/knowledge/tool-knowledge-search
+      '@cinlan/tool-masscan':
+        specifier: workspace:*
+        version: link:packages/security/tool-masscan
       '@cinlan/tool-naabu':
         specifier: workspace:*
         version: link:packages/security/tool-naabu
@@ -4524,9 +4533,18 @@ importers:
       '@cinlan/tool-ffuf':
         specifier: workspace:^
         version: link:../../security/tool-ffuf
+      '@cinlan/tool-gau':
+        specifier: workspace:^
+        version: link:../../security/tool-gau
       '@cinlan/tool-httpx':
         specifier: workspace:^
         version: link:../../security/tool-httpx
+      '@cinlan/tool-katana':
+        specifier: workspace:^
+        version: link:../../security/tool-katana
+      '@cinlan/tool-masscan':
+        specifier: workspace:^
+        version: link:../../security/tool-masscan
       '@cinlan/tool-naabu':
         specifier: workspace:^
         version: link:../../security/tool-naabu
@@ -19000,7 +19018,43 @@ importers:
         specifier: workspace:^
         version: link:../../core/tools
 
+  packages/security/tool-gau:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-httpx:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-katana:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-masscan:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^

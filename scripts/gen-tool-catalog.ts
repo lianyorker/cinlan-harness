@@ -100,6 +100,9 @@ import * as ToolSubfinder from '@cinlan/tool-subfinder'
 import * as ToolNaabu from '@cinlan/tool-naabu'
 import * as ToolNuclei from '@cinlan/tool-nuclei'
 import * as ToolFfuf from '@cinlan/tool-ffuf'
+import * as ToolMasscan from '@cinlan/tool-masscan'
+import * as ToolKatana from '@cinlan/tool-katana'
+import * as ToolGau from '@cinlan/tool-gau'
 import BrowserRuntime from '@deepseek-ai/dsh-browser'
 import ComputerUseRuntime from '@deepseek-ai/dsh-computer-use'
 import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
@@ -827,6 +830,39 @@ const TOOL_PACKAGES: ToolPackage[] = [
     async mount(ctx) {
       await ctx.plugin(LocalSubprocessRuntime)
       await ctx.plugin(ToolFfuf)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-masscan',
+    dir: 'tool-masscan',
+    source: 'packages/security/tool-masscan/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolMasscan)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-katana',
+    dir: 'tool-katana',
+    source: 'packages/security/tool-katana/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolKatana)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-gau',
+    dir: 'tool-gau',
+    source: 'packages/security/tool-gau/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolGau)
     },
   },
   {

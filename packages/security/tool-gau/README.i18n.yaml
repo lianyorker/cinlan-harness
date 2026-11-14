@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-gau/README.md
+/:
+  en: d8d9f97aa14b0ea7
+  zh: 998d1816618d1fc8
+/cinlan-tool-gau:
+  en: 1e224f1a4be0ba28
+  zh: f38f84d70a09097c
+/cinlan-tool-gau/summary:
+  en: 102b5ae8721f39fd
+  zh: 5588fbd525f55f7d
+/cinlan-tool-gau/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-gau/use-this-package:
+  en: c95670068c34e5e5
+  zh: 1b95585162090709
+/cinlan-tool-gau/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-gau/model-experience/gau-urls-tool-schema:
+  en: 3858f77257351441
+  zh: 2658d9d7c39cb242
+/cinlan-tool-gau/model-experience/gau-urls-tool-schema/what-the-model-sees:
+  en: 87a88fe7b1296181
+  zh: 04a103699591e8e3
+/cinlan-tool-gau/model-experience/gau-urls-tool-schema/token-effect:
+  en: d1457d9a72e31199
+  zh: 870c46c5df93e3f3
+/cinlan-tool-gau/model-experience/gau-urls-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 66143d86da335745
+/cinlan-tool-gau/known-limitations-and-deferred-work:
+  en: ba1466a6b16ae8a7
+  zh: 0e71660f2cb454fc
+/cinlan-tool-gau/known-limitations-and-deferred-work/dev-note:
+  en: 8784ef37c4dcb2f7
+  zh: 9fa34b9d624c3c7b
