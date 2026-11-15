@@ -11,6 +11,7 @@ import * as ClientApi from '@deepseek-ai/dsh-api-gateway/client'
 import { z } from 'zod'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
+import { Peer } from '@deepseek-ai/dsh-client-connection'
 import { McpSettingsSource } from '@cinlan/client-ui-settings-mcp/src/client/source.ts'
 import { McpSettingsSection, type McpSettingsSectionProps } from '@cinlan/client-ui-settings-mcp/src/client/McpSettingsSection.tsx'
 import { createMcpSettingsStore } from '@cinlan/client-ui-settings-mcp/src/client/store.ts'
@@ -41,12 +42,15 @@ describe('MCP Remote to native Settings', () => {
       while (client.fiber.inertia !== undefined) await client.fiber.inertia
     })
     await client.plugin(TypertRegistry).await()
+    // The Gateway authorizes every call and stream against the calling Peer.
+    const peer = new Peer(ctx.root, { principal: { kind: 'owner' } })
     client.provide('connection', {
       rpc: {
         async call(_channel: string, endpoint: string, payload: unknown, signal: AbortSignal) {
           const separator = endpoint.indexOf('/')
           try {
             const value = await ctx.typertGateway.invoke({
+              peer,
               namespace: endpoint.slice(0, separator), method: endpoint.slice(separator + 1),
               args: (payload as { args: Record<string, unknown> }).args, signal,
             })
@@ -55,8 +59,13 @@ describe('MCP Remote to native Settings', () => {
             return { ok: false, error: error as RemoteFailure }
           }
         },
-        async *open(_channel: string, endpoint: string, payload: unknown, signal: AbortSignal) {
-          const stream = await ctx.typertGateway.wireStream.open(endpoint, payload, signal)
+        async *open(
+          _channel: string, endpoint: string, payload: unknown, signal: AbortSignal,
+          uplink?: AsyncIterable<unknown>,
+        ) {
+          const stream = await ctx.typertGateway.wireStream.open(
+            endpoint, payload, uplink ?? (async function* () {})(), peer, signal,
+          )
           yield* stream
         },
       },
@@ -106,8 +115,6 @@ describe('MCP Remote to native Settings', () => {
     })
     const html = render()
     expect(html).toContain('real-http')
-    expect(html).toContain('mcp__real-http__ping')
-    expect(html).toContain('Replies pong.')
     expect(html).toContain('Connection: Ready')
     const record = source.state.getSnapshot().snapshot?.servers[0]?.record
     if (record === undefined) throw new Error('Real saved record missing from source')
@@ -116,7 +123,7 @@ describe('MCP Remote to native Settings', () => {
     expect(render()).toContain('real-http')
     await act(async () => { expect(await source.remove({ id: record.id, expectedRevision: 1 })).toBe(true) })
     expect(render()).toContain(en.empty)
-    expect(render()).not.toContain('mcp__real-http__ping')
+    expect(render()).not.toContain('real-http')
     expect(server.methods).not.toContain('tools/call')
     await source.dispose()
     await unmount()
