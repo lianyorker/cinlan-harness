@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
-import type { ConversationTimelineSnapshot, TurnLocation } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { ConversationTimelineSnapshot, GroupKey, TurnLocation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { PartialArguments } from '@deepseek-ai/dsh-util-values'
 import type { ChatConversationViewNode, ChatNode } from '../src/client/contract/chat-nodes.ts'
 import { ChatSnapshotBuilder } from '../src/client/conversation-nodes/chat-snapshot-builder.ts'

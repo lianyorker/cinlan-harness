@@ -691,6 +691,8 @@
       "@cinlan/tool-bloodhound": ["./packages/security/tool-bloodhound/src/index.ts"],
       "@cinlan/tool-impacket": ["./packages/security/tool-impacket/src/index.ts"],
       "@cinlan/tool-nxc": ["./packages/security/tool-nxc/src/index.ts"],
+      "@cinlan/vuln-playbook": ["./packages/security/vuln-playbook/src/index.ts"],
+      "@cinlan/engagement-ledger": ["./packages/security/engagement-ledger/src/index.ts"],
       "@cinlan/worktree-task": ["./packages/workspace/worktree-task/src/index.ts"],
       "@cinlan/worktree-task/types": ["./packages/workspace/worktree-task/src/types.ts"],
       "@deepseek-ai/dsh-tools/types": ["./packages/core/tools/src/types.ts"],

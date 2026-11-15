@@ -275,11 +275,41 @@ securityInstallCommand: 'dsh --profile security-research',
 ### 9.2 验证状态
 
 - 批次 1（六包）：`pnpm install`、README pairing 重录、lockfile 同步已完成；`docs/tool-catalog.md`/`tool-catalog.zh.md` 已随目录生成器登记 18 个工具包并重生成（双语配对校验绿）。
-- 批次 2（masscan/katana/gau）：随包提交一并跑 `pnpm run test`（三个新包 spec）与 `pnpm run gen-tool-catalog`/`verify-tool-catalog`；全量 `pnpm run build` 仍需在普通终端执行（历史会话受限沙箱下 esbuild/tsx 的 service 子进程因 pipe stdio 被 EPERM 阻断）。
+- 批次 2（masscan/katana/gau）：随包提交一并跑 `pnpm run test`（三个新包 spec）与 `pnpm run gen-tool-catalog`/`verify-tool-catalog`。
+- 全量 `pnpm run build`：2026-11-15 实测可在本机跑通（历史会话记录的 EPERM 沙箱限制已不存在）；期间修复了 `@cinlan/vuln-playbook`/`@cinlan/engagement-ledger` 缺失的 tsconfig paths（Host Typert 源码面要求）与 `ui-chat` process-groups spec 丢失的 `GroupKey` 导入，当前 10 门全绿。
 
 ### 9.3 P0 后续批次
 
-1. 域环境第二批：`Responder` / `ntlmrelayx`（需先设计 listener 生命周期：ctx.jobs 后台作业 + 本地 bind 白名单 + `exploit-execution` 动作）；委派攻击（rbcd）、ADCS（certipy）同批增量。
+1. 域环境第二批：`Responder` / `ntlmrelayx`（设计见 9.5）；委派攻击（rbcd）、ADCS（certipy）同批增量。
+
+### 9.5 域环境第二批设计草案（监听器生命周期，待确认）
+
+#### 现有机制（设计依据）
+
+- `ctx.jobs.start({kind, label, owner, toolCall, run(job)})`：run 同步返回 `JobHooks`（`cancel(reason)` 同步终止 + `done: Promise<JobOutcome>`），`job.append` 写入输出环形缓冲；模型经 `job_list`/`job_output`/`job_kill` 观察、读取、终止——tool-bash 的 `run_in_background` 即此模式。**监听器生命周期无需新基础设施**。
+- `AssessmentAction` 已含 `exploit-execution`；照抄 `credentialTools` 模式新增第 5 类 `exploitTools` 即完成动作映射。
+
+#### 工具与生命周期
+
+| 工具名 | 外部命令 | 包 | 生命周期 |
+|--------|----------|-----|----------|
+| `responder_capture` | `Responder -I <iface> -v` | `tool-responder` | ctx.jobs 后台作业，`run` 内 spawn，`cancel` 经 AbortSignal 终止子进程 |
+| `ntlm_relay` | `ntlmrelayx -t <relay_target> -smb2support` | `tool-ntlmrelayx` | 同上；relay 目标必须匹配 grant 目标 |
+
+- 启动即返回 JobId（模型随后 `job_output` 轮询捕获行、`job_kill` 停止）；`responder_capture` 的 hash 捕获行与 `ntlm_relay` 的中继事件行在 job 输出里流式可读。
+- 安全线：本地 bind（Responder 多端口/ntlmrelayx 445/80 本地监听）不构成 egress；ntlmrelayx 的 `-t` 目标是唯一外发方向，参数校验必须匹配 `target_id`；**永不发出 interactsh/反连参数**。部署 Config `maxListenMs`（默认 600000）封顶作业时长，超时由 runtime 正常终止并保留已捕获输出。
+- 动作映射：两类均 `exploitTools` → `exploit-execution`；grant 需显式授予该动作（建议默认进 `approvalRequiredActions`，每次投毒/中继弹人工审批）。
+
+#### 同批增量（一次性 subprocess，无监听器）
+
+- `tool-rbcd`：`impacket-rbcd`（RBCD 委派篡改，写目标机器的 msDS-AllowedToActOnBehalfOfOtherIdentity——`persistence-change` 动作，需新增第 6 类 `persistenceTools`）
+- `tool-certipy`：`certipy find`（ADCS ESC 面检查，只读，`credentialTools` 或 `reconnaissance` 二选一，推荐 `credential-use`——需要域凭据）
+
+#### 待决策
+
+1. Responder/ntlmrelayx 用 ctx.jobs 后台作业（长窗口、可观察）而非有界前台窗口（简单但阻塞回合）——推荐前者；
+2. `exploit-execution` 与 `persistence-change` 强制进 `approvalRequiredActions`（bundle 侧 grant 示例直接写死）；
+3. responder 捕获 hash 回显策略沿用 `full`（与 secrets_dump 一致）。
 
 ### 9.4 域环境批次（已实施，按最优选项落地）
 
