@@ -6,6 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { remoteMethods, type InvocationDescriptor, type RemoteFailure } from '@deepseek-ai/dsh-typert-protocol'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
+import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
 import * as ClientApi from '@deepseek-ai/dsh-api-gateway/client'
 import { z } from 'zod'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
@@ -26,10 +27,13 @@ describe('MCP Remote to native Settings', () => {
     const server = await startHttpMcpFixture()
     onTestFinished(async () => { await server.close() })
     const { ctx } = await bootFixture({ patches: [{ insert: [
-      { id: 'typert', name: 'cordis:mcp-ui-typert' }, { id: 'gateway', name: 'cordis:mcp-ui-gateway' },
+      { id: 'typert', name: 'cordis:mcp-ui-typert' },
+      { id: 'remote-access', name: 'cordis:mcp-ui-remote-access' },
+      { id: 'gateway', name: 'cordis:mcp-ui-gateway' },
       { id: 'controller', name: 'cordis:mcp-ui-controller' },
     ] }], prepare: (root) => { Object.assign(root.loader.builtins, {
       'mcp-ui-typert': TypertRegistry, 'mcp-ui-gateway': TypertGateway, 'mcp-ui-controller': McpController,
+      'mcp-ui-remote-access': RemoteAccessService,
     }) } })
     const client = new Context()
     onTestFinished(async () => {
@@ -61,7 +65,10 @@ describe('MCP Remote to native Settings', () => {
     })
     await client.plugin(ClientApi).await()
     // Live markers own endpoint names; the fixture carries request objects to Host validation.
-    const requestCodec = { mode: 'strict', typeSymbol: '@fixture/mcp#Request', schema: z.record(z.string(), z.unknown()) } as const
+    const requestCodec = {
+      mode: 'strict', typeSymbol: '@fixture/mcp#Request', schema: z.record(z.string(), z.unknown()),
+      create: (data: unknown) => data,
+    } as const
     const descriptors: InvocationDescriptor[] = remoteMethods(ctx.mcpController).map(marker => ({
       id: '@cinlan/api-mcp-controller#mcp/' + marker.method,
       service: 'mcpController', namespace: 'mcp', method: marker.exportName ?? marker.method,

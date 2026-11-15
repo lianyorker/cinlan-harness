@@ -1,5 +1,7 @@
 - id: typert
   name: cordis:security-resource-fixture-typert
+- id: remote-access
+  name: cordis:security-resource-fixture-remote-access
 - id: gateway
   name: cordis:security-resource-fixture-gateway
 - id: controller

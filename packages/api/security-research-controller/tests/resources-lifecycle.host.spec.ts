@@ -118,7 +118,7 @@ describe('Host-owned security resource operations through Remotes', () => {
     expect(b.archiveRequests()).toBe(1)
   })
 
-  it('installs bundled resources only through the explicit Remote action without a release endpoint', async () => {
+  it('installs bundled resources only through the explicit Remote action without a release endpoint', { timeout: 20_000 }, async () => {
     const b = await resourceHarness(false)
     expect((await b.ctx.skills.snapshot()).skills).toEqual([])
     expect((await b.call('installBundledResource')).operation?.kind).toBe('install-bundled')

@@ -24,8 +24,8 @@ function configured(ctx: Context) {
   const status = vi.fn((): 'active' | 'expired' | 'not-yet-valid' => 'active')
   const list = vi.fn(async () => [{ id: 'security-research', trust: 'system', broken: undefined as string | undefined }])
   const snapshot = vi.fn(async () => ({ skills: [{ provider: 'security-skills' }, { provider: 'filesystem' }], complete: true }))
-  const rows = ['security-skills', 'security-workflow-prompt', 'tool-finding'].map(name => ({
-    disabled: false, options: { name: `@deepseek-ai/dsh-${name}` }, fiber: { state: FiberState.ACTIVE },
+  const rows = ['@cinlan/security-skills', '@deepseek-ai/dsh-security-workflow-prompt', '@deepseek-ai/dsh-tool-finding'].map(name => ({
+    disabled: false, options: { name }, fiber: { state: FiberState.ACTIVE },
   }))
   ctx.provide('agentPresets', { list } as never)
   ctx.provide('assessmentScope', { rootGrant: grant, status } as never)

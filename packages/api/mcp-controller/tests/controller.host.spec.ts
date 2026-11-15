@@ -8,15 +8,18 @@ import McpController from '../src/index.ts'
 import { startHttpMcpFixture } from '../../../mcp/mcp-client/tests/http-fixture.ts'
 import type { McpManagementSnapshot, McpSaveResult } from '../src/types.ts'
 import { bootFixture } from '../../../mcp/mcp-management/tests/harness.ts'
+import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
 
 async function fixture() {
   const { ctx } = await bootFixture({ patches: [{ insert: [
     { id: 'typert', name: 'cordis:mcp-fixture-typert' },
+    { id: 'remote-access', name: 'cordis:mcp-fixture-remote-access' },
     { id: 'gateway', name: 'cordis:mcp-fixture-gateway' },
     { id: 'controller', name: 'cordis:mcp-fixture-controller' },
   ] }], prepare: (root) => {
     Object.assign(root.loader.builtins, {
       'mcp-fixture-typert': TypertRegistry, 'mcp-fixture-gateway': TypertGateway, 'mcp-fixture-controller': McpController,
+      'mcp-fixture-remote-access': RemoteAccessService,
     })
   } })
   const peer = new Peer(ctx.root, { principal: { kind: 'owner' } })

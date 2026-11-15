@@ -13,6 +13,7 @@ import * as SecuritySkills from '@cinlan/security-skills'
 import SecuritySkillResources from '@cinlan/security-skills/resources'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
+import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
 import { buildSecuritySkillResource, type ResourceManifest } from '../../../../scripts/build-security-skill-resource.ts'
 import SecurityResearchController from '../src/index.ts'
 import type { SecuritySkillResourceStatus } from '../src/types.ts'
@@ -96,8 +97,9 @@ export async function resourceHarness(configured = true) {
   const rows = [
     { id: 'skills', name: 'cordis:resource-registry' },
     { id: 'manager', name: 'cordis:resource-manager', config: { root: resources,
-      ...(configured ? { releaseManifestUrl: origin + '/release.json' } : {}) } },
+      ...(configured ? { releaseManifestUrl: origin + '/release.json' } : { autoInstallBundled: false }) } },
     { id: 'provider', name: 'cordis:resource-provider' },
+    { id: 'remote-access', name: 'cordis:resource-remote-access' },
     { id: 'typert', name: 'cordis:resource-typert' },
     { id: 'gateway', name: 'cordis:resource-gateway' },
     { id: 'controller', name: 'cordis:resource-controller' },
@@ -108,6 +110,7 @@ export async function resourceHarness(configured = true) {
     Object.assign(context.loader.builtins, {
       'resource-registry': SkillRegistry, 'resource-manager': SecuritySkillResources, 'resource-provider': SecuritySkills,
       'resource-typert': TypertRegistry, 'resource-gateway': TypertGateway, 'resource-controller': SecurityResearchController,
+      'resource-remote-access': RemoteAccessService,
     })
   })
   const host = ctx

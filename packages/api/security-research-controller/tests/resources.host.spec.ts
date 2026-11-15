@@ -7,6 +7,7 @@ import { boot } from '@deepseek-ai/dsh-app-boot'
 import { Peer } from '@deepseek-ai/dsh-client-connection'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
+import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
 import SecurityResearchController from '../src/index.ts'
 
 async function missingManagerFixture() {
@@ -22,6 +23,7 @@ async function missingManagerFixture() {
     Object.assign(context.loader.builtins, {
       'security-resource-fixture-typert': TypertRegistry,
       'security-resource-fixture-gateway': TypertGateway,
+      'security-resource-fixture-remote-access': RemoteAccessService,
       'security-resource-fixture-controller': SecurityResearchController,
     })
   })

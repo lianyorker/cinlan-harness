@@ -1898,6 +1898,9 @@ importers:
       '@deepseek-ai/dsh-api-gateway':
         specifier: workspace:^
         version: link:../gateway
+      '@deepseek-ai/dsh-api-remote-access':
+        specifier: workspace:^
+        version: link:../remote-access
       '@deepseek-ai/dsh-app-boot':
         specifier: workspace:^
         version: link:../../boot/app-boot
@@ -2165,6 +2168,9 @@ importers:
       '@deepseek-ai/dsh-api-gateway':
         specifier: workspace:^
         version: link:../gateway
+      '@deepseek-ai/dsh-api-remote-access':
+        specifier: workspace:^
+        version: link:../remote-access
       '@deepseek-ai/dsh-app-boot':
         specifier: workspace:^
         version: link:../../boot/app-boot
