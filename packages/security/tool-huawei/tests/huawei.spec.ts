@@ -30,8 +30,8 @@ describe('buildIdentityArgv', () => {
       'hcloud', 'IAM5', 'GetCallerIdentity', '--cli-region=cn-north-4',
       '--cli-access-key=HWAKEXAMPLE', '--cli-secret-key=resolved-secret',
     ])
-    expect(() => buildIdentityArgv('hcloud', { region: 'cn-north-4', credentialRef: 'bad ref!' })).toThrow(TypeError)
-    expect(() => buildIdentityArgv('hcloud', { region: '-region', credentialRef: 'REF' })).toThrow(TypeError)
+    expect(() => buildIdentityArgv('hcloud', { region: 'cn-north-4', credentialRef: 'bad ref!' }, PAIR)).toThrow(TypeError)
+    expect(() => buildIdentityArgv('hcloud', { region: '-region', credentialRef: 'REF' }, PAIR)).toThrow(TypeError)
   })
 })
 
