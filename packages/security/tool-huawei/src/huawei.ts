@@ -36,11 +36,16 @@ export interface HuaweiIdentityRequest {
 
 /** Validated IAM enumeration request accepted by {@link buildIamArgv}. */
 export interface HuaweiIamRequest {
+  /** Resource collection to list. */
+  readonly resource: HuaweiIamResource
   /** Explicit `--cli-region` for the KooCLI call. */
   readonly region: string
   /** Project id the IAM API is scoped to, as declared by the operator's grant context. */
   readonly projectId: string
 }
+
+/** One Huawei Cloud IAM resource the enumeration tool may list. */
+export type HuaweiIamResource = 'users' | 'keys'
 
 /** Validated OBS listing request accepted by {@link buildObsListArgv}. */
 export interface ObsListRequest {
@@ -140,16 +145,18 @@ export function buildIdentityArgv(hcloudPath: string, request: HuaweiIdentityReq
 }
 
 /**
- * Build the `hcloud IAM ListUsers` argv. The IAM (v3) user listing is
- * project-scoped, so the project id rides on the argv.
+ * Build the `hcloud IAM ListUsers` / `IAM ListPermanentAccessKeys` argv. The
+ * IAM (v3) user listing is project-scoped, so the project id rides on the
+ * argv; the key listing covers the account.
  * @param hcloudPath - resolved hcloud executable path.
  * @param request - validated enumeration request.
  * @param pair - resolved key pair.
  * @returns argv array for `ctx.subprocess.spawn`.
  */
 export function buildIamArgv(hcloudPath: string, request: HuaweiIamRequest, pair: HuaweiKeyPair): string[] {
+  const command = request.resource === 'users' ? 'ListUsers' : 'ListPermanentAccessKeys'
   return [
-    hcloudPath, 'IAM', 'ListUsers',
+    hcloudPath, 'IAM', command,
     '--cli-region=' + validateRegion(request.region),
     '--project_id=' + validateProjectId(request.projectId),
     ...keyFlags(pair),
@@ -220,28 +227,60 @@ export interface IamUserRow {
   readonly userId: string
 }
 
-const IAM_LIST_KEYS = ['userlist', 'users'] as const
+/** One permanent access key row. */
+export interface IamKeyRow {
+  /** Access key id as IAM reported it (masked shape, e.g. `HWAK…`). */
+  readonly accessKeyId: string
+  /** Owning user id as IAM reported it, when present. */
+  readonly userId: string
+  /** Key status as IAM reported it (`Active` / `Inactive`), when present. */
+  readonly status: string
+}
+
+const IAM_LIST_KEYS: Record<HuaweiIamResource, readonly string[]> = {
+  users: ['userlist', 'users'],
+  keys: ['credentials', 'accesskeys'],
+}
 
 /**
- * Parse one `hcloud IAM ListUsers` response into bounded rows. KooCLI
- * serializes the IAM payload with snake_case keys; rows without a name are
- * skipped and a malformed document parses as empty.
+ * Parse one `hcloud IAM ListUsers` / `IAM ListPermanentAccessKeys` response
+ * into bounded rows. KooCLI serializes the IAM payload with snake_case keys
+ * under a per-command list key; rows without a name or key id are skipped and
+ * a malformed document parses as empty.
  * @param stdout - complete stdout text.
+ * @param resource - which resource collection the response belongs to.
  * @returns parsed rows in response order.
  */
-export function parseIamUsers(stdout: string): readonly IamUserRow[] {
+export function parseIamRows(stdout: string, resource: HuaweiIamResource): readonly (IamUserRow | IamKeyRow)[] {
   const record = parseJsonObject(stdout)
-  for (const key of IAM_LIST_KEYS) {
+  for (const key of IAM_LIST_KEYS[resource]) {
     const value = record[key]
     if (!Array.isArray(value)) continue
-    const rows: IamUserRow[] = []
+    if (resource === 'users') {
+      const rows: IamUserRow[] = []
+      for (const entry of value) {
+        if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
+        const item = entry as Record<string, unknown>
+        const name = item['user_name']
+        const userId = item['user_id']
+        if (typeof name !== 'string' || name.length === 0) continue
+        rows.push({ name, userId: typeof userId === 'string' ? userId : '' })
+      }
+      return rows
+    }
+    const rows: IamKeyRow[] = []
     for (const entry of value) {
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
       const item = entry as Record<string, unknown>
-      const name = item['user_name']
+      const accessKeyId = item['access_key_id'] ?? item['access']
+      if (typeof accessKeyId !== 'string' || accessKeyId.length === 0) continue
       const userId = item['user_id']
-      if (typeof name !== 'string' || name.length === 0) continue
-      rows.push({ name, userId: typeof userId === 'string' ? userId : '' })
+      const status = item['status']
+      rows.push({
+        accessKeyId,
+        userId: typeof userId === 'string' ? userId : '',
+        status: typeof status === 'string' ? status : '',
+      })
     }
     return rows
   }

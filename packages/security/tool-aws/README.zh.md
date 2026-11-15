@@ -35,13 +35,13 @@ kind: "package-reference"
 
 #### 模型所见
 
-模型收到生成的 [`iam_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aws)：`target_id`（必需）、`resource`（必需，`users`、`roles`、`policies` 之一——policies 限定账户本地）、`limit`（可选 `--max-items`，默认 100），以及可选 `region`。
+模型收到生成的 [`iam_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aws)：`target_id`（必需）、`resource`（必需，`users`、`roles`、`policies` 之一——policies 限定账户本地）、`limit`（可选 `--max-items`，默认 100）、可选 `credential_ref`（以子进程环境变量注入；缺省时由本机 AWS 配置链提供凭据），以及可选 `region`。
 
 ### s3_enum 工具 schema
 
 #### 模型所见
 
-模型收到生成的 [`s3_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aws)：`target_id`（必需）、可选 `region`、可选 `public_status`（逐桶 `get-bucket-policy-status`；该检查按 region 作用域执行，必须显式传 region）。
+模型收到生成的 [`s3_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aws)：`target_id`（必需）、可选 `credential_ref`（以子进程环境变量注入；缺省时由本机 AWS 配置链提供凭据）、可选 `region`、可选 `public_status`（逐桶 `get-bucket-policy-status`；该检查按 region 作用域执行，必须显式传 region）。
 
 #### Token 效应
 

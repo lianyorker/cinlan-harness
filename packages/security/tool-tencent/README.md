@@ -35,13 +35,13 @@ The model receives the generated [`tencent_identity_get` schema](../../../docs/t
 
 #### What the model sees
 
-The model receives the generated [`cam_enum` schema](../../../docs/tool-catalog.md#cinlantool-tencent): `target_id`, `resource` (required, one of `users`, `roles`), `limit` (optional page bound, default 100), and `region`, all with `region` required.
+The model receives the generated [`cam_enum` schema](../../../docs/tool-catalog.md#cinlantool-tencent): `target_id`, `resource` (required, one of `users`, `roles`), `limit` (optional page bound, default 100), optional `credential_ref` (injected as subprocess environment entries; without it the local tccli configuration chain supplies the credentials), and `region`, with `region` required.
 
 ### cos_enum tool schema
 
 #### What the model sees
 
-The model receives the generated [`cos_enum` schema](../../../docs/tool-catalog.md#cinlantool-tencent): `target_id`, `region`, and optional `public_status` (per-bucket `GetBucketAcl` anonymous-read check).
+The model receives the generated [`cos_enum` schema](../../../docs/tool-catalog.md#cinlantool-tencent): `target_id`, `region`, optional `credential_ref` (injected as subprocess environment entries; without it the local tccli configuration chain supplies the credentials), and optional `public_status` (per-bucket `GetBucketAcl` anonymous-read check).
 
 #### Token effect
 

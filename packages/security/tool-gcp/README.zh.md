@@ -43,9 +43,15 @@ kind: "package-reference"
 
 模型收到生成的 [`gcs_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-gcp)：`target_id`、`project`、`credential_ref`，全部必需。结果为桶行，携带每个桶的 `publicAccessPrevention` 设置——`enforced` 表示阻止公开暴露，`inherited` 表示未阻止。
 
+### gcs_bucket_iam 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`gcs_bucket_iam` schema](../../../docs/tool-catalog.zh.md#cinlantool-gcp)：`target_id`、`credential_ref`、`bucket`（`gcs_enum` 报告的桶名，不含 `gs://` 前缀），全部必需。结果为桶的 IAM 角色绑定行，以及 `public` 标志——报告匿名主体（`allUsers` / `allAuthenticatedUsers`）是否持有任一角色。
+
 #### Token 效应
 
-三个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
+四个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
 
 #### KV Cache 效应
 
@@ -57,7 +63,7 @@ kind: "package-reference"
 - 需要本机安装 gcloud CLI；可执行文件缺失时工具给出明确错误。
 - 凭据文件位于私有临时目录中，执行期间同机同用户可读取——但 secret 绝不进入 argv、模型可见参数、结果或会话日志，且目录在每次调用后删除。
 - gcloud 会读取操作者本机配置的默认 project 与 region；本包每次调用都显式携带 project 参数，但其余环境默认值（account、quota project）仍来自本机配置。
-- `gcs_enum` 只报告 public-access-prevention 设置；桶级 IAM 转储（逐桶 `get-iam-policy`）延期。
+- `gcs_enum` 报告 public-access-prevention 设置；桶级 IAM 转储由独立的 `gcs_bucket_iam` 工具提供。
 - GCP 写路径工具（IAM 变更、资源创建）延期：本包只做枚举与身份确认。
 
 <a id="dev-note"></a>

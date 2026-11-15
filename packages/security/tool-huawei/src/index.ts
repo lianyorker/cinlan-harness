@@ -31,8 +31,9 @@ import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
   buildIamArgv, buildIdentityArgv, buildObsListArgv,
-  parseCallerIdentity, parseHuaweiSecret, parseIamUsers, parseObsRows,
+  parseCallerIdentity, parseHuaweiSecret, parseIamRows, parseObsRows,
 } from './huawei.ts'
+import type { HuaweiIamResource } from './huawei.ts'
 
 export const name = 'tool-huawei'
 export const inject = ['tools', 'subprocess']
@@ -232,20 +233,26 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.register(defineTool({
     name: 'huawei_iam_enum',
     description:
-      'Enumerate the IAM users of one authorized Huawei Cloud account through the granted credentials '
-      + '(Huawei Cloud KooCLI: hcloud IAM ListUsers) and return bounded user rows. The target_id must '
-      + 'match a cloud target declared in the active assessment-scope grant; this is read-only IAM '
-      + 'reconnaissance, not exploitation.',
+      'Enumerate the IAM users or permanent access keys of one authorized Huawei Cloud account through '
+      + 'the granted credentials (Huawei Cloud KooCLI: hcloud IAM ListUsers or ListPermanentAccessKeys) '
+      + 'and return bounded rows. The target_id must match a cloud target declared in the active '
+      + 'assessment-scope grant; this is read-only IAM reconnaissance, not exploitation.',
     parameters: {
       target_id: {
         type: 'string',
         required: true,
         description: 'Huawei Cloud account id to enumerate, as declared in the assessment scope grant.',
       },
+      resource: {
+        type: 'string',
+        required: true,
+        enum: ['users', 'keys'],
+        description: 'IAM collection to list: users, or the account\'s permanent access keys.',
+      },
       project_id: {
         type: 'string',
         required: true,
-        description: 'Huawei Cloud project id the IAM API is scoped to (the IAM v3 user listing is project-scoped).',
+        description: 'Huawei Cloud project id the IAM API is scoped to (the IAM v3 listings are project-scoped).',
       },
       credential_ref: {
         type: 'string',
@@ -271,27 +278,29 @@ export function apply(ctx: Context, config: Config = {}): void {
         },
       },
       render: (_args, value) => {
-        const rows = value.rows as readonly { name?: string }[]
-        const names = rows.slice(0, 50).map(row => row.name ?? '?')
-        return [{ type: 'text', text: `iam: ${rows.length} user(s)\n  ${names.join('\n  ')}` }]
+        const rows = value.rows as readonly { name?: string; accessKeyId?: string }[]
+        const names = rows.slice(0, 50).map(row => row.name ?? row.accessKeyId ?? '?')
+        return [{ type: 'text', text: `iam: ${rows.length} row(s)\n  ${names.join('\n  ')}` }]
       },
     },
     async execute(args, exec) {
+      const resource = String(args.resource) as HuaweiIamResource
       const refName = String(args.credential_ref)
       const pair = parseHuaweiSecret(await resolveSecret(ctx, refName))
       const stdout = await requireSuccess(await runHuawei(
         ctx, exec, resolved,
         buildIamArgv(resolved.command, {
+          resource,
           region: String(args.region),
           projectId: String(args.project_id),
         }, pair),
         resolved.command,
-      ), 'IAM ListUsers')
-      const value = { rows: parseIamUsers(stdout) as unknown as Record<string, JsonValue>[] }
+      ), `IAM ${resource === 'users' ? 'ListUsers' : 'ListPermanentAccessKeys'}`)
+      const value = { rows: parseIamRows(stdout, resource) as unknown as Record<string, JsonValue>[] }
       enforceResultBytes(value, resolved.maxOutputBytes)
       return value
     },
-    presentCall: args => ({ card: 'generic', title: 'Enumerate Huawei Cloud IAM users', kind: 'other', rawInput: args }),
+    presentCall: args => ({ card: 'generic', title: 'Enumerate Huawei Cloud IAM resources', kind: 'other', rawInput: args }),
   }))
 
   ctx.tools.register(defineTool({

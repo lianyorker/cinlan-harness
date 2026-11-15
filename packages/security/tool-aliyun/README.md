@@ -35,13 +35,13 @@ The model receives the generated [`aliyun_identity_get` schema](../../../docs/to
 
 #### What the model sees
 
-The model receives the generated [`ram_enum` schema](../../../docs/tool-catalog.md#cinlantool-aliyun): `target_id`, `limit` (optional `--PageSize`, default 100), and `region`, all with `region` required. RAM is a global product; use the account's center region.
+The model receives the generated [`ram_enum` schema](../../../docs/tool-catalog.md#cinlantool-aliyun): `target_id`, `limit` (optional `--PageSize`, default 100), optional `credential_ref`, and `region`, with `region` required. RAM is a global product; use the account's center region.
 
 ### oss_enum tool schema
 
 #### What the model sees
 
-The model receives the generated [`oss_enum` schema](../../../docs/tool-catalog.md#cinlantool-aliyun): `target_id` and `region`, both required. Results are bucket rows parsed from the built-in ossutil text listing.
+The model receives the generated [`oss_enum` schema](../../../docs/tool-catalog.md#cinlantool-aliyun): `target_id`, optional `credential_ref`, `region`, and optional `public_status` (per-bucket `ossutil api get-bucket-acl` anonymous-read check, which requires an aliyun CLI with embedded ossutil 2.0). Results are bucket rows parsed from the built-in ossutil text listing.
 
 #### Token effect
 
@@ -56,7 +56,7 @@ The tool schemas are part of the model tool prefix and remain cacheable until th
 
 - Requires a local Alibaba Cloud CLI installation; the tool reports a clear error when the executable is missing.
 - The credential secret rides in the subprocess environment, which the same local user can read through process-environment inspection during execution — but it never appears in model-visible arguments, results, or the Session log.
-- The `oss_enum` listing parses the built-in ossutil's text output (one `oss://bucket` line per bucket); the public-access check is deferred because the aliyun CLI's embedded ossutil does not expose a stable JSON GetBucketInfo path — a dedicated ossutil 2.0 integration would own that follow-up.
+- The `oss_enum` listing parses the built-in ossutil's text output (one `oss://bucket` line per bucket); the `public_status` check uses `aliyun ossutil api get-bucket-acl` and requires an aliyun CLI whose embedded ossutil is 2.0 or newer, and buckets beyond `maxPublicChecks` (default 20) report as `skipped` while buckets whose ACL cannot be read report as `unknown`.
 - RAM role and policy listings are deferred: this package enumerates users only.
 - Write-path Alibaba Cloud tools (resource mutation, privilege escalation paths) are deferred: this package is enumeration and identity confirmation only.
 

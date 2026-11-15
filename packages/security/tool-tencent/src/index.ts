@@ -103,6 +103,20 @@ async function resolveSecret(ctx: Context, ref: string): Promise<string> {
   return resolved.value
 }
 
+/**
+ * Resolve the optional `credential_ref` argument into environment entries.
+ * An absent reference leaves the credentials to the local tccli
+ * configuration chain; a presented reference must resolve and parse.
+ * @param ctx - registrant context carrying the credential provider.
+ * @param args - the tool call's arguments.
+ * @returns environment entries for the tccli subprocess, or undefined.
+ */
+async function resolveTencentEnv(ctx: Context, args: { readonly credential_ref?: unknown }): Promise<Record<string, string> | undefined> {
+  const ref = typeof args.credential_ref === 'string' && args.credential_ref.length > 0 ? args.credential_ref : undefined
+  if (ref === undefined) return undefined
+  return parseTencentEnvSecret(await resolveSecret(ctx, ref))
+}
+
 interface RunOutcome {
   readonly stdout: string
   readonly stderr: string
@@ -254,6 +268,10 @@ export function apply(ctx: Context, config: Config = {}): void {
         type: 'number',
         description: 'Row bound for the listing page (1 through 1000). Default 100.',
       },
+      credential_ref: {
+        type: 'string',
+        description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local tccli configuration chain supplies the credentials.',
+      },
       region: {
         type: 'string',
         required: true,
@@ -280,6 +298,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     },
     async execute(args, exec) {
       const resource = String(args.resource) as CamResource
+      const env = await resolveTencentEnv(ctx, args)
       const stdout = await requireSuccess(await runTccli(
         ctx, exec, resolved,
         buildCamArgv(resolved.command, {
@@ -287,6 +306,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           limit: typeof args.limit === 'number' && Number.isSafeInteger(args.limit) ? args.limit : 100,
           region: String(args.region),
         }),
+        env,
       ), `cam ${resource} listing`)
       const value = { rows: parseCamRows(stdout, resource) as unknown as Record<string, JsonValue>[] }
       enforceResultBytes(value, resolved.maxOutputBytes)
@@ -312,6 +332,10 @@ export function apply(ctx: Context, config: Config = {}): void {
         type: 'string',
         required: true,
         description: REGION_DESCRIPTION,
+      },
+      credential_ref: {
+        type: 'string',
+        description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local tccli configuration chain supplies the credentials.',
       },
       public_status: {
         type: 'boolean',
@@ -342,16 +366,18 @@ export function apply(ctx: Context, config: Config = {}): void {
     },
     async execute(args, exec) {
       const region = String(args.region)
+      const env = await resolveTencentEnv(ctx, args)
       const stdout = await requireSuccess(await runTccli(
         ctx, exec, resolved,
         buildCosServiceArgv(resolved.command, { region }),
+        env,
       ), 'cos GetService')
       interface BucketRow { readonly name: string; readonly location: string; readonly creationDate: string; publicStatus?: string }
       const rows: BucketRow[] = parseCosBuckets(stdout).map(bucket => ({ ...bucket }))
       if (args.public_status === true) {
         for (const bucket of rows.slice(0, resolved.maxPublicChecks)) {
           const aclRun = await runTccli(ctx, exec, resolved,
-            buildCosAclArgv(resolved.command, { bucket: bucket.name, region }))
+            buildCosAclArgv(resolved.command, { bucket: bucket.name, region }), env)
           bucket.publicStatus = aclRun.exitCode === 0
             ? (isPublicGrants(parseAclGrants(aclRun.stdout)) ? 'public' : 'not-public')
             : 'unknown'

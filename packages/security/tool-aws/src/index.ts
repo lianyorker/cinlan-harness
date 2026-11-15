@@ -104,6 +104,20 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
+/**
+ * Resolve the optional `credential_ref` argument into environment entries.
+ * An absent reference leaves the credentials to the local AWS configuration
+ * chain; a presented reference must resolve and parse.
+ * @param ctx - registrant context carrying the credential provider.
+ * @param args - the tool call's arguments.
+ * @returns environment entries for the aws subprocess, or undefined.
+ */
+async function resolveAwsEnv(ctx: Context, args: { readonly credential_ref?: unknown }): Promise<Record<string, string> | undefined> {
+  const ref = optionalString(args.credential_ref)
+  if (ref === undefined) return undefined
+  return parseAwsEnvSecret(await resolveSecret(ctx, ref))
+}
+
 interface RunOutcome {
   readonly stdout: string
   readonly stderr: string
@@ -259,6 +273,10 @@ export function apply(ctx: Context, config: Config = {}): void {
         type: 'number',
         description: 'Maximum rows returned via --max-items (1 through 1000). Default 100.',
       },
+      credential_ref: {
+        type: 'string',
+        description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local AWS configuration chain supplies the credentials.',
+      },
       region: {
         type: 'string',
         description: REGION_DESCRIPTION,
@@ -284,6 +302,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     },
     async execute(args, exec) {
       const resource = String(args.resource) as IamResource
+      const env = await resolveAwsEnv(ctx, args)
       const stdout = await requireSuccess(await runAws(
         ctx, exec, resolved,
         buildIamArgv(resolved.command, {
@@ -291,6 +310,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           limit: typeof args.limit === 'number' && Number.isSafeInteger(args.limit) ? args.limit : 100,
           ...(optionalString(args.region) !== undefined ? { region: String(args.region) } : {}),
         }),
+        env,
       ), `iam ${resource} listing`)
       const value = { rows: parseIamRows(stdout, resource) as unknown as Record<string, JsonValue>[] }
       enforceResultBytes(value, resolved.maxOutputBytes)
@@ -316,6 +336,10 @@ export function apply(ctx: Context, config: Config = {}): void {
       region: {
         type: 'string',
         description: REGION_DESCRIPTION,
+      },
+      credential_ref: {
+        type: 'string',
+        description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local AWS configuration chain supplies the credentials.',
       },
       public_status: {
         type: 'boolean',
@@ -346,9 +370,11 @@ export function apply(ctx: Context, config: Config = {}): void {
     },
     async execute(args, exec) {
       const region = optionalString(args.region)
+      const env = await resolveAwsEnv(ctx, args)
       const stdout = await requireSuccess(await runAws(
         ctx, exec, resolved,
         buildS3ListArgv(resolved.command, { ...(region !== undefined ? { region } : {}) }),
+        env,
       ), 's3api list-buckets')
       interface BucketRow { readonly name: string; readonly creationDate: string; publicStatus?: string }
       const rows: BucketRow[] = parseS3Buckets(stdout).map(bucket => ({ ...bucket }))
@@ -358,7 +384,7 @@ export function apply(ctx: Context, config: Config = {}): void {
         }
         for (const bucket of rows.slice(0, resolved.maxPublicChecks)) {
           const statusRun = await runAws(ctx, exec, resolved,
-            buildPolicyStatusArgv(resolved.command, { bucket: bucket.name, region }))
+            buildPolicyStatusArgv(resolved.command, { bucket: bucket.name, region }), env)
           bucket.publicStatus = statusRun.exitCode === 0
             ? (parsePolicyStatus(statusRun.stdout) === true ? 'public' : 'not-public')
             : 'unknown'

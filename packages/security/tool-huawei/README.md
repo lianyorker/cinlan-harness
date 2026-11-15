@@ -35,7 +35,7 @@ The model receives the generated [`huawei_identity_get` schema](../../../docs/to
 
 #### What the model sees
 
-The model receives the generated [`huawei_iam_enum` schema](../../../docs/tool-catalog.md#cinlantool-huawei): `target_id`, `project_id` (required — the IAM v3 user listing is project-scoped), `credential_ref`, and `region`, all required.
+The model receives the generated [`huawei_iam_enum` schema](../../../docs/tool-catalog.md#cinlantool-huawei): `target_id`, `resource` (required, `users` or `keys` — the account's permanent access keys), `project_id` (required — the IAM v3 listings are project-scoped), `credential_ref`, and `region`, all required.
 
 ### obs_enum tool schema
 
@@ -57,7 +57,7 @@ The tool schemas are part of the model tool prefix and remain cacheable until th
 - Requires local Huawei Cloud KooCLI and obsutil installations; the tool reports a clear error naming the missing executable.
 - Neither KooCLI nor obsutil has an environment-based credential channel, so the access key pair rides on the argv (`--cli-secret-key` / `-k=`) and is visible in the local process list during execution — it never appears in model-visible arguments, results, or the Session log.
 - The KooCLI binary name `hcloud` collides with the unrelated Hetzner Cloud CLI; `config.command` points at the Huawei Cloud KooCLI and errors name it explicitly.
-- The IAM user listing reflects the KooCLI's snake_case serialization of the IAM (v3) payload; IAM role and policy listings are deferred.
+- The IAM user and key listings reflect the KooCLI's snake_case serialization of the IAM (v3) payload; IAM role and policy listings are deferred.
 - The `obs_enum` public-access check is deferred: obsutil exposes bucket ACL details only through its API subcommands, which would need a dedicated integration.
 - Write-path Huawei Cloud tools (IAM mutation, resource creation) are deferred: this package is enumeration and identity confirmation only.
 

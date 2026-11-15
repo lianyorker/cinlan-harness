@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
-  parseAncestors, parseGcsBuckets, parseIamBindings, parseServiceAccountSecret,
+  buildGcsBucketIamArgv, buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
+  isPublicBucketIam, parseAncestors, parseGcsBucketIam, parseGcsBuckets, parseIamBindings, parseServiceAccountSecret,
 } from '../src/gcp.ts'
 
 describe('parseServiceAccountSecret', () => {
@@ -37,6 +37,47 @@ describe('buildIamPolicyArgv and buildGcsListArgv', () => {
       'gcloud', 'storage', 'buckets', 'list', '--project', 'proj-a', '--format=json',
     ])
     expect(() => buildGcsListArgv('gcloud', { projectId: 'ab' })).toThrow(TypeError)
+  })
+})
+
+describe('buildGcsBucketIamArgv', () => {
+  it('builds the bucket IAM policy call with the gs:// scheme', () => {
+    expect(buildGcsBucketIamArgv('gcloud', { bucket: 'example-bucket' })).toEqual([
+      'gcloud', 'storage', 'buckets', 'get-iam-policy', 'gs://example-bucket', '--format=json',
+    ])
+    expect(() => buildGcsBucketIamArgv('gcloud', { bucket: '-bucket' })).toThrow(TypeError)
+    expect(() => buildGcsBucketIamArgv('gcloud', { bucket: 'bucket;id' })).toThrow(TypeError)
+    expect(() => buildGcsBucketIamArgv('gcloud', { bucket: '' })).toThrow(TypeError)
+  })
+})
+
+describe('parseGcsBucketIam and isPublicBucketIam', () => {
+  it('parses bucket bindings and flags anonymous principals', () => {
+    const stdout = JSON.stringify({
+      bindings: [
+        { role: 'roles/storage.objectViewer', members: ['allUsers'] },
+        { role: 'roles/storage.legacyBucketOwner', members: ['projectOwner:proj-a'] },
+        { role: 'roles/storage.objectAdmin', members: ['allAuthenticatedUsers', 'user:a@example.invalid'] },
+        { members: ['user:b@example.invalid'] },
+        'noise',
+      ],
+    })
+    const bindings = parseGcsBucketIam(stdout)
+    expect(bindings).toEqual([
+      { role: 'roles/storage.objectViewer', members: ['allUsers'] },
+      { role: 'roles/storage.legacyBucketOwner', members: ['projectOwner:proj-a'] },
+      { role: 'roles/storage.objectAdmin', members: ['allAuthenticatedUsers', 'user:a@example.invalid'] },
+    ])
+    expect(isPublicBucketIam(bindings)).toBe(true)
+    expect(isPublicBucketIam(parseGcsBucketIam(JSON.stringify({
+      bindings: [{ role: 'roles/storage.legacyBucketOwner', members: ['projectOwner:proj-a'] }],
+    })))).toBe(false)
+  })
+
+  it('returns empty rows for empty or malformed output', () => {
+    expect(parseGcsBucketIam('')).toEqual([])
+    expect(parseGcsBucketIam('not json')).toEqual([])
+    expect(parseGcsBucketIam('{"bindings": "no"}')).toEqual([])
   })
 })
 

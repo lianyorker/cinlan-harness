@@ -83,6 +83,7 @@
           - azure_storage_enum
           - gcp_iam_enum
           - gcs_enum
+          - gcs_bucket_iam
           - ram_enum
           - oss_enum
           - cam_enum

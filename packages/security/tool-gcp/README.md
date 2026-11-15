@@ -43,9 +43,15 @@ The model receives the generated [`gcp_iam_enum` schema](../../../docs/tool-cata
 
 The model receives the generated [`gcs_enum` schema](../../../docs/tool-catalog.md#cinlantool-gcp): `target_id`, `project`, and `credential_ref`, all required. Results are bucket rows carrying each bucket's `publicAccessPrevention` setting — `enforced` blocks public exposure, `inherited` does not.
 
+### gcs_bucket_iam tool schema
+
+#### What the model sees
+
+The model receives the generated [`gcs_bucket_iam` schema](../../../docs/tool-catalog.md#cinlantool-gcp): `target_id`, `credential_ref`, and `bucket` (a bucket name reported by `gcs_enum`, without the `gs://` scheme), all required. Results are the bucket's IAM role-binding rows plus a `public` flag that reports whether an anonymous principal (`allUsers` / `allAuthenticatedUsers`) holds any role.
+
 #### Token effect
 
-The tools add three descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
+The tools add four descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
 
 #### KV Cache effect
 
@@ -57,7 +63,7 @@ The tool schemas are part of the model tool prefix and remain cacheable until th
 - Requires a local gcloud CLI installation; the tool reports a clear error when the executable is missing.
 - The credential file rides in a private temporary directory that the same local user can read during execution — but the secret never appears in argv, model-visible arguments, results, or the Session log, and the directory is deleted after every call.
 - gcloud reads the operator's local configuration for default project and region values; this package sets explicit project arguments on every call, but other ambient defaults (account, quota project) still come from the local configuration.
-- `gcs_enum` reports the public-access-prevention setting only; a bucket-level IAM dump (per-bucket `get-iam-policy`) is deferred.
+- `gcs_enum` reports the public-access-prevention setting; the per-bucket IAM dump is the separate `gcs_bucket_iam` tool.
 - Write-path GCP tools (IAM mutation, resource creation) are deferred: this package is enumeration and identity confirmation only.
 
 <a id="dev-note"></a>

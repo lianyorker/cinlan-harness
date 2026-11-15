@@ -35,13 +35,13 @@ The model receives the generated [`sts_get_caller_identity` schema](../../../doc
 
 #### What the model sees
 
-The model receives the generated [`iam_enum` schema](../../../docs/tool-catalog.md#cinlantool-aws): `target_id` (required), `resource` (required, one of `users`, `roles`, `policies` — policies are scoped to account-local), `limit` (optional `--max-items`, default 100), plus optional `region`.
+The model receives the generated [`iam_enum` schema](../../../docs/tool-catalog.md#cinlantool-aws): `target_id` (required), `resource` (required, one of `users`, `roles`, `policies` — policies are scoped to account-local), `limit` (optional `--max-items`, default 100), optional `credential_ref` (injected as subprocess environment entries; without it the local AWS configuration chain supplies the credentials), plus optional `region`.
 
 ### s3_enum tool schema
 
 #### What the model sees
 
-The model receives the generated [`s3_enum` schema](../../../docs/tool-catalog.md#cinlantool-aws): `target_id` (required), optional `region`, and optional `public_status` (per-bucket `get-bucket-policy-status`, which requires an explicit region because the check is region-scoped).
+The model receives the generated [`s3_enum` schema](../../../docs/tool-catalog.md#cinlantool-aws): `target_id` (required), optional `credential_ref` (injected as subprocess environment entries; without it the local AWS configuration chain supplies the credentials), optional `region`, and optional `public_status` (per-bucket `get-bucket-policy-status`, which requires an explicit region because the check is region-scoped).
 
 #### Token effect
 

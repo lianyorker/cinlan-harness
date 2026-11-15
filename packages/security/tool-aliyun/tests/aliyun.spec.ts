@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildIdentityArgv, buildOssListArgv, buildRamArgv,
-  parseAliyunEnvSecret, parseCallerIdentity, parseOssRows, parseRamUsers,
+  buildIdentityArgv, buildOssAclArgv, buildOssListArgv, buildRamArgv,
+  isPublicOssGrants, parseAliyunEnvSecret, parseCallerIdentity, parseOssAclGrants, parseOssRows, parseRamUsers,
 } from '../src/aliyun.ts'
 
 describe('parseAliyunEnvSecret', () => {
@@ -101,5 +101,50 @@ describe('parseOssRows', () => {
   it('returns empty rows for empty or malformed output', () => {
     expect(parseOssRows('')).toEqual([])
     expect(parseOssRows('no buckets here')).toEqual([])
+  })
+})
+
+describe('buildOssAclArgv', () => {
+  it('builds the ossutil api ACL call with JSON output', () => {
+    expect(buildOssAclArgv('aliyun', { bucket: 'example-bucket', region: 'cn-hangzhou' })).toEqual([
+      'aliyun', 'ossutil', 'api', 'get-bucket-acl',
+      '--bucket', 'example-bucket', '--region', 'cn-hangzhou', '--output-format', 'json',
+    ])
+    expect(() => buildOssAclArgv('aliyun', { bucket: '-bucket', region: 'cn-hangzhou' })).toThrow(TypeError)
+    expect(() => buildOssAclArgv('aliyun', { bucket: 'bucket;id', region: 'cn-hangzhou' })).toThrow(TypeError)
+    expect(() => buildOssAclArgv('aliyun', { bucket: 'bucket', region: '' })).toThrow(TypeError)
+  })
+})
+
+describe('parseOssAclGrants and isPublicOssGrants', () => {
+  it('parses grant rows from the ACL envelope and detects anonymous reads', () => {
+    const stdout = JSON.stringify({
+      AccessControlPolicy: {
+        Grants: {
+          Grant: [
+            { Grantee: { ID: '1085152125473055', DisplayName: 'all-users' }, Permission: 'public-read' },
+            { Grantee: { ID: '196813200012', DisplayName: 'admin' }, Permission: 'FULL_CONTROL' },
+            { Permission: 'WRITE' },
+            'noise',
+          ],
+        },
+      },
+    })
+    const grants = parseOssAclGrants(stdout)
+    expect(grants).toEqual([
+      { grantee: '1085152125473055', permission: 'public-read' },
+      { grantee: '196813200012', permission: 'FULL_CONTROL' },
+    ])
+    expect(isPublicOssGrants(grants)).toBe(true)
+    expect(isPublicOssGrants([{ grantee: '196813200012', permission: 'FULL_CONTROL' }])).toBe(false)
+    expect(isPublicOssGrants([{ grantee: '1085152125473055', permission: 'WRITE' }])).toBe(false)
+    expect(isPublicOssGrants([{ grantee: '1085152125473055', permission: 'public-read-write' }])).toBe(true)
+  })
+
+  it('treats missing ACL envelopes as unknown public status', () => {
+    expect(parseOssAclGrants('')).toEqual([])
+    expect(parseOssAclGrants('not json')).toEqual([])
+    expect(parseOssAclGrants('{"AccessControlPolicy": {}}')).toEqual([])
+    expect(parseOssAclGrants('{"AccessControlPolicy": {"Grants": "no"}}')).toEqual([])
   })
 })

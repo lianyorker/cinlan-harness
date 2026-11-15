@@ -35,13 +35,13 @@ kind: "package-reference"
 
 #### 模型所见
 
-模型收到生成的 [`ram_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aliyun)：`target_id`、`limit`（可选 `--PageSize`，默认 100）、`region`，其中 `region` 必需。RAM 是全局产品：使用账户的中心 region。
+模型收到生成的 [`ram_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aliyun)：`target_id`、`limit`（可选 `--PageSize`，默认 100）、可选 `credential_ref`、`region`，其中 `region` 必需。RAM 是全局产品：使用账户的中心 region。
 
 ### oss_enum 工具 schema
 
 #### 模型所见
 
-模型收到生成的 [`oss_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aliyun)：`target_id` 与 `region`，均必需。结果是从内置 ossutil 文本列表解析出的桶行。
+模型收到生成的 [`oss_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aliyun)：`target_id`、可选 `credential_ref`、`region`、可选 `public_status`（逐桶 `ossutil api get-bucket-acl` 匿名读检查，要求 aliyun CLI 内嵌 ossutil 2.0 及以上）。结果是从内置 ossutil 文本列表解析出的桶行。
 
 #### Token 效应
 
@@ -56,7 +56,7 @@ kind: "package-reference"
 
 - 需要本机安装阿里云 CLI；可执行文件缺失时工具给出明确错误。
 - 凭据 secret 随子进程环境变量注入，执行期间同机同用户可经进程环境检查读取——但绝不进入模型可见参数、结果或会话日志。
-- `oss_enum` 的列表解析读取内置 ossutil 的文本输出（每桶一行 `oss://bucket`）；公开性检查延期，因为 aliyun CLI 内嵌的 ossutil 不提供稳定的 JSON GetBucketInfo 路径——该后续工作应属于独立的 ossutil 2.0 集成。
+- `oss_enum` 的列表解析读取内置 ossutil 的文本输出（每桶一行 `oss://bucket`）；`public_status` 检查使用 `aliyun ossutil api get-bucket-acl`，要求 aliyun CLI 内嵌 ossutil 2.0 及以上，超出 `maxPublicChecks`（默认 20）的桶报告为 `skipped`，无法读取 ACL 的桶报告为 `unknown`。
 - RAM 角色与策略列表延期：本包只枚举用户。
 - 阿里云写路径工具（资源变更、提权路径）延期：本包只做枚举与身份确认。
 

@@ -31,6 +31,12 @@ export interface GcsRequest {
   readonly projectId: string
 }
 
+/** Validated bucket IAM policy request accepted by {@link buildGcsBucketIamArgv}. */
+export interface GcsBucketIamRequest {
+  /** Bucket name as reported by the listing, without the `gs://` scheme. Never starts with `-`. */
+  readonly bucket: string
+}
+
 function validateProject(projectId: string): string {
   const trimmed = projectId.trim()
   if (trimmed.length === 0 || trimmed.length > 30 || !PROJECT_PATTERN.test(trimmed)) {
@@ -105,6 +111,30 @@ export function buildIamPolicyArgv(gcloudPath: string, request: GcpIamRequest): 
  */
 export function buildGcsListArgv(gcloudPath: string, request: GcsRequest): string[] {
   return [gcloudPath, 'storage', 'buckets', 'list', '--project', validateProject(request.projectId), '--format=json']
+}
+
+function validateBucketName(bucket: string): string {
+  const trimmed = bucket.trim()
+  if (trimmed.length === 0 || trimmed.length > 255 || trimmed.startsWith('-')) {
+    throw new TypeError(`tool-gcp: invalid bucket name ${JSON.stringify(bucket)}`)
+  }
+  if (!/^[A-Za-z0-9._\-]+$/.test(trimmed)) {
+    throw new TypeError(`tool-gcp: bucket name contains unsupported characters ${JSON.stringify(bucket)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the `gcloud storage buckets get-iam-policy` argv for one bucket.
+ * Output is always JSON on stdout (`--format=json`); no output-file
+ * arguments are ever emitted and the service-account file rides in the
+ * subprocess environment, never argv.
+ * @param gcloudPath - resolved gcloud executable path.
+ * @param request - validated bucket IAM request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildGcsBucketIamArgv(gcloudPath: string, request: GcsBucketIamRequest): string[] {
+  return [gcloudPath, 'storage', 'buckets', 'get-iam-policy', 'gs://' + validateBucketName(request.bucket), '--format=json']
 }
 
 /** One ancestor row (project, folder, or organization). */
@@ -203,6 +233,50 @@ function parseJsonObject(stdout: string): Record<string, unknown> {
   } catch {
     return {}
   }
+}
+
+/** One bucket-IAM binding row. */
+export interface GcsBucketIamRow {
+  /** Role name as reported by the bucket policy. */
+  readonly role: string
+  /** Members bound to the role. */
+  readonly members: readonly string[]
+}
+
+/**
+ * Parse `gcloud storage buckets get-iam-policy --format=json` into binding
+ * rows. Bindings without a role are skipped; a malformed document parses as
+ * empty.
+ * @param stdout - complete stdout text.
+ * @returns parsed binding rows in response order.
+ */
+export function parseGcsBucketIam(stdout: string): readonly GcsBucketIamRow[] {
+  const record = parseJsonObject(stdout)
+  const value = record['bindings']
+  if (!Array.isArray(value)) return []
+  const rows: GcsBucketIamRow[] = []
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
+    const item = entry as Record<string, unknown>
+    const role = item['role']
+    if (typeof role !== 'string' || role.length === 0) continue
+    const members = item['members']
+    rows.push({
+      role,
+      members: Array.isArray(members) ? members.filter((member): member is string => typeof member === 'string') : [],
+    })
+  }
+  return rows
+}
+
+/**
+ * Whether parsed bucket-IAM bindings expose the bucket to anonymous
+ * principals (`allUsers` or `allAuthenticatedUsers` members).
+ * @param bindings - rows from {@link parseGcsBucketIam}.
+ * @returns whether an anonymous principal holds any role.
+ */
+export function isPublicBucketIam(bindings: readonly GcsBucketIamRow[]): boolean {
+  return bindings.some(binding => binding.members.some(member => member === 'allUsers' || member === 'allAuthenticatedUsers'))
 }
 
 function parseRows<T>(stdout: string, read: (entry: Record<string, unknown>) => T | undefined): readonly T[] {

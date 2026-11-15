@@ -70,7 +70,7 @@
 | `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-aws` | `iam_enum`, `s3_enum`, `sts_get_caller_identity` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-azure` | `az_account_show`, `azure_ad_enum`, `azure_storage_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-gcp` | `gcp_iam_enum`, `gcp_identity_get`, `gcs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-gcp` | `gcp_iam_enum`, `gcp_identity_get`, `gcs_bucket_iam`, `gcs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-aliyun` | `aliyun_identity_get`, `oss_enum`, `ram_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-tencent` | `cam_enum`, `cos_enum`, `tencent_identity_get` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-huawei` | `huawei_iam_enum`, `huawei_identity_get`, `obs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
@@ -3595,6 +3595,10 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
       "type": "number",
       "description": "Maximum rows returned via --max-items (1 through 1000). Default 100."
     },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+    },
     "region": {
       "type": "string",
       "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
@@ -3608,7 +3612,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
-
 ### `s3_enum`
 
 用授予的凭据列出一个已授权 AWS 账户的 S3 桶（aws s3api list-buckets），并可选地用 get-bucket-policy-status 逐桶检查公开策略状态。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；公开策略检查按 region 作用域执行，与桶不匹配的 region 会把该桶报告为 unknown。这是只读存储侦察。
@@ -3625,6 +3628,10 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
       "type": "string",
       "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
     },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+    },
     "public_status": {
       "type": "boolean",
       "description": "Also run get-bucket-policy-status per bucket (requires region); buckets without a policy report as unknown."
@@ -3637,7 +3644,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
-
 ### `sts_get_caller_identity`
 
 确认授予的凭据解析为哪个 AWS 身份（aws sts get-caller-identity），并返回调用者 user id、账户 id 与 ARN。target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且凭据引用必须授予；这是只读身份确认，不是枚举。
@@ -3833,6 +3839,37 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 来源：[`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
 
+### `gcs_bucket_iam`
+
+用授予的 service-account 凭据读取一个已授权 GCS 桶的 IAM 策略（gcloud storage buckets get-iam-policy），并返回角色绑定行，同时标记匿名主体（allUsers 或 allAuthenticatedUsers）。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读存储侦察。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "GCP account to enumerate, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+    },
+    "bucket": {
+      "type": "string",
+      "description": "Bucket name as reported by gcs_enum, without the gs:// scheme."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref",
+    "bucket"
+  ]
+}
+```
+
+来源：[`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
+
 ### `gcs_enum`
 
 用授予的 service-account 凭据列出一个已授权 GCP 项目的 Cloud Storage 桶（gcloud storage buckets list），并返回桶行及其 public-access-prevention 设置（enforced 表示阻止公开暴露）。target_id 必须匹配当前评估范围授权中声明的 cloud 目标，project 必须落在目标允许列表内；这是只读存储侦察。
@@ -3901,7 +3938,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 ### `oss_enum`
 
-用授予的凭据列出一个已授权阿里云账户的 OSS 桶（aliyun oss ls），并返回桶行及其列表细节。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读存储侦察。
+用授予的凭据列出一个已授权阿里云账户的 OSS 桶（aliyun oss ls），并可选地用 ossutil api get-bucket-acl 逐桶检查匿名读授权。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读存储侦察。
 
 ```json
 {
@@ -3911,9 +3948,17 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
       "type": "string",
       "description": "Alibaba Cloud account id to enumerate, as declared in the assessment scope grant."
     },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+    },
     "region": {
       "type": "string",
       "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+    },
+    "public_status": {
+      "type": "boolean",
+      "description": "Also run get-bucket-acl per bucket and report whether anonymous-read grants exist (requires an aliyun CLI with embedded ossutil 2.0)."
     }
   },
   "required": [
@@ -3924,7 +3969,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
-
 ### `ram_enum`
 
 用授予的凭据枚举一个已授权阿里云账户的 RAM 用户（aliyun ram ListUsers），并返回有界用户行。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读 RAM 侦察，不是利用。
@@ -3941,6 +3985,10 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
       "type": "number",
       "description": "Row count for the listing page via --PageSize (1 through 1000). Default 100."
     },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+    },
     "region": {
       "type": "string",
       "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
@@ -3954,7 +4002,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
-
 <a id="cinlantool-tencent"></a>
 
 ## `@cinlan/tool-tencent`
@@ -3983,6 +4030,10 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
       "type": "number",
       "description": "Row bound for the listing page (1 through 1000). Default 100."
     },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+    },
     "region": {
       "type": "string",
       "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
@@ -3997,7 +4048,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
-
 ### `cos_enum`
 
 用授予的凭据列出一个已授权腾讯云账户的 COS 桶（tccli cos GetService），并可选地用 GetBucketAcl 逐桶检查匿名读授权。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读存储侦察。
@@ -4014,6 +4064,10 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
       "type": "string",
       "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
     },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+    },
     "public_status": {
       "type": "boolean",
       "description": "Also run GetBucketAcl per bucket and report whether anonymous-read grants exist."
@@ -4027,7 +4081,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
-
 ### `tencent_identity_get`
 
 确认授予的凭据解析为哪个腾讯云 CAM 身份（tccli sts GetCallerIdentity），并返回调用者 user id、账户 id 与 ARN。target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且凭据引用必须授予；这是只读身份确认，不是枚举。
@@ -4065,7 +4118,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 ### `huawei_iam_enum`
 
-用授予的凭据枚举一个已授权华为云账户的 IAM 用户（华为云 KooCLI：hcloud IAM ListUsers），并返回有界用户行。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读 IAM 侦察，不是利用。
+用授予的凭据枚举一个已授权华为云账户的 IAM 用户或永久访问密钥（华为云 KooCLI：hcloud IAM ListUsers 或 ListPermanentAccessKeys），并返回有界行。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读 IAM 侦察，不是利用。
 
 ```json
 {
@@ -4075,9 +4128,17 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
       "type": "string",
       "description": "Huawei Cloud account id to enumerate, as declared in the assessment scope grant."
     },
+    "resource": {
+      "type": "string",
+      "description": "IAM collection to list: users, or the account's permanent access keys.",
+      "enum": [
+        "users",
+        "keys"
+      ]
+    },
     "project_id": {
       "type": "string",
-      "description": "Huawei Cloud project id the IAM API is scoped to (the IAM v3 user listing is project-scoped)."
+      "description": "Huawei Cloud project id the IAM API is scoped to (the IAM v3 listings are project-scoped)."
     },
     "credential_ref": {
       "type": "string",
@@ -4090,6 +4151,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   },
   "required": [
     "target_id",
+    "resource",
     "project_id",
     "credential_ref",
     "region"
@@ -4098,7 +4160,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-huawei/src/index.ts`](../packages/security/tool-huawei/src/index.ts)
-
 ### `huawei_identity_get`
 
 确认授予的凭据解析为哪个华为云身份（华为云 KooCLI：hcloud IAM5 GetCallerIdentity），并返回调用者 user id、账户 id 与 URN。target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且凭据引用必须授予；这是只读身份确认，不是枚举。

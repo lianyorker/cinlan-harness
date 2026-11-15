@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildIamArgv, buildIdentityArgv, buildObsListArgv,
-  parseCallerIdentity, parseHuaweiSecret, parseIamUsers, parseObsRows,
+  parseCallerIdentity, parseHuaweiSecret, parseIamRows, parseObsRows,
 } from '../src/huawei.ts'
 
 const PAIR = {
@@ -36,14 +36,19 @@ describe('buildIdentityArgv', () => {
 })
 
 describe('buildIamArgv', () => {
-  it('builds the project-scoped KooCLI user listing', () => {
-    expect(buildIamArgv('hcloud', { region: 'cn-north-4', projectId: '4ff018c3aaaaaaaaaaaaaaaaaaaaaaaaaa' }, PAIR)).toEqual([
+  it('builds the project-scoped KooCLI listings per resource', () => {
+    expect(buildIamArgv('hcloud', { resource: 'users', region: 'cn-north-4', projectId: '4ff018c3aaaaaaaaaaaaaaaaaaaaaaaaaa' }, PAIR)).toEqual([
       'hcloud', 'IAM', 'ListUsers', '--cli-region=cn-north-4',
       '--project_id=4ff018c3aaaaaaaaaaaaaaaaaaaaaaaaaa',
       '--cli-access-key=HWAKEXAMPLE', '--cli-secret-key=resolved-secret',
     ])
-    expect(() => buildIamArgv('hcloud', { region: 'cn-north-4', projectId: '-proj' }, PAIR)).toThrow(TypeError)
-    expect(() => buildIamArgv('hcloud', { region: 'cn-north-4', projectId: '' }, PAIR)).toThrow(TypeError)
+    expect(buildIamArgv('hcloud', { resource: 'keys', region: 'cn-north-4', projectId: '4ff018c3aaaaaaaaaaaaaaaaaaaaaaaaaa' }, PAIR)).toEqual([
+      'hcloud', 'IAM', 'ListPermanentAccessKeys', '--cli-region=cn-north-4',
+      '--project_id=4ff018c3aaaaaaaaaaaaaaaaaaaaaaaaaa',
+      '--cli-access-key=HWAKEXAMPLE', '--cli-secret-key=resolved-secret',
+    ])
+    expect(() => buildIamArgv('hcloud', { resource: 'users', region: 'cn-north-4', projectId: '-proj' }, PAIR)).toThrow(TypeError)
+    expect(() => buildIamArgv('hcloud', { resource: 'users', region: 'cn-north-4', projectId: '' }, PAIR)).toThrow(TypeError)
   })
 })
 
@@ -72,18 +77,31 @@ describe('parseCallerIdentity', () => {
   })
 })
 
-describe('parseIamUsers', () => {
+describe('parseIamRows', () => {
   it('parses user rows from the snake_case IAM payload, skipping unnamed rows', () => {
     const stdout = JSON.stringify({ userlist: [{ user_name: 'svc-scan', user_id: 'hwuser-example' }, { user_id: 'hwuser-x' }, 'noise'] })
-    expect(parseIamUsers(stdout)).toEqual([{ name: 'svc-scan', userId: 'hwuser-example' }])
+    expect(parseIamRows(stdout, 'users')).toEqual([{ name: 'svc-scan', userId: 'hwuser-example' }])
     const alt = JSON.stringify({ users: [{ user_name: 'other' }] })
-    expect(parseIamUsers(alt)).toEqual([{ name: 'other', userId: '' }])
+    expect(parseIamRows(alt, 'users')).toEqual([{ name: 'other', userId: '' }])
+  })
+
+  it('parses access key rows from the credentials list, skipping keyless rows', () => {
+    const stdout = JSON.stringify({
+      credentials: [
+        { access_key_id: 'HWAKEXAMPLE01', user_id: 'hwuser-example', status: 'Active' },
+        { user_id: 'hwuser-x' },
+        'noise',
+      ],
+    })
+    expect(parseIamRows(stdout, 'keys')).toEqual([{ accessKeyId: 'HWAKEXAMPLE01', userId: 'hwuser-example', status: 'Active' }])
+    const alt = JSON.stringify({ accesskeys: [{ access: 'HWAKEXAMPLE02' }] })
+    expect(parseIamRows(alt, 'keys')).toEqual([{ accessKeyId: 'HWAKEXAMPLE02', userId: '', status: '' }])
   })
 
   it('returns empty rows for empty or malformed output', () => {
-    expect(parseIamUsers('')).toEqual([])
-    expect(parseIamUsers('not json')).toEqual([])
-    expect(parseIamUsers('{"userlist": "no"}')).toEqual([])
+    expect(parseIamRows('', 'users')).toEqual([])
+    expect(parseIamRows('not json', 'keys')).toEqual([])
+    expect(parseIamRows('{"userlist": "no"}', 'users')).toEqual([])
   })
 })
 

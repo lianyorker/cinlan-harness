@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 4e0ea13d3b5d8205
-  zh: 08c5ad44ed338218
+  en: 142228c6cb1a91a4
+  zh: 88da14bc7692d58e
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -476,6 +476,9 @@
 /tool-schema-catalog/cinlan-tool-gcp/gcp-identity-get:
   en: e65935c2dda99ef5
   zh: a673c52e748759d7
+/tool-schema-catalog/cinlan-tool-gcp/gcs-bucket-iam:
+  en: 13b6a57e9b93d063
+  zh: 0f8f4b958774be7e
 /tool-schema-catalog/cinlan-tool-gcp/gcs-enum:
   en: 1ee3dd7c901e739a
   zh: bc7e20ac4552ac0d
@@ -486,8 +489,8 @@
   en: 40004d8e5a04477e
   zh: 94a28cd21b72840c
 /tool-schema-catalog/cinlan-tool-aliyun/oss-enum:
-  en: 76287ab13f0ed9a7
-  zh: 366f78b2c5e5d3a0
+  en: cc61427925bc5045
+  zh: 44d7ed02d75f88a3
 /tool-schema-catalog/cinlan-tool-aliyun/ram-enum:
   en: 1572f0c8d4d6c5e4
   zh: 0052a079c90b75da
@@ -507,8 +510,8 @@
   en: 98668804aafbad34
   zh: 98668804aafbad34
 /tool-schema-catalog/cinlan-tool-huawei/huawei-iam-enum:
-  en: 7bff3c81162685b8
-  zh: d54fb51f507a1f1b
+  en: 334d3422f63d3243
+  zh: 2f436131d4601330
 /tool-schema-catalog/cinlan-tool-huawei/huawei-identity-get:
   en: c03f206d8feda475
   zh: 19915c8f15f58ecd

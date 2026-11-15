@@ -35,13 +35,13 @@ kind: "package-reference"
 
 #### 模型所见
 
-模型收到生成的 [`cam_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-tencent)：`target_id`、`resource`（必需，`users`、`roles` 之一）、`limit`（可选页上限，默认 100）、`region`（必需）。
+模型收到生成的 [`cam_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-tencent)：`target_id`、`resource`（必需，`users`、`roles` 之一）、`limit`（可选页上限，默认 100）、可选 `credential_ref`（以子进程环境变量注入；缺省时由本机 tccli 配置链提供凭据）、`region`（必需）。
 
 ### cos_enum 工具 schema
 
 #### 模型所见
 
-模型收到生成的 [`cos_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-tencent)：`target_id`、`region`、可选 `public_status`（逐桶 `GetBucketAcl` 匿名读检查）。
+模型收到生成的 [`cos_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-tencent)：`target_id`、`region`、可选 `credential_ref`（以子进程环境变量注入；缺省时由本机 tccli 配置链提供凭据）、可选 `public_status`（逐桶 `GetBucketAcl` 匿名读检查）。
 
 #### Token 效应
 

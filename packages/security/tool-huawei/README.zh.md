@@ -35,7 +35,7 @@ kind: "package-reference"
 
 #### 模型所见
 
-模型收到生成的 [`huawei_iam_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-huawei)：`target_id`、`project_id`（必需——IAM v3 用户列表按 project 作用域）、`credential_ref`、`region`，全部必需。
+模型收到生成的 [`huawei_iam_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-huawei)：`target_id`、`resource`（必需，`users` 或 `keys`——账户的永久访问密钥）、`project_id`（必需——IAM v3 列表按 project 作用域）、`credential_ref`、`region`，全部必需。
 
 ### obs_enum 工具 schema
 
@@ -57,7 +57,7 @@ kind: "package-reference"
 - 需要本机安装华为云 KooCLI 与 obsutil；可执行文件缺失时工具给出明确错误并指出缺失的是哪个可执行文件。
 - KooCLI 与 obsutil 都没有基于环境变量的凭据通道，因此访问密钥对随 argv 传递（`--cli-secret-key` / `-k=`），执行期间本机进程列表可见——但绝不进入模型可见参数、结果或会话日志。
 - KooCLI 的二进制名 `hcloud` 与无关的 Hetzner Cloud CLI 同名；`config.command` 指向华为云 KooCLI，错误信息会明确写出。
-- IAM 用户列表反映 KooCLI 对 IAM (v3) 载荷的 snake_case 序列化；IAM 角色与策略列表延期。
+- IAM 用户与密钥列表反映 KooCLI 对 IAM (v3) 载荷的 snake_case 序列化；IAM 角色与策略列表延期。
 - `obs_enum` 的公开性检查延期：obsutil 仅通过其 API 子命令暴露桶 ACL 细节，需要专门集成。
 - 华为云写路径工具（IAM 变更、资源创建）延期：本包只做枚举与身份确认。
 

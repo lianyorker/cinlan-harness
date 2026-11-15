@@ -27,8 +27,8 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildIdentityArgv, buildOssListArgv, buildRamArgv,
-  parseAliyunEnvSecret, parseCallerIdentity, parseOssRows, parseRamUsers,
+  buildIdentityArgv, buildOssAclArgv, buildOssListArgv, buildRamArgv,
+  isPublicOssGrants, parseAliyunEnvSecret, parseCallerIdentity, parseOssAclGrants, parseOssRows, parseRamUsers,
 } from './aliyun.ts'
 
 export const name = 'tool-aliyun'
@@ -42,16 +42,20 @@ export interface Config {
   readonly timeoutMs?: number
   /** Maximum UTF-8 bytes in the serialized tool result. Default 262144. */
   readonly maxOutputBytes?: number
+  /** Maximum buckets checked for anonymous-read ACLs in one `oss_enum` call. Default 20. */
+  readonly maxPublicChecks?: number
 }
 
 const DEFAULT_TIMEOUT_MS = 300_000
 const DEFAULT_MAX_OUTPUT_BYTES = 262_144
-const CONFIG_KEYS = new Set(['command', 'timeoutMs', 'maxOutputBytes'])
+const DEFAULT_MAX_PUBLIC_CHECKS = 20
+const CONFIG_KEYS = new Set(['command', 'timeoutMs', 'maxOutputBytes', 'maxPublicChecks'])
 
 interface ResolvedConfig {
   readonly command: string
   readonly timeoutMs: number
   readonly maxOutputBytes: number
+  readonly maxPublicChecks: number
 }
 
 function resolveConfig(config: Config): ResolvedConfig {
@@ -62,6 +66,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     command: config.command ?? 'aliyun',
     timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxOutputBytes: config.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES,
+    maxPublicChecks: config.maxPublicChecks ?? DEFAULT_MAX_PUBLIC_CHECKS,
   }
   if (resolved.command.trim().length === 0) throw new TypeError('tool-aliyun: command must be non-empty')
   if (!Number.isSafeInteger(resolved.timeoutMs) || resolved.timeoutMs < 1_000 || resolved.timeoutMs > 3_600_000) {
@@ -69,6 +74,9 @@ function resolveConfig(config: Config): ResolvedConfig {
   }
   if (!Number.isSafeInteger(resolved.maxOutputBytes) || resolved.maxOutputBytes < 1) {
     throw new TypeError('tool-aliyun: maxOutputBytes must be a positive safe integer')
+  }
+  if (!Number.isSafeInteger(resolved.maxPublicChecks) || resolved.maxPublicChecks < 0 || resolved.maxPublicChecks > 1000) {
+    throw new TypeError('tool-aliyun: maxPublicChecks must be an integer between 0 and 1000')
   }
   return resolved
 }
@@ -91,6 +99,20 @@ async function resolveSecret(ctx: Context, ref: string): Promise<string> {
     throw new Error(`tool-aliyun: credential ${ref} is not configured.`)
   }
   return resolved.value
+}
+
+/**
+ * Resolve the optional `credential_ref` argument into environment entries.
+ * An absent reference leaves the credentials to the local aliyun
+ * configuration chain; a presented reference must resolve and parse.
+ * @param ctx - registrant context carrying the credential provider.
+ * @param args - the tool call's arguments.
+ * @returns environment entries for the aliyun subprocess, or undefined.
+ */
+async function resolveAliyunEnv(ctx: Context, args: { readonly credential_ref?: unknown }): Promise<Record<string, string> | undefined> {
+  const ref = typeof args.credential_ref === 'string' && args.credential_ref.length > 0 ? args.credential_ref : undefined
+  if (ref === undefined) return undefined
+  return parseAliyunEnvSecret(await resolveSecret(ctx, ref))
 }
 
 interface RunOutcome {
@@ -238,6 +260,10 @@ export function apply(ctx: Context, config: Config = {}): void {
         type: 'number',
         description: 'Row count for the listing page via --PageSize (1 through 1000). Default 100.',
       },
+      credential_ref: {
+        type: 'string',
+        description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local aliyun configuration chain supplies the credentials.',
+      },
       region: {
         type: 'string',
         required: true,
@@ -263,12 +289,14 @@ export function apply(ctx: Context, config: Config = {}): void {
       },
     },
     async execute(args, exec) {
+      const env = await resolveAliyunEnv(ctx, args)
       const stdout = await requireSuccess(await runAliyun(
         ctx, exec, resolved,
         buildRamArgv(resolved.command, {
           limit: typeof args.limit === 'number' && Number.isSafeInteger(args.limit) ? args.limit : 100,
           region: String(args.region),
         }),
+        env,
       ), 'ram ListUsers')
       const value = { rows: parseRamUsers(stdout) as unknown as Record<string, JsonValue>[] }
       enforceResultBytes(value, resolved.maxOutputBytes)
@@ -281,19 +309,27 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'oss_enum',
     description:
       'List the OSS buckets of one authorized Alibaba Cloud account through the granted credentials '
-      + '(aliyun oss ls) and return bucket rows with their listing details. The target_id must match a '
-      + 'cloud target declared in the active assessment-scope grant; this is read-only storage '
-      + 'reconnaissance.',
+      + '(aliyun oss ls) and optionally check each bucket\'s ACL for anonymous-read grants with '
+      + 'ossutil api get-bucket-acl. The target_id must match a cloud target declared in the active '
+      + 'assessment-scope grant; this is read-only storage reconnaissance.',
     parameters: {
       target_id: {
         type: 'string',
         required: true,
         description: 'Alibaba Cloud account id to enumerate, as declared in the assessment scope grant.',
       },
+      credential_ref: {
+        type: 'string',
+        description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local aliyun configuration chain supplies the credentials.',
+      },
       region: {
         type: 'string',
         required: true,
         description: REGION_DESCRIPTION,
+      },
+      public_status: {
+        type: 'boolean',
+        description: 'Also run get-bucket-acl per bucket and report whether anonymous-read grants exist (requires an aliyun CLI with embedded ossutil 2.0).',
       },
     },
     output: {
@@ -309,17 +345,38 @@ export function apply(ctx: Context, config: Config = {}): void {
         },
       },
       render: (_args, value) => {
-        const buckets = value.buckets as readonly { name?: string; detail?: string }[]
+        const buckets = value.buckets as readonly { name?: string; publicStatus?: string }[]
         const names = buckets.slice(0, 50).map(row => row.name ?? '?')
-        return [{ type: 'text', text: `oss: ${buckets.length} bucket(s)\n  ${names.join('\n  ')}` }]
+        const publicCount = buckets.filter(row => row.publicStatus === 'public').length
+        return [{
+          type: 'text',
+          text: `oss: ${buckets.length} bucket(s), ${publicCount} publicly readable\n  ${names.join('\n  ')}`,
+        }]
       },
     },
     async execute(args, exec) {
+      const env = await resolveAliyunEnv(ctx, args)
+      const region = String(args.region)
       const stdout = await requireSuccess(await runAliyun(
         ctx, exec, resolved,
-        buildOssListArgv(resolved.command, { region: String(args.region) }),
+        buildOssListArgv(resolved.command, { region }),
+        env,
       ), 'oss ls')
-      const value = { buckets: parseOssRows(stdout) as unknown as Record<string, JsonValue>[] }
+      interface BucketRow { readonly name: string; readonly detail: string; publicStatus?: string }
+      const rows: BucketRow[] = parseOssRows(stdout).map(bucket => ({ ...bucket }))
+      if (args.public_status === true) {
+        for (const bucket of rows.slice(0, resolved.maxPublicChecks)) {
+          const aclRun = await runAliyun(ctx, exec, resolved,
+            buildOssAclArgv(resolved.command, { bucket: bucket.name, region }), env)
+          bucket.publicStatus = aclRun.exitCode === 0
+            ? (isPublicOssGrants(parseOssAclGrants(aclRun.stdout)) ? 'public' : 'not-public')
+            : 'unknown'
+        }
+        for (const bucket of rows.slice(resolved.maxPublicChecks)) {
+          bucket.publicStatus = 'skipped'
+        }
+      }
+      const value = { buckets: rows as unknown as Record<string, JsonValue>[] }
       enforceResultBytes(value, resolved.maxOutputBytes)
       return value
     },

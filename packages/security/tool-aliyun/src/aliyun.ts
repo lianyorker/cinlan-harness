@@ -37,6 +37,14 @@ export interface OssRequest {
   readonly region: string
 }
 
+/** Validated per-bucket ACL request accepted by {@link buildOssAclArgv}. */
+export interface OssAclRequest {
+  /** Bucket name as reported by the ossutil listing. Never starts with `-`. */
+  readonly bucket: string
+  /** Explicit `--region` of the bucket. */
+  readonly region: string
+}
+
 function validateRegion(region: string): string {
   const trimmed = region.trim()
   if (trimmed.length === 0 || trimmed.length > 64 || !REGION_PATTERN.test(trimmed)) {
@@ -128,6 +136,89 @@ export function buildRamArgv(aliyunPath: string, request: RamRequest): string[] 
  */
 export function buildOssListArgv(aliyunPath: string, request: OssRequest): string[] {
   return [aliyunPath, 'oss', 'ls', '--region', validateRegion(request.region)]
+}
+
+function validateBucket(bucket: string): string {
+  const trimmed = bucket.trim()
+  if (trimmed.length === 0 || trimmed.length > 255 || trimmed.startsWith('-')) {
+    throw new TypeError(`tool-aliyun: invalid bucket name ${JSON.stringify(bucket)}`)
+  }
+  if (!/^[A-Za-z0-9.\-]+$/.test(trimmed)) {
+    throw new TypeError(`tool-aliyun: bucket name contains unsupported characters ${JSON.stringify(bucket)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the `aliyun ossutil api get-bucket-acl` argv for one bucket. The ACL
+ * response is JSON on stdout (`--output-format json`); no output-file
+ * arguments are ever emitted. Requires an aliyun CLI whose embedded ossutil
+ * is version 2.0 or newer (the `ossutil api` subcommand).
+ * @param aliyunPath - resolved aliyun executable path.
+ * @param request - validated ACL request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildOssAclArgv(aliyunPath: string, request: OssAclRequest): string[] {
+  return [
+    aliyunPath, 'ossutil', 'api', 'get-bucket-acl',
+    '--bucket', validateBucket(request.bucket),
+    '--region', validateRegion(request.region),
+    '--output-format', 'json',
+  ]
+}
+
+/** One ACL grant row of one bucket. */
+export interface OssAclGrantRow {
+  /** Grantee identifier (id, display name, or the AllUsers anonymous URI). */
+  readonly grantee: string
+  /** Permission string as reported (`public-read`, `FULL_CONTROL`, …). */
+  readonly permission: string
+}
+
+/**
+ * Parse `aliyun ossutil api get-bucket-acl` JSON output into grant rows. The
+ * payload carries `AccessControlPolicy.Grants.Grant` with `Grantee.ID` /
+ * `Grantee.DisplayName` and `Permission`; a missing envelope yields empty
+ * rows, which the caller reports as an unknown public status rather than a
+ * failure.
+ * @param stdout - complete stdout text.
+ * @returns parsed grant rows in response order.
+ */
+export function parseOssAclGrants(stdout: string): readonly OssAclGrantRow[] {
+  const record = parseJsonObject(stdout)
+  const policy = record['AccessControlPolicy']
+  const grants = typeof policy === 'object' && policy !== null && !Array.isArray(policy)
+    ? (policy as Record<string, unknown>)['Grants']
+    : undefined
+  const value = typeof grants === 'object' && grants !== null && !Array.isArray(grants)
+    ? (grants as Record<string, unknown>)['Grant']
+    : undefined
+  if (!Array.isArray(value)) return []
+  const rows: OssAclGrantRow[] = []
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
+    const item = entry as Record<string, unknown>
+    const permission = item['Permission']
+    const grantee = typeof item['Grantee'] === 'object' && item['Grantee'] !== null && !Array.isArray(item['Grantee'])
+      ? (item['Grantee'] as Record<string, unknown>)
+      : undefined
+    const id = typeof grantee?.['ID'] === 'string' ? grantee['ID'] : undefined
+    const name = typeof grantee?.['DisplayName'] === 'string' ? grantee['DisplayName'] : undefined
+    if (typeof permission !== 'string' || (id === undefined && name === undefined)) continue
+    rows.push({ grantee: id ?? name ?? '', permission })
+  }
+  return rows
+}
+
+/**
+ * Whether the parsed ACL grants admit anonymous read access. OSS bucket ACLs
+ * express anonymous readability through the permission itself
+ * (`public-read` and `public-read-write`); owner-only permissions never do.
+ * @param grants - rows from {@link parseOssAclGrants}.
+ * @returns whether the bucket is anonymously readable.
+ */
+export function isPublicOssGrants(grants: readonly OssAclGrantRow[]): boolean {
+  return grants.some(grant => /^public-(read|read-write)$/i.test(grant.permission))
 }
 
 /** One row of the caller-identity report. */

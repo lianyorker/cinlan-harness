@@ -30,8 +30,8 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
-  parseAncestors, parseGcsBuckets, parseIamBindings, parseServiceAccountSecret,
+  buildGcsBucketIamArgv, buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
+  isPublicBucketIam, parseAncestors, parseGcsBucketIam, parseGcsBuckets, parseIamBindings, parseServiceAccountSecret,
 } from './gcp.ts'
 
 export const name = 'tool-gcp'
@@ -355,5 +355,68 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Enumerate GCS buckets', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'gcs_bucket_iam',
+    description:
+      'Read the IAM policy of one authorized GCS bucket through the granted service-account credentials '
+      + '(gcloud storage buckets get-iam-policy) and return role-binding rows, flagging anonymous '
+      + 'principals (allUsers or allAuthenticatedUsers). The target_id must match a cloud target '
+      + 'declared in the active assessment-scope grant; this is read-only storage reconnaissance.',
+    parameters: {
+      target_id: {
+        type: 'string',
+        required: true,
+        description: 'GCP account to enumerate, as declared in the assessment scope grant.',
+      },
+      credential_ref: {
+        type: 'string',
+        required: true,
+        description: 'Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation.',
+      },
+      bucket: {
+        type: 'string',
+        required: true,
+        description: 'Bucket name as reported by gcs_enum, without the gs:// scheme.',
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          bindings: {
+            type: 'array',
+            required: true,
+            items: { type: 'object', additionalProperties: true },
+          },
+          public: { type: 'boolean', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const bindings = value.bindings as readonly { role?: string; members?: readonly string[] }[]
+        const names = bindings.slice(0, 50).map(row => `${row.role ?? '?'} (${row.members?.length ?? 0} member(s))`)
+        const exposure = value.public === true ? ' — anonymous principals hold a role' : ''
+        return [{ type: 'text', text: `bucket iam: ${bindings.length} binding(s)${exposure}\n  ${names.join('\n  ')}` }]
+      },
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const secret = parseServiceAccountSecret(await resolveSecret(ctx, refName))
+      const stdout = await requireSuccess(await runGcloud(
+        ctx, exec, resolved,
+        buildGcsBucketIamArgv(resolved.command, { bucket: String(args.bucket) }),
+        secret,
+      ), 'storage buckets get-iam-policy')
+      const bindings = parseGcsBucketIam(stdout)
+      const value = {
+        bindings: bindings as unknown as Record<string, JsonValue>[],
+        public: isPublicBucketIam(bindings),
+      }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Read bucket IAM policy', kind: 'other', rawInput: args }),
   }))
 }
