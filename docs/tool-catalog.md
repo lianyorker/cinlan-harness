@@ -64,6 +64,12 @@ This table connects model-visible tool names to the plugin package and service s
 | `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-listeners` | `ntlm_relay`, `responder_capture` | `ctx.tools`, `ctx.subprocess`, `ctx.jobs` | `tool/call`, `background job output ring` | - | - |
 | `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-aws` | `iam_enum`, `s3_enum`, `sts_get_caller_identity` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-azure` | `az_account_show`, `azure_ad_enum`, `azure_storage_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-gcp` | `gcp_iam_enum`, `gcp_identity_get`, `gcs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-aliyun` | `aliyun_identity_get`, `oss_enum`, `ram_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-tencent` | `cam_enum`, `cos_enum`, `tencent_identity_get` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-huawei` | `huawei_iam_enum`, `huawei_identity_get`, `obs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -3553,6 +3559,601 @@ Collect Active Directory Certificate Services configuration from one authorized 
 ```
 
 Source: [`packages/security/tool-certipy/src/index.ts`](../packages/security/tool-certipy/src/index.ts)
+
+<a id="cinlantool-aws"></a>
+
+## `@cinlan/tool-aws`
+
+### `iam_enum`
+
+Enumerate one authorized AWS account through the granted credentials (aws iam list-users, list-roles, or account-local list-policies) and return bounded resource rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only IAM reconnaissance, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "AWS account id to enumerate, as declared in the assessment scope grant."
+    },
+    "resource": {
+      "type": "string",
+      "description": "IAM collection to list: users, roles, or account-local policies.",
+      "enum": [
+        "users",
+        "roles",
+        "policies"
+      ]
+    },
+    "limit": {
+      "type": "number",
+      "description": "Maximum rows returned via --max-items (1 through 1000). Default 100."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "resource"
+  ]
+}
+```
+
+Source: [`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
+
+### `s3_enum`
+
+List the S3 buckets of one authorized AWS account through the granted credentials (aws s3api list-buckets) and optionally check each bucket's public-policy status with get-bucket-policy-status. The target_id must match a cloud target declared in the active assessment-scope grant; the public-policy check is region-scoped, so a region that does not match a bucket reports that bucket as unknown. This is read-only storage reconnaissance.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "AWS account id to enumerate, as declared in the assessment scope grant."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+    },
+    "public_status": {
+      "type": "boolean",
+      "description": "Also run get-bucket-policy-status per bucket (requires region); buckets without a policy report as unknown."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
+
+### `sts_get_caller_identity`
+
+Confirm which AWS identity the granted credentials resolve to (aws sts get-caller-identity) and return the caller user id, account id, and ARN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "AWS account id to confirm access to, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
+
+<a id="cinlantool-azure"></a>
+
+## `@cinlan/tool-azure`
+
+### `az_account_show`
+
+Confirm which Azure subscriptions the granted service principal can reach (az login --service-principal) and return the subscription rows with tenant ids. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Azure tenant or account id to confirm access to, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-azure/src/index.ts`](../packages/security/tool-azure/src/index.ts)
+
+### `azure_ad_enum`
+
+Enumerate one authorized Azure tenant through the granted service principal (az ad user list or az role assignment list) and return bounded rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only Entra reconnaissance, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Azure tenant or account id to enumerate, as declared in the assessment scope grant."
+    },
+    "resource": {
+      "type": "string",
+      "description": "Entra collection to list: directory users or role assignments.",
+      "enum": [
+        "users",
+        "role-assignments"
+      ]
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+    },
+    "subscription": {
+      "type": "string",
+      "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "resource",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-azure/src/index.ts`](../packages/security/tool-azure/src/index.ts)
+
+### `azure_storage_enum`
+
+List the storage accounts of the granted Azure service principal (az storage account list) and return rows with each account's blob-public-access and HTTPS-only settings. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Azure tenant or account id to enumerate, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+    },
+    "subscription": {
+      "type": "string",
+      "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-azure/src/index.ts`](../packages/security/tool-azure/src/index.ts)
+
+<a id="cinlantool-gcp"></a>
+
+## `@cinlan/tool-gcp`
+
+### `gcp_iam_enum`
+
+Enumerate the IAM policy of one authorized GCP project through the granted service-account credentials (gcloud projects get-iam-policy) and return role-binding rows. The target_id must match a cloud target declared in the active assessment-scope grant and the project must fall inside the target allowlist; this is read-only IAM reconnaissance, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "GCP account to enumerate, as declared in the assessment scope grant."
+    },
+    "project": {
+      "type": "string",
+      "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+    }
+  },
+  "required": [
+    "target_id",
+    "project",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
+
+### `gcp_identity_get`
+
+Confirm which GCP identity the granted service-account credentials resolve to (gcloud projects get-ancestors) and return the ancestor chain of one authorized project. The target_id must match a cloud target declared in the active assessment-scope grant, the project must fall inside the target allowlist, and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "GCP account to confirm access to, as declared in the assessment scope grant."
+    },
+    "project": {
+      "type": "string",
+      "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted service-account JSON (e.g. ASSESS_GCP_SA). The value never enters the conversation."
+    }
+  },
+  "required": [
+    "target_id",
+    "project",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
+
+### `gcs_enum`
+
+List the Cloud Storage buckets of one authorized GCP project through the granted service-account credentials (gcloud storage buckets list) and return bucket rows with their public-access-prevention setting (enforced means public exposure is blocked). The target_id must match a cloud target declared in the active assessment-scope grant and the project must fall inside the target allowlist; this is read-only storage reconnaissance.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "GCP account to enumerate, as declared in the assessment scope grant."
+    },
+    "project": {
+      "type": "string",
+      "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+    }
+  },
+  "required": [
+    "target_id",
+    "project",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
+
+<a id="cinlantool-aliyun"></a>
+
+## `@cinlan/tool-aliyun`
+
+### `aliyun_identity_get`
+
+Confirm which Alibaba Cloud identity the granted credentials resolve to (aliyun sts GetCallerIdentity) and return the identity type, account id, and ARN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Alibaba Cloud account id to confirm access to, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
+
+### `oss_enum`
+
+List the OSS buckets of one authorized Alibaba Cloud account through the granted credentials (aliyun oss ls) and return bucket rows with their listing details. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Alibaba Cloud account id to enumerate, as declared in the assessment scope grant."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+    }
+  },
+  "required": [
+    "target_id",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
+
+### `ram_enum`
+
+Enumerate the RAM users of one authorized Alibaba Cloud account through the granted credentials (aliyun ram ListUsers) and return bounded user rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only RAM reconnaissance, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Alibaba Cloud account id to enumerate, as declared in the assessment scope grant."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Row count for the listing page via --PageSize (1 through 1000). Default 100."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+    }
+  },
+  "required": [
+    "target_id",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
+
+<a id="cinlantool-tencent"></a>
+
+## `@cinlan/tool-tencent`
+
+### `cam_enum`
+
+Enumerate one authorized Tencent Cloud account through the granted credentials (tccli cam ListUsers or ListRoles) and return bounded resource rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only CAM reconnaissance, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Tencent Cloud account id to enumerate, as declared in the assessment scope grant."
+    },
+    "resource": {
+      "type": "string",
+      "description": "CAM collection to list: users or roles.",
+      "enum": [
+        "users",
+        "roles"
+      ]
+    },
+    "limit": {
+      "type": "number",
+      "description": "Row bound for the listing page (1 through 1000). Default 100."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "resource",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
+
+### `cos_enum`
+
+List the COS buckets of one authorized Tencent Cloud account through the granted credentials (tccli cos GetService) and optionally check each bucket's ACL for anonymous-read grants with GetBucketAcl. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Tencent Cloud account id to enumerate, as declared in the assessment scope grant."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+    },
+    "public_status": {
+      "type": "boolean",
+      "description": "Also run GetBucketAcl per bucket and report whether anonymous-read grants exist."
+    }
+  },
+  "required": [
+    "target_id",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
+
+### `tencent_identity_get`
+
+Confirm which Tencent Cloud CAM identity the granted credentials resolve to (tccli sts GetCallerIdentity) and return the caller user id, account id, and ARN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Tencent Cloud account id to confirm access to, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
+
+<a id="cinlantool-huawei"></a>
+
+## `@cinlan/tool-huawei`
+
+### `huawei_iam_enum`
+
+Enumerate the IAM users of one authorized Huawei Cloud account through the granted credentials (Huawei Cloud KooCLI: hcloud IAM ListUsers) and return bounded user rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only IAM reconnaissance, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Huawei Cloud account id to enumerate, as declared in the assessment scope grant."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Huawei Cloud project id the IAM API is scoped to (the IAM v3 user listing is project-scoped)."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "project_id",
+    "credential_ref",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-huawei/src/index.ts`](../packages/security/tool-huawei/src/index.ts)
+
+### `huawei_identity_get`
+
+Confirm which Huawei Cloud identity the granted credentials resolve to (Huawei Cloud KooCLI: hcloud IAM5 GetCallerIdentity) and return the caller user id, account id, and URN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Huawei Cloud account id to confirm access to, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-huawei/src/index.ts`](../packages/security/tool-huawei/src/index.ts)
+
+### `obs_enum`
+
+List the OBS buckets of one authorized Huawei Cloud account through the granted credentials (obsutil ls) and return bucket rows with their listing details. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Huawei Cloud account id to enumerate, as declared in the assessment scope grant."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Huawei Cloud region for the obsutil -region flag; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "credential_ref",
+    "region"
+  ]
+}
+```
+
+Source: [`packages/security/tool-huawei/src/index.ts`](../packages/security/tool-huawei/src/index.ts)
 
 <a id="cinlantool-knowledge-search"></a>
 

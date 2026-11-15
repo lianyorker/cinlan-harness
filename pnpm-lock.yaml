@@ -34,6 +34,15 @@ importers:
       '@cinlan/knowledge-base':
         specifier: workspace:*
         version: link:packages/knowledge/knowledge-base
+      '@cinlan/tool-aliyun':
+        specifier: workspace:*
+        version: link:packages/security/tool-aliyun
+      '@cinlan/tool-aws':
+        specifier: workspace:*
+        version: link:packages/security/tool-aws
+      '@cinlan/tool-azure':
+        specifier: workspace:*
+        version: link:packages/security/tool-azure
       '@cinlan/tool-bloodhound':
         specifier: workspace:*
         version: link:packages/security/tool-bloodhound
@@ -46,9 +55,15 @@ importers:
       '@cinlan/tool-gau':
         specifier: workspace:*
         version: link:packages/security/tool-gau
+      '@cinlan/tool-gcp':
+        specifier: workspace:*
+        version: link:packages/security/tool-gcp
       '@cinlan/tool-httpx':
         specifier: workspace:*
         version: link:packages/security/tool-httpx
+      '@cinlan/tool-huawei':
+        specifier: workspace:*
+        version: link:packages/security/tool-huawei
       '@cinlan/tool-impacket':
         specifier: workspace:*
         version: link:packages/security/tool-impacket
@@ -79,6 +94,9 @@ importers:
       '@cinlan/tool-subfinder':
         specifier: workspace:*
         version: link:packages/security/tool-subfinder
+      '@cinlan/tool-tencent':
+        specifier: workspace:*
+        version: link:packages/security/tool-tencent
       '@cinlan/work-items':
         specifier: workspace:*
         version: link:packages/work-items/work-items
@@ -4545,6 +4563,15 @@ importers:
       '@cinlan/security-skills':
         specifier: workspace:^
         version: link:../../security/security-skills
+      '@cinlan/tool-aliyun':
+        specifier: workspace:^
+        version: link:../../security/tool-aliyun
+      '@cinlan/tool-aws':
+        specifier: workspace:^
+        version: link:../../security/tool-aws
+      '@cinlan/tool-azure':
+        specifier: workspace:^
+        version: link:../../security/tool-azure
       '@cinlan/tool-bloodhound':
         specifier: workspace:^
         version: link:../../security/tool-bloodhound
@@ -4557,9 +4584,15 @@ importers:
       '@cinlan/tool-gau':
         specifier: workspace:^
         version: link:../../security/tool-gau
+      '@cinlan/tool-gcp':
+        specifier: workspace:^
+        version: link:../../security/tool-gcp
       '@cinlan/tool-httpx':
         specifier: workspace:^
         version: link:../../security/tool-httpx
+      '@cinlan/tool-huawei':
+        specifier: workspace:^
+        version: link:../../security/tool-huawei
       '@cinlan/tool-impacket':
         specifier: workspace:^
         version: link:../../security/tool-impacket
@@ -4587,6 +4620,9 @@ importers:
       '@cinlan/tool-subfinder':
         specifier: workspace:^
         version: link:../../security/tool-subfinder
+      '@cinlan/tool-tencent':
+        specifier: workspace:^
+        version: link:../../security/tool-tencent
       '@cinlan/vuln-playbook':
         specifier: workspace:^
         version: link:../../security/vuln-playbook
@@ -19002,6 +19038,51 @@ importers:
         specifier: workspace:^
         version: link:../../core/system-prompt
 
+  packages/security/tool-aliyun:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-aws:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-azure:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-bloodhound:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -19099,11 +19180,41 @@ importers:
         specifier: workspace:^
         version: link:../../core/tools
 
+  packages/security/tool-gcp:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-httpx:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-huawei:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
@@ -19221,6 +19332,21 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-tencent:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess

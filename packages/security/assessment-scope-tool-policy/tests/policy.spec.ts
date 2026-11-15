@@ -167,6 +167,21 @@ describe('assessment scope tool policy', () => {
     }))
   })
 
+  it('carries a presented credential reference from cloud reconnaissance calls into the operation', async () => {
+    const targets = [{ id: 'target', value: '123456789012', kind: 'cloud', cloud: { provider: 'aws' } }]
+    const b = await mount('allow', { cloudTools: ['iam_enum'] }, targets)
+    await expect(pre(b.ctx, makeExecution('iam_enum', { target_id: '123456789012', credential_ref: 'ASSESS_AWS_KEYS' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+    expect(b.authorize).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      action: 'reconnaissance',
+      credential: { ref: 'ASSESS_AWS_KEYS', purpose: 'target-authentication' },
+    }))
+    for (const args of [{ target_id: '123456789012', credential_ref: 'bad ref!' }]) {
+      await expect(pre(b.ctx, makeExecution('iam_enum', args))).resolves.toMatchObject({ kind: 'deny' })
+    }
+    expect(b.authorize).toHaveBeenCalledTimes(1)
+  })
+
   it('denies cloud tools whose explicit scope arguments fall outside the declared allowlists', async () => {
     const targets = [{
       id: 'target', value: '123456789012', kind: 'cloud',

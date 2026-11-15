@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: cd5f707bb3c6703c
-  zh: 9d99d6de5871c302
+  en: 4e0ea13d3b5d8205
+  zh: 08c5ad44ed338218
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -441,8 +441,80 @@
   en: 3f979726d4bc4bd2
   zh: 3f979726d4bc4bd2
 /tool-schema-catalog/cinlan-tool-certipy/adcs-find:
-  en: a80a346019e78cfc
-  zh: e494ea9460a40caf
+  en: 1e556ba875e761ab
+  zh: 1c87d90e24a4f8fb
+/tool-schema-catalog/cinlan-tool-aws:
+  en: 4b7b0e1eab0bc3bf
+  zh: 4b7b0e1eab0bc3bf
+/tool-schema-catalog/cinlan-tool-aws/iam-enum:
+  en: e664b7731d0f2c04
+  zh: 9e2a966eebcf9dd4
+/tool-schema-catalog/cinlan-tool-aws/s3-enum:
+  en: aeb50215bf3a6c26
+  zh: 48d26706ea9ca05b
+/tool-schema-catalog/cinlan-tool-aws/sts-get-caller-identity:
+  en: 05c4d4a4b420c5f3
+  zh: af10674a366f0692
+/tool-schema-catalog/cinlan-tool-azure:
+  en: 0954011322e3d33b
+  zh: 0954011322e3d33b
+/tool-schema-catalog/cinlan-tool-azure/az-account-show:
+  en: 4f159cd132988493
+  zh: b4c69f9fa77ec8d1
+/tool-schema-catalog/cinlan-tool-azure/azure-ad-enum:
+  en: b8c2ecde469ec13a
+  zh: adc5669229159a27
+/tool-schema-catalog/cinlan-tool-azure/azure-storage-enum:
+  en: 701c74c6ef4fbce1
+  zh: 727a2ccb554c172c
+/tool-schema-catalog/cinlan-tool-gcp:
+  en: f6d3c51d1e5be087
+  zh: f6d3c51d1e5be087
+/tool-schema-catalog/cinlan-tool-gcp/gcp-iam-enum:
+  en: bfcc84009ace5e08
+  zh: 1612936e06932e73
+/tool-schema-catalog/cinlan-tool-gcp/gcp-identity-get:
+  en: e65935c2dda99ef5
+  zh: a673c52e748759d7
+/tool-schema-catalog/cinlan-tool-gcp/gcs-enum:
+  en: 1ee3dd7c901e739a
+  zh: bc7e20ac4552ac0d
+/tool-schema-catalog/cinlan-tool-aliyun:
+  en: 03e3694900d74f17
+  zh: 03e3694900d74f17
+/tool-schema-catalog/cinlan-tool-aliyun/aliyun-identity-get:
+  en: 40004d8e5a04477e
+  zh: 94a28cd21b72840c
+/tool-schema-catalog/cinlan-tool-aliyun/oss-enum:
+  en: 76287ab13f0ed9a7
+  zh: 366f78b2c5e5d3a0
+/tool-schema-catalog/cinlan-tool-aliyun/ram-enum:
+  en: 1572f0c8d4d6c5e4
+  zh: 0052a079c90b75da
+/tool-schema-catalog/cinlan-tool-tencent:
+  en: baed81c7073a1b99
+  zh: baed81c7073a1b99
+/tool-schema-catalog/cinlan-tool-tencent/cam-enum:
+  en: f902e135e5d1259f
+  zh: 7a6e6b0c6953fa6f
+/tool-schema-catalog/cinlan-tool-tencent/cos-enum:
+  en: 5f3b2e82594b07ba
+  zh: e0026c9e0ba9055f
+/tool-schema-catalog/cinlan-tool-tencent/tencent-identity-get:
+  en: 3df63c70821f9348
+  zh: 78c1f0dd9290fd28
+/tool-schema-catalog/cinlan-tool-huawei:
+  en: 98668804aafbad34
+  zh: 98668804aafbad34
+/tool-schema-catalog/cinlan-tool-huawei/huawei-iam-enum:
+  en: 7bff3c81162685b8
+  zh: d54fb51f507a1f1b
+/tool-schema-catalog/cinlan-tool-huawei/huawei-identity-get:
+  en: c03f206d8feda475
+  zh: 19915c8f15f58ecd
+/tool-schema-catalog/cinlan-tool-huawei/obs-enum:
+  en: f12d6aee5cfeeee2
+  zh: 6c26e4169035928e
 /tool-schema-catalog/cinlan-tool-knowledge-search:
   en: ae89aad320d90482
   zh: ae89aad320d90482

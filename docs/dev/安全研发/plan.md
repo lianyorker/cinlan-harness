@@ -325,34 +325,12 @@ securityInstallCommand: 'dsh --profile security-research',
 
 已知限制（README 已记录）：密码随外部工具的原生参数（impacket 目标串、`-p` 标志）进入本机 argv，进程列表可见；`secrets_dump` 的 hash 按默认 `full` 返回供离线破解，留存期限由 grant evidence policy 约束。
 
-### 9.6 云平台批次设计草案（六云一次全做，待实施）
+### 9.6 云平台批次（已实施，六云一次全做）
 
-目标：AWS、Azure、GCP、阿里云、腾讯云、华为云六个 `@cinlan/tool-<name>` 包，每包 3 个工具（身份确认 + IAM/RAM 只读枚举 + 对象存储枚举与公开性只读检查），共 18 个工具。全部只读：本批次不引入任何写/删/改资源动作。CLI 选择：aws cli v2、az、gcloud、aliyun cli、tccli、KooCLI（`hcloud`）。
+按 2026-11-15 设计草案实施：六个 `@cinlan/tool-<name>` 包 × 3 个只读工具 = 18 工具，CLI 分别为 aws v2、az、gcloud、aliyun cli、tccli、KooCLI（`hcloud`，`obs_enum` 用独立 obsutil）。全部只读，不引入任何写/删/改资源动作。
 
-#### 授权模型扩展（policy 横切，先行实施）
+授权侧（policy 横切）：`assessment-scope` 目标新增 `cloud` 类与 `AssessmentCloudScope`（provider 枚举 + 可选 regions/subscriptions/projects 允许列表，value 携带账户 id），子授权校验把 cloud 范围纳入 target 键防止子授权用"父声明、子省略"扩权；`assessment-scope-tool-policy` 新增 `cloudTools` 类（空=不启用）映射 `reconnaissance`，并收紧一条语义——任何类只要调用带 `credential_ref`，operation 都构造 credential 字段交 scope service 对照 grant 的 credentials 条目（云枚举工具实际解析凭据，凭据使用不再脱离凭据授予校验）。region/subscription/project 显式参数按 allowlist 小写比对，范围外拒绝。
 
-- grant 目标新增第 4 类 `cloud`：`{ provider, accountId, regions? / subscriptions? / projects? }`，`provider` 为 `aws|azure|gcp|aliyun|tencent|huawei` 枚举；`tool-aws` 等的 `target_id` 匹配该类目标的 `accountId`，显式 region/subscription/project 参数必须落在目标声明的范围内。
-- 工具类新增第 7 类 `cloudTools`（空列表=不启用，语义同其他类）：IAM/对象存储枚举工具映射 `reconnaissance` 动作；各包的身份确认工具照 impacket 的 `credentialTools` 模式映射 `credential-use` 并构造 `operation.credential`——凭据经 `ctx.get('credentials')` 解析，绝不进入模型可见参数、工具结果或会话日志（模型侧只见 `credential_ref` 名字）。
+与草案的差异（实施时修正）：草案里多云共用的 `identity_get` / `iam_enum` 工具名会在 `ctx.tools` 撞名，实际按 provider 前缀命名——`az_account_show`、`gcp_identity_get` / `gcp_iam_enum`、`aliyun_identity_get`、`tencent_identity_get`、`huawei_identity_get` / `huawei_iam_enum`（aws 保留 `sts_get_caller_identity` / `iam_enum` / `s3_enum`）。凭据注入实测：AWS/阿里云/腾讯云走 env（`AWS_*`、`ALIBABA_CLOUD_*`、`TENCENTCLOUD_*`），GCP 用 SA JSON 写 mkdtemp 0600 文件 + `CLOUDSDK_AUTH_CREDENTIALS_FILE_OVERRIDE`（用后即删）；Azure 与华为 KooCLI/obsutil 没有 env 凭据通道，secret 只能走 argv（`-p`、`--cli-secret-key`、`-k=`），README 已知限制记录进程列表可见性。华为 `obs_enum` 改用独立 obsutil（KooCLI 内置 obs 的参数透传不稳定）；阿里 `oss_enum` 解析内嵌 ossutil 文本列表，公开性检查 defer（内嵌 ossutil 无稳定 JSON GetBucketInfo 路径）；`az login` 每次调用会更新本机 `~/.azure` 状态，README 记录。
 
-#### 工具清单（每包 3 个）
-
-| 包 | CLI | 身份确认（credential-use） | IAM 枚举（reconnaissance） | 对象存储（reconnaissance） |
-|----|-----|---------------------------|---------------------------|---------------------------|
-| `tool-aws` | aws v2 | `sts_get_caller_identity`（`aws sts get-caller-identity --output json`） | `iam_enum`（`aws iam list-users` / `list-roles`，`--output json --no-paginate`） | `s3_enum`（`aws s3api list-buckets` + 逐桶 `get-bucket-acl` / `get-bucket-policy-status`，`--output json`） |
-| `tool-azure` | az | `identity_get`（`az account show`） | `aad_enum`（`az ad user list` / `az role assignment list`） | `storage_enum`（`az storage account list` + 公开访问属性只读检查） |
-| `tool-gcp` | gcloud | `identity_get`（`gcloud projects get-ancestors <project> --format=json` + `gcloud auth list --format=json`） | `iam_enum`（`gcloud projects get-iam-policy <project> --format=json`） | `gcs_enum`（`gcloud storage buckets list --format=json`，公开性查 `gcloud storage buckets get-iam-policy`） |
-| `tool-aliyun` | aliyun | `identity_get`（`aliyun sts GetCallerIdentity`） | `ram_enum`（`aliyun ram ListUsers`，RAM 为全局产品、region 固定中心点） | `oss_enum`（`aliyun oss ls` 列桶 + 逐桶 `get-bucket-info`，JSON 输出实现时核对） |
-| `tool-tencent` | tccli | `identity_get`（`tccli sts GetCallerIdentity`） | `cam_enum`（`tccli cam ListUsers` / `ListCollaborators`） | `cos_enum`（`tccli cos GetService` + 逐桶 `GetBucketAcl`） |
-| `tool-huawei` | hcloud | `identity_get`（`hcloud IAM5 GetCallerIdentity`） | `iam_enum`（`hcloud IAM ListUsers` / `ListPermanentAccessKeys`） | `obs_enum`（`hcloud obs ls`——KooCLI 内置 obsutil 能力，输出格式实现时核对） |
-
-#### 安全线
-
-- 固定旗标：各 CLI 的 JSON 输出与无分页/无交互旗标固定（`--output json`、`--format=json`、`-o json` 等），永不发出文件输出、回连、debug/日志参数（沿用既有约定）。
-- 凭据注入按 CLI 选最小暴露路径：AWS/Azure/阿里云/腾讯云走环境变量（`AWS_ACCESS_KEY_ID` 等、Azure client 凭据、`ALIBABA_CLOUD_ACCESS_KEY_ID`、`TENCENTCLOUD_*`），华为云 AK/SK 注入方式实现时核对 KooCLI 的非交互安全通道；GCP 用 service account JSON 写入 `mkdtemp` 目录（权限 0600）+ `GOOGLE_APPLICATION_CREDENTIALS`，用后即删。凭据值绝不进入 argv——无法经 env 注入、只能走参数的 CLI 在 README 已知限制记录。
-- region/subscription/project 一律显式传参，不依赖本机默认配置（`aws configure` / `gcloud config` / `~/.tccli` 等本机状态不参与参数推导）；目标范围外的 region/project 调用被 policy 拒绝。
-- 已知易混点：华为云 KooCLI 的二进制名 `hcloud` 与 Hetzner Cloud CLI 同名——工具错误提示必须写明"华为云 KooCLI"，README 同步记录。
-- 云 API 只读调用的计费副作用（少量 List/Get 请求计入请求次数）在 README 与 grant 文档记录，不属于需要审批的变更。
-
-#### 实施顺序
-
-policy 横切（`cloud` 目标类型 + `cloudTools` 类 + 六 provider 的 policy 用例）→ `tool-aws` 先行验证全链（argv 纯函数、JSON 解析、拒绝路径、双语 README、catalog 条目、bundle 接线）→ 其余五云复制该模式 → 全套验证（六包 tsc/vitest、gen-tool-catalog +6 条目、verify-tool-catalog、README pairing 重录）后一次提交。
+已知限制（各 README 已记录）：云只读 API 请求计入账户配额；Azure/华为的 secret 进 argv；GCP 枚举工具每次调用都需要 `credential_ref`（gcloud 需身份文件）；华为 IAM 用户列表为 project 作用域，角色/策略列表与公开性检查延期；`s3_enum`/`cos_enum` 的公开性逐桶检查受 `maxPublicChecks`（默认 20）封顶，超限标 `skipped`，无法解析 ACL 的桶标 `unknown`。

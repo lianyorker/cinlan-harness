@@ -108,6 +108,12 @@ import * as ToolImpacket from '@cinlan/tool-impacket'
 import * as ToolNxc from '@cinlan/tool-nxc'
 import * as ToolListeners from '@cinlan/tool-listeners'
 import * as ToolCertipy from '@cinlan/tool-certipy'
+import * as ToolAws from '@cinlan/tool-aws'
+import * as ToolAzure from '@cinlan/tool-azure'
+import * as ToolGcp from '@cinlan/tool-gcp'
+import * as ToolAliyun from '@cinlan/tool-aliyun'
+import * as ToolTencent from '@cinlan/tool-tencent'
+import * as ToolHuawei from '@cinlan/tool-huawei'
 import BrowserRuntime from '@deepseek-ai/dsh-browser'
 import ComputerUseRuntime from '@deepseek-ai/dsh-computer-use'
 import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
@@ -924,6 +930,72 @@ const TOOL_PACKAGES: ToolPackage[] = [
     async mount(ctx) {
       await ctx.plugin(LocalSubprocessRuntime)
       await ctx.plugin(ToolCertipy)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-aws',
+    dir: 'tool-aws',
+    source: 'packages/security/tool-aws/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolAws)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-azure',
+    dir: 'tool-azure',
+    source: 'packages/security/tool-azure/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolAzure)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-gcp',
+    dir: 'tool-gcp',
+    source: 'packages/security/tool-gcp/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolGcp)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-aliyun',
+    dir: 'tool-aliyun',
+    source: 'packages/security/tool-aliyun/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolAliyun)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-tencent',
+    dir: 'tool-tencent',
+    source: 'packages/security/tool-tencent/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolTencent)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-huawei',
+    dir: 'tool-huawei',
+    source: 'packages/security/tool-huawei/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolHuawei)
     },
   },
   {

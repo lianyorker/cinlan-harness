@@ -65,11 +65,30 @@
           - secrets_dump
           - nxc_spray
           - adcs_find
+          - sts_get_caller_identity
+          - az_account_show
+          - gcp_identity_get
+          - aliyun_identity_get
+          - tencent_identity_get
+          - huawei_identity_get
         exploitTools:
           - responder_capture
           - ntlm_relay
         persistenceTools:
           - rbcd
+        cloudTools:
+          - iam_enum
+          - s3_enum
+          - azure_ad_enum
+          - azure_storage_enum
+          - gcp_iam_enum
+          - gcs_enum
+          - ram_enum
+          - oss_enum
+          - cam_enum
+          - cos_enum
+          - huawei_iam_enum
+          - obs_enum
         browserTools:
           - browser_list
           - browser_snapshot
@@ -152,6 +171,18 @@
       name: '@cinlan/tool-listeners'
     - id: tool-certipy
       name: '@cinlan/tool-certipy'
+    - id: tool-aws
+      name: '@cinlan/tool-aws'
+    - id: tool-azure
+      name: '@cinlan/tool-azure'
+    - id: tool-gcp
+      name: '@cinlan/tool-gcp'
+    - id: tool-aliyun
+      name: '@cinlan/tool-aliyun'
+    - id: tool-tencent
+      name: '@cinlan/tool-tencent'
+    - id: tool-huawei
+      name: '@cinlan/tool-huawei'
 
     - id: security-workflow-prompt
       name: '@deepseek-ai/dsh-security-workflow-prompt'

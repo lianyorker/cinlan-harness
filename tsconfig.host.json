@@ -1428,6 +1428,24 @@
       "path": "./packages/security/tool-certipy"
     },
     {
+      "path": "./packages/security/tool-aws"
+    },
+    {
+      "path": "./packages/security/tool-azure"
+    },
+    {
+      "path": "./packages/security/tool-gcp"
+    },
+    {
+      "path": "./packages/security/tool-aliyun"
+    },
+    {
+      "path": "./packages/security/tool-tencent"
+    },
+    {
+      "path": "./packages/security/tool-huawei"
+    },
+    {
       "path": "./packages/security/tool-httpx"
     },
     {

@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-gcp/README.md
+/:
+  en: 1c50e4f811dfdd1d
+  zh: 6d12843b555619bd
+/cinlan-tool-gcp:
+  en: 0b667c1e070e84ac
+  zh: 27a4339353ba180b
+/cinlan-tool-gcp/summary:
+  en: a74bd5cc38f7d3e7
+  zh: a5d91a9c5fe63c3c
+/cinlan-tool-gcp/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 37e7da5e4699fa17
+/cinlan-tool-gcp/use-this-package:
+  en: a167bf7e31ad9367
+  zh: a132eb3a50eedb33
+/cinlan-tool-gcp/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/cinlan-tool-gcp/model-experience/gcp-identity-get-tool-schema:
+  en: e88ba33bf1d963f9
+  zh: 033020602153549d
+/cinlan-tool-gcp/model-experience/gcp-identity-get-tool-schema/what-the-model-sees:
+  en: 773f1410e36faf93
+  zh: 3fde55407aed7ce9
+/cinlan-tool-gcp/model-experience/gcp-iam-enum-tool-schema:
+  en: a5d1dcc97ac8d8ec
+  zh: 8831785d76dadb38
+/cinlan-tool-gcp/model-experience/gcp-iam-enum-tool-schema/what-the-model-sees:
+  en: 3af1563a0a6b5667
+  zh: 8aa3eb8f90bca0d8
+/cinlan-tool-gcp/model-experience/gcs-enum-tool-schema:
+  en: e6132cb0f9879126
+  zh: 339f9eab54e9307b
+/cinlan-tool-gcp/model-experience/gcs-enum-tool-schema/what-the-model-sees:
+  en: b33c54fef8dea921
+  zh: 5b3b43a8f75ffc51
+/cinlan-tool-gcp/model-experience/gcs-enum-tool-schema/token-effect:
+  en: 045653aa8337ce86
+  zh: 50ededef9c60c785
+/cinlan-tool-gcp/model-experience/gcs-enum-tool-schema/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 9e215e26c9100407
+/cinlan-tool-gcp/known-limitations-and-deferred-work:
+  en: 19028ef5447351ed
+  zh: 7d5c55e2dffb9711
+/cinlan-tool-gcp/known-limitations-and-deferred-work/dev-note:
+  en: f6eb5e4263330e54
+  zh: 5483713d92501a0e

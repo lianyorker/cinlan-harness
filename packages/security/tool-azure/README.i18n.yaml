@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-azure/README.md
+/:
+  en: a557bcee7fc3e115
+  zh: 75e868674c5570be
+/cinlan-tool-azure:
+  en: 92d26b599f8d85e9
+  zh: cc11dbf523c48ece
+/cinlan-tool-azure/summary:
+  en: 5b9a9411fd07f174
+  zh: 8a5a91d4876e674b
+/cinlan-tool-azure/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 37e7da5e4699fa17
+/cinlan-tool-azure/use-this-package:
+  en: 2708c3e9f53fe659
+  zh: 72921359fa6ceb0d
+/cinlan-tool-azure/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/cinlan-tool-azure/model-experience/az-account-show-tool-schema:
+  en: 6198a312acf807c3
+  zh: 4f7bbdb3e3649685
+/cinlan-tool-azure/model-experience/az-account-show-tool-schema/what-the-model-sees:
+  en: 85f88bc5efa25b98
+  zh: fd3c28231a803690
+/cinlan-tool-azure/model-experience/azure-ad-enum-tool-schema:
+  en: 37e86584e8e8214b
+  zh: 79b02a85c460e353
+/cinlan-tool-azure/model-experience/azure-ad-enum-tool-schema/what-the-model-sees:
+  en: e6a575ef41638e88
+  zh: 7a535433357625af
+/cinlan-tool-azure/model-experience/azure-storage-enum-tool-schema:
+  en: 1be51d0b616cb6fd
+  zh: d3450310a7dcdd18
+/cinlan-tool-azure/model-experience/azure-storage-enum-tool-schema/what-the-model-sees:
+  en: c1da77d7222e0251
+  zh: 18edf620c79e3822
+/cinlan-tool-azure/model-experience/azure-storage-enum-tool-schema/token-effect:
+  en: 045653aa8337ce86
+  zh: 50ededef9c60c785
+/cinlan-tool-azure/model-experience/azure-storage-enum-tool-schema/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 9e215e26c9100407
+/cinlan-tool-azure/known-limitations-and-deferred-work:
+  en: 2af0765b39032df3
+  zh: f34a1ffb07f7da97
+/cinlan-tool-azure/known-limitations-and-deferred-work/dev-note:
+  en: f6eb5e4263330e54
+  zh: 5483713d92501a0e

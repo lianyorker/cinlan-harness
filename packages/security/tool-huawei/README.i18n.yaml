@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-huawei/README.md
+/:
+  en: 2866d44420c3a62e
+  zh: 6759f5687874508c
+/cinlan-tool-huawei:
+  en: 65ec2f9214750f74
+  zh: fdf03307abb51452
+/cinlan-tool-huawei/summary:
+  en: 76f20c7d0b912b45
+  zh: 9d28017b4f1d6351
+/cinlan-tool-huawei/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 37e7da5e4699fa17
+/cinlan-tool-huawei/use-this-package:
+  en: 965557b6eab6aadb
+  zh: 7489b5c186cd46a9
+/cinlan-tool-huawei/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/cinlan-tool-huawei/model-experience/huawei-identity-get-tool-schema:
+  en: cb9970a37e3a8086
+  zh: 7d9d1343bd6b4e89
+/cinlan-tool-huawei/model-experience/huawei-identity-get-tool-schema/what-the-model-sees:
+  en: 2bdb05f83d770d7c
+  zh: ab6ea5d7233b5de0
+/cinlan-tool-huawei/model-experience/huawei-iam-enum-tool-schema:
+  en: 34a8429c6e87eb44
+  zh: 7cba7f489e801bdd
+/cinlan-tool-huawei/model-experience/huawei-iam-enum-tool-schema/what-the-model-sees:
+  en: 4122ae12449b374d
+  zh: 183ef8539292e71d
+/cinlan-tool-huawei/model-experience/obs-enum-tool-schema:
+  en: 415b501221ce97e6
+  zh: 589f1d09eb3df587
+/cinlan-tool-huawei/model-experience/obs-enum-tool-schema/what-the-model-sees:
+  en: 7225d6c64fd70b85
+  zh: 5970408e3887fa5d
+/cinlan-tool-huawei/model-experience/obs-enum-tool-schema/token-effect:
+  en: 045653aa8337ce86
+  zh: 50ededef9c60c785
+/cinlan-tool-huawei/model-experience/obs-enum-tool-schema/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 9e215e26c9100407
+/cinlan-tool-huawei/known-limitations-and-deferred-work:
+  en: e506ab1fa1511de5
+  zh: 7ace586c54978a67
+/cinlan-tool-huawei/known-limitations-and-deferred-work/dev-note:
+  en: f6eb5e4263330e54
+  zh: 5483713d92501a0e

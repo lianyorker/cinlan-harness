@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-aliyun/README.md
+/:
+  en: b24b436d75478a1a
+  zh: d7df68db6b079be1
+/cinlan-tool-aliyun:
+  en: 639a0eb06a7ebb45
+  zh: 42f183637640eda8
+/cinlan-tool-aliyun/summary:
+  en: 9d8fc4b85ceeb902
+  zh: 9b2a416c549f804b
+/cinlan-tool-aliyun/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 37e7da5e4699fa17
+/cinlan-tool-aliyun/use-this-package:
+  en: f3df88c119b1e459
+  zh: af8d3fb42e77f0e0
+/cinlan-tool-aliyun/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/cinlan-tool-aliyun/model-experience/aliyun-identity-get-tool-schema:
+  en: 212b680d845be103
+  zh: d201f94ade1f2c55
+/cinlan-tool-aliyun/model-experience/aliyun-identity-get-tool-schema/what-the-model-sees:
+  en: f319619624fcd90f
+  zh: 5b3416a719878ca2
+/cinlan-tool-aliyun/model-experience/ram-enum-tool-schema:
+  en: 0f3859c86047026b
+  zh: cebc73adf480a88e
+/cinlan-tool-aliyun/model-experience/ram-enum-tool-schema/what-the-model-sees:
+  en: 6df1f2fc47605aa5
+  zh: d380c3cc6be712ee
+/cinlan-tool-aliyun/model-experience/oss-enum-tool-schema:
+  en: ece2dd4e750842dd
+  zh: 4b1ffae691ba0341
+/cinlan-tool-aliyun/model-experience/oss-enum-tool-schema/what-the-model-sees:
+  en: eedfc0a344c0ab02
+  zh: cfc66d76f5ff0d0b
+/cinlan-tool-aliyun/model-experience/oss-enum-tool-schema/token-effect:
+  en: 045653aa8337ce86
+  zh: 50ededef9c60c785
+/cinlan-tool-aliyun/model-experience/oss-enum-tool-schema/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 9e215e26c9100407
+/cinlan-tool-aliyun/known-limitations-and-deferred-work:
+  en: 76654e08dfe87e53
+  zh: b6ddd5cf734ebde1
+/cinlan-tool-aliyun/known-limitations-and-deferred-work/dev-note:
+  en: f6eb5e4263330e54
+  zh: 5483713d92501a0e

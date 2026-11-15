@@ -184,7 +184,10 @@ export function apply(ctx: Context, config: Config = {}): void {
       port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)), purpose: 'target-access',
     }
     const refName = typeof args.credential_ref === 'string' ? args.credential_ref : undefined
-    if (credential.has(exec.name) && (refName === undefined || !isCredentialRefName(refName))) {
+    if (refName !== undefined && !isCredentialRefName(refName)) {
+      throw new Error('Assessment scope authorization requires a well-formed credential_ref argument.')
+    }
+    if (credential.has(exec.name) && refName === undefined) {
       throw new Error('Assessment scope authorization requires a well-formed credential_ref argument.')
     }
     return {
@@ -192,7 +195,10 @@ export function apply(ctx: Context, config: Config = {}): void {
       targetId: target?.id ?? AssessmentTargetId('missing-target'),
       executionHostId: hosts.current().hostId,
       ...(egress === undefined ? {} : { egress }),
-      ...(credential.has(exec.name) && refName !== undefined ? {
+      // Any call that presents a credential reference — including cloud
+      // reconnaissance that resolves the secret — carries it in the operation
+      // so the scope service matches it against the grant's credential entries.
+      ...(refName !== undefined ? {
         credential: { ref: credentialRef(refName), purpose: 'target-authentication' as const },
       } : {}),
     }

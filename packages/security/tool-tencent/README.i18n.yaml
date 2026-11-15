@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-tencent/README.md
+/:
+  en: bef7c63be6f54b47
+  zh: 81af6742e08965da
+/cinlan-tool-tencent:
+  en: e247650017767bae
+  zh: f18eb94ec31f9288
+/cinlan-tool-tencent/summary:
+  en: 23342edf3706e406
+  zh: ddba081e8377ece4
+/cinlan-tool-tencent/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 37e7da5e4699fa17
+/cinlan-tool-tencent/use-this-package:
+  en: 09f3c0159b9745a7
+  zh: 76bce9fc415de667
+/cinlan-tool-tencent/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/cinlan-tool-tencent/model-experience/tencent-identity-get-tool-schema:
+  en: 2828ab890bdcf0a8
+  zh: 0a14ee249353e15b
+/cinlan-tool-tencent/model-experience/tencent-identity-get-tool-schema/what-the-model-sees:
+  en: ee9e2cc20c0c1048
+  zh: f39fe388a94dd242
+/cinlan-tool-tencent/model-experience/cam-enum-tool-schema:
+  en: 6a34bfd4f28b93b0
+  zh: cc4f520d1f77fb5c
+/cinlan-tool-tencent/model-experience/cam-enum-tool-schema/what-the-model-sees:
+  en: e4aaba0f406a72a1
+  zh: 539d96cf4ffe52da
+/cinlan-tool-tencent/model-experience/cos-enum-tool-schema:
+  en: 3f3c2321daa50f52
+  zh: 65830f41ac653eb0
+/cinlan-tool-tencent/model-experience/cos-enum-tool-schema/what-the-model-sees:
+  en: acef7b7edb23efe6
+  zh: 143570cc4d3bd1ba
+/cinlan-tool-tencent/model-experience/cos-enum-tool-schema/token-effect:
+  en: 045653aa8337ce86
+  zh: 50ededef9c60c785
+/cinlan-tool-tencent/model-experience/cos-enum-tool-schema/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 9e215e26c9100407
+/cinlan-tool-tencent/known-limitations-and-deferred-work:
+  en: c3472a67a05a769b
+  zh: 2dd51e56740b4888
+/cinlan-tool-tencent/known-limitations-and-deferred-work/dev-note:
+  en: f6eb5e4263330e54
+  zh: 5483713d92501a0e

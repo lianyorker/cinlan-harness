@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-aws/README.md
+/:
+  en: d40848a147aa5bb4
+  zh: 042a04de2a725952
+/cinlan-tool-aws:
+  en: 1d5a8188d9289c4e
+  zh: d9440f3eb0e4f140
+/cinlan-tool-aws/summary:
+  en: b4122108543b9892
+  zh: 4f56e603028a76e7
+/cinlan-tool-aws/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 37e7da5e4699fa17
+/cinlan-tool-aws/use-this-package:
+  en: 79dfe4829241a29f
+  zh: f3d05171dc51f1cd
+/cinlan-tool-aws/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/cinlan-tool-aws/model-experience/sts-get-caller-identity-tool-schema:
+  en: 84fea988f6ff6656
+  zh: e3ee43a1cf18c2ca
+/cinlan-tool-aws/model-experience/sts-get-caller-identity-tool-schema/what-the-model-sees:
+  en: 1f1b43a7e09852a5
+  zh: 5a999e2b70d21ed1
+/cinlan-tool-aws/model-experience/iam-enum-tool-schema:
+  en: 896014bf67c53615
+  zh: 1d4912e17ae73ccf
+/cinlan-tool-aws/model-experience/iam-enum-tool-schema/what-the-model-sees:
+  en: e288c5e924e785d6
+  zh: cc9b0755b1c08c8e
+/cinlan-tool-aws/model-experience/s3-enum-tool-schema:
+  en: 6f42cdac5a005d2d
+  zh: 37f19eecae686276
+/cinlan-tool-aws/model-experience/s3-enum-tool-schema/what-the-model-sees:
+  en: 794578171c900594
+  zh: 98282754fe6d6099
+/cinlan-tool-aws/model-experience/s3-enum-tool-schema/token-effect:
+  en: 045653aa8337ce86
+  zh: 50ededef9c60c785
+/cinlan-tool-aws/model-experience/s3-enum-tool-schema/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 9e215e26c9100407
+/cinlan-tool-aws/known-limitations-and-deferred-work:
+  en: a4253c7b7b36adc8
+  zh: 2e142c9f1d7ff96e
+/cinlan-tool-aws/known-limitations-and-deferred-work/dev-note:
+  en: f6eb5e4263330e54
+  zh: 5483713d92501a0e
