@@ -363,7 +363,7 @@ securityInstallCommand: 'dsh --profile security-research',
 
 | purge-safe 能力 | cinlan-harness 现状 | 差距与集成方向 |
 |----------------|--------------------|----------------|
-| 红队模式 preset：1 指挥 + 5 执行角色（信息收集/资产梳理/漏洞发现/漏洞利用/内网渗透），并发闸门 3 | security-research 是单 agent 组合；DSH 有 agent teams / subagent 基建 | 新 preset 组合（复用现有 subagent/teams 基建），指挥角色带授权闸门（assessment-scope 检查在 policy 层已覆盖所有工具，多角色天然继承） |
+| 红队模式 preset：1 指挥 + 5 执行角色（信息收集/资产梳理/漏洞发现/漏洞利用/内网渗透），并发闸门 3 | security-research 是单 agent 组合；DSH 有 agent teams / subagent 基建 | 新 preset 组合（复用现有 subagent/teams 基建），指挥角色带授权闸门（assessment-scope 检查在 policy 层已覆盖所有工具，多角色天然继承）【已实施：`security-redteam` 指挥 preset + 五角色 preset（recon/asset/vuln/exploit/intranet）经 classic subagent（release 基建，agent-team 是 experimental 不能进 release bundle）的 `allowedAgentPresets` 派活；并发 ≤3 为 persona 级约定；红队组合不沿用 research preset 的 never-approval，审批动作保留 ask 链路】 |
 | SQLite 资产库（测绘结果入库、资产关联 asset-table/asset-correlation） | engagement-ledger 有 campaign/scope snapshot，无"测绘资产台账" | 新包 `@cinlan/asset-ledger`：发现的主机/端口/服务/凭据登记 + 关联（host→service→finding 已有链路的入口层） |
 | 内嵌红队工具集（lib/redteam/tools.js，136KB web 工具） | 24 个 CLI 工具（nmap/httpx/nuclei/六云等），覆盖面按 CLI 有无 | 按 use case 排查缺口；CLI 工具链已覆盖大部分，缺的是"评估报告驱动的工具选择"（技能层职责） |
 | 24 个红队技能（隧道 chisel/frp/suo5、内网 fscan/gogo、空间测绘 fofa、webshell、shell 处置等） | `@cinlan/security-skills` 资产包（eni-* 系列） | 技能内容差距：隧道三件套（chisel/frp/suo5，现有 as-iox-proxy 可补 as-chisel/as-frp）、webshell 部署管理、shell 处置；`as-*` 系列已覆盖内网/空间测绘/凭据攻击的大部分主题 |

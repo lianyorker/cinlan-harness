@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 This bundle adds the Security Research surface to a base-backed dsh profile. It mounts the evidence, assessment, finding, vulnerability knowledge-base, skill, and workflow providers used by security work. The default scope contains no targets or actions. The optional assessment-scope-tool-policy Consumer checks the default shell, network, and Browser model-tool sets before effects; Consumers outside those sets still need their own guard. Add it with `dsh plugin --profile <name> add @deepseek-ai/dsh-security-research`.
 
+The bundle also ships the red-team mode: a `security-redteam` commanding preset plus five execution-role presets (`redteam-recon`, `redteam-asset`, `redteam-vuln`, `redteam-exploit`, `redteam-intranet`), declared in the bundle patch and delegated through the classic subagent tool. The commander plans, routes work to role presets, and records findings; it never runs tools itself. Every child Agent passes the same profile-level assessment-scope admission unchanged, and the red-team composition does not adopt the research preset's never-approval policy — approval-gated actions keep their prompts.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

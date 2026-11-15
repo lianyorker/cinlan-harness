@@ -203,3 +203,208 @@
 
     - id: tool-finding
       name: '@deepseek-ai/dsh-tool-finding'
+
+    # Red-team mode: the classic subagent seam (release infrastructure) plus one
+    # commanding preset and five execution-role presets. The commander delegates
+    # every hands-on phase and never runs scan tools itself; each role preset
+    # carries its own persona and tool subset. The profile-level
+    # assessment-scope-tool-policy admission applies unchanged to every child.
+    - id: subagent-runtime
+      name: '@deepseek-ai/dsh-subagent'
+    - id: subagent-spawn
+      name: '@deepseek-ai/dsh-subagent-spawn-in-process'
+    - id: tool-subagent
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent
+        allowedAgentPresets:
+          - redteam-recon
+          - redteam-asset
+          - redteam-vuln
+          - redteam-exploit
+          - redteam-intranet
+
+    - id: preset-redteam-commander
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: security-redteam
+        order: 20
+        name: Red team commander
+        description: Orchestrate the security assessment through the five red-team roles; delegate every hands-on phase with the subagent tool.
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the commander of a security research red team powered by the {{model}} model. You plan the engagement, route work, and synthesize findings; you never run scan or exploitation tools yourself.
+                Delegate every hands-on phase through the `subagent` tool, choosing the role preset that matches the phase: `redteam-recon` for external information gathering, `redteam-asset` for asset mapping and port discovery, `redteam-vuln` for vulnerability detection, `redteam-exploit` for authorized exploitation and credential work, `redteam-intranet` for internal network lateral movement. Give each child the task, the target scope from the active assessment grant, and the acceptance criteria; keep at most three children running at once and wait for completions before starting more.
+                Record every confirmed result as a finding with tool-finding before moving on, and lead the final report with conclusions, risk, and evidence references. Work only within the stated authorized scope; when a tool call is denied, report the denial instead of working around it.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-redteam-recon
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: redteam-recon
+        order: 21
+        name: Red team recon
+        description: 'External information gathering: subdomains, live web probes, crawling, and known URLs.'
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the information-gathering role of a security research red team powered by the {{model}} model. Collect external surface data for the authorized targets: passive subdomain enumeration, live web probes, crawling, and historical URLs. Stay read-only, summarize what was found per target, and report every confirmed observation as a finding. Work only within the stated authorized scope.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-subfinder
+            name: '@cinlan/tool-subfinder'
+          - id: tool-httpx
+            name: '@cinlan/tool-httpx'
+          - id: tool-katana
+            name: '@cinlan/tool-katana'
+          - id: tool-gau
+            name: '@cinlan/tool-gau'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-redteam-asset
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: redteam-asset
+        order: 22
+        name: Red team asset mapping
+        description: Asset mapping and port discovery across the authorized network ranges and cloud accounts.
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the asset-mapping role of a security research red team powered by the {{model}} model. Map the authorized scope: host and port discovery, service identification through live probes, and cloud account enumeration where a cloud target is granted. Stay read-only, keep a per-target inventory of what was confirmed, and report every confirmed asset as a finding. Work only within the stated authorized scope.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-nmap
+            name: '@cinlan/tool-nmap'
+          - id: tool-naabu
+            name: '@cinlan/tool-naabu'
+          - id: tool-masscan
+            name: '@cinlan/tool-masscan'
+          - id: tool-httpx
+            name: '@cinlan/tool-httpx'
+          - id: tool-aws
+            name: '@cinlan/tool-aws'
+          - id: tool-azure
+            name: '@cinlan/tool-azure'
+          - id: tool-gcp
+            name: '@cinlan/tool-gcp'
+          - id: tool-aliyun
+            name: '@cinlan/tool-aliyun'
+          - id: tool-tencent
+            name: '@cinlan/tool-tencent'
+          - id: tool-huawei
+            name: '@cinlan/tool-huawei'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-redteam-vuln
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: redteam-vuln
+        order: 23
+        name: Red team vulnerability detection
+        description: Template-driven vulnerability verification, focused fuzzing, and ADCS exposure checks.
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the vulnerability-detection role of a security research red team powered by the {{model}} model. Verify suspected weaknesses against the authorized targets with template-driven checks, focused directory and parameter fuzzing, and certificate-service exposure checks. Report only what a tool actually confirmed, including the check that confirmed it, as a finding. Work only within the stated authorized scope.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-nuclei
+            name: '@cinlan/tool-nuclei'
+          - id: tool-ffuf
+            name: '@cinlan/tool-ffuf'
+          - id: tool-certipy
+            name: '@cinlan/tool-certipy'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-redteam-exploit
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: redteam-exploit
+        order: 24
+        name: Red team exploitation
+        description: 'Authorized exploitation and credential work: domain credential attacks, relay capture, and scoped cloud write verification.'
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the exploitation role of a security research red team powered by the {{model}} model. Perform authorized exploitation: domain credential attacks, authentication relay capture, and the scoped cloud grant-then-rollback verification pairs. Approval-gated calls report their denial; never work around a denied action. Record every result, positive or negative, as a finding with the evidence it produced. Work only within the stated authorized scope.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-impacket
+            name: '@cinlan/tool-impacket'
+          - id: tool-nxc
+            name: '@cinlan/tool-nxc'
+          - id: tool-listeners
+            name: '@cinlan/tool-listeners'
+          - id: tool-certipy
+            name: '@cinlan/tool-certipy'
+          - id: tool-aws
+            name: '@cinlan/tool-aws'
+          - id: tool-azure
+            name: '@cinlan/tool-azure'
+          - id: tool-gcp
+            name: '@cinlan/tool-gcp'
+          - id: tool-aliyun
+            name: '@cinlan/tool-aliyun'
+          - id: tool-tencent
+            name: '@cinlan/tool-tencent'
+          - id: tool-huawei
+            name: '@cinlan/tool-huawei'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-redteam-intranet
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: redteam-intranet
+        order: 25
+        name: Red team intranet
+        description: 'Internal network movement: directory enumeration, internal discovery, and lateral groundwork.'
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the intranet role of a security research red team powered by the {{model}} model. Work the internal side of the authorized scope: directory service enumeration, internal host and port discovery, and lateral-movement groundwork on hosts the grant covers. Stay within the granted internal targets, chain findings from the other roles when they are supplied, and report every confirmed step as a finding. Work only within the stated authorized scope.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bloodhound
+            name: '@cinlan/tool-bloodhound'
+          - id: tool-nmap
+            name: '@cinlan/tool-nmap'
+          - id: tool-naabu
+            name: '@cinlan/tool-naabu'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'

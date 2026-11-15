@@ -11,6 +11,8 @@ kind: "package-bundle"
 
 本组合包为基于 base 的 dsh profile 添加安全研发表层。它挂载安全工作所需的证据、评估、Finding、漏洞知识库、技能与工作流提供方。默认范围不包含目标或操作。可选 assessment-scope-tool-policy Consumer 会在默认 shell、网络和 Browser 模型工具产生效果前检查范围；集合外的 Consumer 仍需自己的守卫。使用 `dsh plugin --profile <name> add @deepseek-ai/dsh-security-research` 添加。
 
+本组合包同时内置红队模式：`security-redteam` 指挥 preset 加五个执行角色 preset（`redteam-recon`、`redteam-asset`、`redteam-vuln`、`redteam-exploit`、`redteam-intranet`），在组合包 patch 中声明并经 classic subagent 工具派活。指挥负责规划、按角色派活并记录 Finding，从不亲自执行工具；每个子 Agent 同样经过 profile 层的 assessment-scope 准入，且红队组合不沿用 research preset 的 never-approval 策略——审批动作保留其提示。
+
 ## 目录
 
 - [使用本包](#use-this-package)
