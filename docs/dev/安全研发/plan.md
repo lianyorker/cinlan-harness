@@ -334,3 +334,46 @@ securityInstallCommand: 'dsh --profile security-research',
 与草案的差异（实施时修正）：草案里多云共用的 `identity_get` / `iam_enum` 工具名会在 `ctx.tools` 撞名，实际按 provider 前缀命名——`az_account_show`、`gcp_identity_get` / `gcp_iam_enum`、`aliyun_identity_get`、`tencent_identity_get`、`huawei_identity_get` / `huawei_iam_enum`（aws 保留 `sts_get_caller_identity` / `iam_enum` / `s3_enum`）。凭据注入实测：AWS/阿里云/腾讯云走 env（`AWS_*`、`ALIBABA_CLOUD_*`、`TENCENTCLOUD_*`），GCP 用 SA JSON 写 mkdtemp 0600 文件 + `CLOUDSDK_AUTH_CREDENTIALS_FILE_OVERRIDE`（用后即删）；Azure 与华为 KooCLI/obsutil 没有 env 凭据通道，secret 只能走 argv（`-p`、`--cli-secret-key`、`-k=`），README 已知限制记录进程列表可见性。华为 `obs_enum` 改用独立 obsutil（KooCLI 内置 obs 的参数透传不稳定）；阿里 `oss_enum` 解析内嵌 ossutil 文本列表，公开性检查 defer（内嵌 ossutil 无稳定 JSON GetBucketInfo 路径）；`az login` 每次调用会更新本机 `~/.azure` 状态，README 记录。
 
 已知限制（各 README 已记录）：云只读 API 请求计入账户配额；Azure/华为的 secret 进 argv；GCP 枚举工具每次调用都需要 `credential_ref`（gcloud 需身份文件）；华为 IAM 用户列表为 project 作用域，角色/策略列表与公开性检查延期；`s3_enum`/`cos_enum` 的公开性逐桶检查受 `maxPublicChecks`（默认 20）封顶，超限标 `skipped`，无法解析 ACL 的桶标 `unknown`。
+
+#### 追加批次（已实施，2026-11-16）：deferred 检查补做 + recon 凭据注入
+
+- GCP：新工具 `gcs_bucket_iam`（`gcloud storage buckets get-iam-policy`，返回绑定行 + 匿名主体标志）；华为：`huawei_iam_enum` 的 `resource` 扩展 `keys`（`IAM ListPermanentAccessKeys`，回到草案设计）；阿里：`oss_enum` 加 `public_status`（`aliyun ossutil api get-bucket-acl`——新版 CLI 透传内嵌 ossutil 2.0，按 `public-read`/`public-read-write` 权限判定公开性，`maxPublicChecks` 封顶同 AWS/Tencent 形态）。
+- 修复批次 5 实现缺陷：AWS/阿里/腾讯的 recon 工具（`iam_enum`、`s3_enum`、`ram_enum`、`oss_enum`、`cam_enum`、`cos_enum`）此前没有暴露 `credential_ref`——env 注入型 CLI 的凭据没有传给子进程，会退回本机配置链。全部补可选 `credential_ref` 参数 + `resolveXxxEnv` helper；缺省时由本机配置链提供（README 记录），呈现引用时经 policy 构造 `operation.credential` 对照 grant。
+
+### 9.7 云写路径第二批设计草案（待实施）
+
+目标：六云各 1 对"验证 + 回滚"写工具，共 12 个。设计原则：**只授予/移除已存在的策略或角色绑定，不接受任意策略 JSON 文档**（任意文档等价于任意权限写入），attach/detach 严格配对自清理，验证对目标账户的写权限后立即回滚。
+
+授权：policy 新增第 8 类 `cloudWriteTools`（空列表=不启用）映射 `persistence-change` 动作；grant 部署示例把 `persistence-change` 列入 `approvalRequiredActions`——每次授予/回滚都走人工审批（与 rbcd 同级别）。凭据注入沿用各包既有通道。
+
+| 包 | 授予工具 | 回滚工具 | CLI |
+|----|----------|----------|-----|
+| `tool-aws` | `iam_policy_attach` | `iam_policy_detach` | `aws iam attach-user-policy / detach-user-policy`（`--policy-arn` + `--user-name`，只引用已存在的 managed policy） |
+| `tool-azure` | `role_assignment_create` | `role_assignment_delete` | `az role assignment create / delete`（`--assignee` + `--role` + `--scope`；role 用既有角色名） |
+| `tool-gcp` | `iam_binding_add` | `iam_binding_remove` | `gcloud projects add-iam-policy-binding / remove-iam-policy-binding`（`--member` + `--role`） |
+| `tool-aliyun` | `ram_policy_attach` | `ram_policy_detach` | `aliyun ram AttachUserPolicy / DetachUserPolicy`（`--PolicyType Custom|System` + `--PolicyName` + `--UserName`） |
+| `tool-tencent` | `cam_policy_attach` | `cam_policy_detach` | `tccli cam AttachUserPolicy / DetachUserPolicy`（`--policyId` + `--attachUin`） |
+| `tool-huawei` | `iam_group_add_user` | `iam_group_remove_user` | `hcloud IAM KeystoneAddUserToGroup / KeystoneRemoveUserToGroup`（`--user_id` + `--group_id`，用户进/出授权组——华为的授权模型走用户组，进组即提权验证） |
+
+安全线：授予工具回显操作前的绑定状态（attach 前先读，便于确认回滚目标）；参数全部显式（用户/策略/角色/组 id 或名称，含注入校验）；不可发出删除资源、修改策略文档本身、或创建新策略的调用；执行结果按 grant evidence policy 记录。grant 示例：`actions` 需含 `persistence-change` 且建议列入 `approvalRequiredActions`。
+
+实施顺序：policy 横切（`cloudWriteTools` 类 + 用例）→ 六包逐个（argv 纯函数 + spec + README + bundle 接线）→ catalog/目录/pairing 全套验证一次提交。
+
+### 9.8 dsh-purge-safe 差距分析与原生集成草案（待实施）
+
+对比 [CallMeGuLab/dsh-purge-safe](https://github.com/CallMeGuLab/dsh-purge-safe)（DSH 破甲插件，229 star）：它分两层。**破甲层**（patch 官方 `@deepseek-ai` 包的提示词/审批门/沙箱策略、加密提示词注入、规则库切换 prompt-inject.md、Apply/Restore/Uninstall dock）在 cinlan-harness 天然不需要——fork 原生可控，security-research profile 已经直接配置工具白名单与授权流，不需要"破"任何东西。**能力层**是需要原生集成的差距：
+
+| purge-safe 能力 | cinlan-harness 现状 | 差距与集成方向 |
+|----------------|--------------------|----------------|
+| 红队模式 preset：1 指挥 + 5 执行角色（信息收集/资产梳理/漏洞发现/漏洞利用/内网渗透），并发闸门 3 | security-research 是单 agent 组合；DSH 有 agent teams / subagent 基建 | 新 preset 组合（复用现有 subagent/teams 基建），指挥角色带授权闸门（assessment-scope 检查在 policy 层已覆盖所有工具，多角色天然继承） |
+| SQLite 资产库（测绘结果入库、资产关联 asset-table/asset-correlation） | engagement-ledger 有 campaign/scope snapshot，无"测绘资产台账" | 新包 `@cinlan/asset-ledger`：发现的主机/端口/服务/凭据登记 + 关联（host→service→finding 已有链路的入口层） |
+| 内嵌红队工具集（lib/redteam/tools.js，136KB web 工具） | 24 个 CLI 工具（nmap/httpx/nuclei/六云等），覆盖面按 CLI 有无 | 按 use case 排查缺口；CLI 工具链已覆盖大部分，缺的是"评估报告驱动的工具选择"（技能层职责） |
+| 24 个红队技能（隧道 chisel/frp/suo5、内网 fscan/gogo、空间测绘 fofa、webshell、shell 处置等） | `@cinlan/security-skills` 资产包（eni-* 系列） | 技能内容差距：隧道三件套（chisel/frp/suo5，现有 as-iox-proxy 可补 as-chisel/as-frp）、webshell 部署管理、shell 处置；`as-*` 系列已覆盖内网/空间测绘/凭据攻击的大部分主题 |
+| 评分规则（score-rules.js） | finding 有 severity，无系统化评分 | finding 体系加评分规则（CVSS 简化版或项目自定义矩阵） |
+| 证据账本（evidence-ledger）+ 报告重放（report-replay） | evidence policy + finding 体系 + exportReport | 报告重放（从持久化 finding/session 重放出报告）可加在 security-research-controller |
+| 技能可用性自检/自愈（skill-availability/skill-fixes） | 无 | 工具二进制存在性检查（各 tool 包的 `resolveExecutable` 已有，缺汇总面） |
+| Drill 本地环境评估 | 无 | 本机暴露面审计工具集（新批次评估） |
+
+集成原则：**不引入 purge-safe 任何代码**（Apache-2.0 但我们按能力差距原生重做）；每项独立成包/独立批次，走与批次 1-5 相同的模式（设计草案 → policy 横切 → 包实现 → 双语 README/catalog/pairing → 一次提交）。
+
+实施优先级建议：① 红队模式 preset（把现有 24 工具 + 授权体系编排成多角色，价值最高）→ ② 资产台账（测绘结果的持久层）→ ③ 技能补齐（隧道/webshell）→ ④ 评分与报告重放 → ⑤ 本地环境审计。
