@@ -15,12 +15,16 @@ function makeExecution(name: string, args: Record<string, unknown> = {}): ToolEx
   return { name, arguments: args, agent: { id: 'agent', session: { id: 'session' } } as never } as never
 }
 
-async function mount(outcome: 'allow' | 'deny' | 'approval-required' = 'allow', config: Policy.Config = {}) {
+async function mount(
+  outcome: 'allow' | 'deny' | 'approval-required' = 'allow',
+  config: Policy.Config = {},
+  grantTargets: Array<Record<string, unknown>> = [{ id: 'target', value: 'example.test', kind: 'hostname' }],
+) {
   const ctx = new Context(); contexts.push(ctx)
   await ctx.plugin(SystemPrompt); await ctx.plugin(ToolRuntime)
   const authorize = vi.fn(() => ({ outcome, code: outcome === 'allow' ? 'ASSESSMENT_ALLOWED' : 'ASSESSMENT_ACTION_OUT_OF_SCOPE' }))
   ctx.provide('assessmentScopeSessions', {
-    require: () => ({ targets: [{ id: 'target', value: 'example.test', kind: 'hostname' }] }), authorize,
+    require: () => ({ targets: grantTargets }), authorize,
   } as never)
   ctx.provide('executionHost', { current: () => ({ hostId: 'host' }) } as never)
   await ctx.plugin(Policy, {
@@ -30,6 +34,7 @@ async function mount(outcome: 'allow' | 'deny' | 'approval-required' = 'allow', 
     ...(config.credentialTools === undefined ? {} : { credentialTools: [...config.credentialTools] }),
     ...(config.exploitTools === undefined ? {} : { exploitTools: [...config.exploitTools] }),
     ...(config.persistenceTools === undefined ? {} : { persistenceTools: [...config.persistenceTools] }),
+    ...(config.cloudTools === undefined ? {} : { cloudTools: [...config.cloudTools] }),
     ...(config.workspaceCommands === undefined ? {} : { workspaceCommands: config.workspaceCommands.map(entry => ({ ...entry })) }),
   })
   return { ctx, authorize }
@@ -149,6 +154,62 @@ describe('assessment scope tool policy', () => {
   it('rejects invalid credentialTools configuration at load', async () => {
     for (const credentialTools of [[''], [' keroboast'], ['dup', 'dup']]) {
       await expect(mount('deny', { credentialTools })).rejects.toThrow(/invalid credentialTools/)
+    }
+  })
+
+  it('maps cloud tools onto reconnaissance against a cloud target', async () => {
+    const targets = [{ id: 'target', value: '123456789012', kind: 'cloud', cloud: { provider: 'aws' } }]
+    const b = await mount('allow', { cloudTools: ['s3_enum'] }, targets)
+    await expect(pre(b.ctx, makeExecution('s3_enum', { target_id: '123456789012', region: 'us-east-1' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+    expect(b.authorize).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      action: 'reconnaissance',
+    }))
+  })
+
+  it('denies cloud tools whose explicit scope arguments fall outside the declared allowlists', async () => {
+    const targets = [{
+      id: 'target', value: '123456789012', kind: 'cloud',
+      cloud: { provider: 'aws', regions: ['us-east-1', 'us-west-2'] },
+    }]
+    const b = await mount('allow', { cloudTools: ['s3_enum'] }, targets)
+    await expect(pre(b.ctx, makeExecution('s3_enum', { target_id: '123456789012', region: 'eu-central-1' })))
+      .resolves.toMatchObject({ kind: 'deny' })
+    expect(b.authorize).not.toHaveBeenCalled()
+    await expect(pre(b.ctx, makeExecution('s3_enum', { target_id: '123456789012', region: 'US-EAST-1' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+    await expect(pre(b.ctx, makeExecution('s3_enum', { target_id: '123456789012' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+  })
+
+  it('checks subscription and project allowlists for azure and gcp cloud targets', async () => {
+    const azure = await mount('allow', { cloudTools: ['storage_enum'] }, [{
+      id: 'target', value: 'sub-acc', kind: 'cloud',
+      cloud: { provider: 'azure', subscriptions: ['sub-a'] },
+    }])
+    await expect(pre(azure.ctx, makeExecution('storage_enum', { target_id: 'sub-acc', subscription: 'sub-b' })))
+      .resolves.toMatchObject({ kind: 'deny' })
+    const gcp = await mount('allow', { cloudTools: ['gcs_enum'] }, [{
+      id: 'target', value: 'proj-acc', kind: 'cloud',
+      cloud: { provider: 'gcp', projects: ['proj-a'] },
+    }])
+    await expect(pre(gcp.ctx, makeExecution('gcs_enum', { target_id: 'proj-acc', project: 'proj-b' })))
+      .resolves.toMatchObject({ kind: 'deny' })
+    await expect(pre(gcp.ctx, makeExecution('gcs_enum', { target_id: 'proj-acc', project: 'proj-a' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+  })
+
+  it('admits cloud scope arguments when the target declares no allowlist for that dimension', async () => {
+    const b = await mount('allow', { cloudTools: ['s3_enum'] }, [{
+      id: 'target', value: '123456789012', kind: 'cloud', cloud: { provider: 'aws' },
+    }])
+    await expect(pre(b.ctx, makeExecution('s3_enum', { target_id: '123456789012', region: 'ap-southeast-1' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+  })
+
+  it('rejects invalid cloudTools configuration at load', async () => {
+    for (const cloudTools of [[''], [' s3_enum'], ['dup', 'dup']]) {
+      await expect(mount('deny', { cloudTools })).rejects.toThrow(/invalid cloudTools/)
     }
   })
 })

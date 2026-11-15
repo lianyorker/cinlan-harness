@@ -4,7 +4,7 @@ import schema from '@deepseek-ai/schemastery'
 import { realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { AssessmentTargetId } from '@deepseek-ai/dsh-assessment-scope'
-import type { AssessmentAction, AssessmentOperationEgress, AssessmentTarget } from '@deepseek-ai/dsh-assessment-scope'
+import type { AssessmentAction, AssessmentOperationEgress, AssessmentTarget, AssessmentCloudScope } from '@deepseek-ai/dsh-assessment-scope'
 import type { AssessmentScopeSessions, AssessmentSessionOperation } from '@deepseek-ai/dsh-assessment-scope-session'
 import { credentialRef, isCredentialRefName } from '@deepseek-ai/dsh-credentials'
 import type { ExecutionHostService } from '@deepseek-ai/dsh-execution-host'
@@ -27,6 +27,8 @@ export interface Config {
   readonly exploitTools?: readonly string[]
   /** Tool names that modify target persistence state and need persistence-change authority. */
   readonly persistenceTools?: readonly string[]
+  /** Tool names that enumerate authorized cloud accounts and need reconnaissance authority. */
+  readonly cloudTools?: readonly string[]
   /** Exact shell commands admitted in the calling Session's workspace without assessment authority. Sandbox policy still applies. */
   readonly workspaceCommands?: readonly {
     /** Configured shell tool name. */
@@ -44,6 +46,7 @@ export const Config = schema.object({
   credentialTools: schema.array(schema.string()),
   exploitTools: schema.array(schema.string()),
   persistenceTools: schema.array(schema.string()),
+  cloudTools: schema.array(schema.string()),
   workspaceCommands: schema.array(schema.object({ tool: schema.string().required(), command: schema.string().required() })),
 })
 
@@ -58,7 +61,7 @@ const DEFAULT_BROWSER = [
   'browser_history', 'browser_network', 'browser_home', 'browser_search', 'browser_back',
   'browser_forward', 'browser_open', 'browser_navigate', 'browser_click', 'browser_close',
 ] as const
-const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools', 'credentialTools', 'exploitTools', 'persistenceTools', 'workspaceCommands'])
+const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools', 'credentialTools', 'exploitTools', 'persistenceTools', 'cloudTools', 'workspaceCommands'])
 
 function selected(value: readonly string[] | undefined, fallback: readonly string[], name: string): Set<string> {
   const result = value === undefined || value.length === 0 ? fallback : value
@@ -89,6 +92,28 @@ function targetFor(grant: { readonly targets: readonly AssessmentTarget[] }, val
 }
 function denial(decision: { readonly outcome: string; readonly code: string }): string { return `Assessment scope ${decision.outcome} (${decision.code}).` }
 
+/** Explicit cloud-scope tool arguments and the allowlist dimension each maps to. */
+const CLOUD_SCOPE_ARGS = [
+  ['region', 'regions'],
+  ['subscription', 'subscriptions'],
+  ['project', 'projects'],
+] as const satisfies readonly (readonly [string, keyof Omit<AssessmentCloudScope, 'provider'>])[]
+
+/**
+ * Reject explicit cloud-scope arguments outside the declared allowlists of the
+ * matched cloud target. An absent allowlist admits every value of that dimension.
+ */
+function assertCloudScope(scope: AssessmentCloudScope, accountId: string, args: Record<string, unknown>): void {
+  for (const [arg, field] of CLOUD_SCOPE_ARGS) {
+    const requested = args[arg]
+    const allowed = scope[field]
+    if (typeof requested !== 'string' || allowed === undefined) continue
+    if (!allowed.some(entry => entry.toLowerCase() === requested.toLowerCase())) {
+      throw new Error(`Assessment scope authorization: ${arg} '${requested}' is outside the declared ${field} of the cloud target ${accountId} (${scope.provider}).`)
+    }
+  }
+}
+
 /** Install a fail-closed monotonic guard for matched effect Consumers. */
 export function apply(ctx: Context, config: Config = {}): void {
   for (const key of Object.keys(config)) if (!CONFIG_KEYS.has(key)) throw new TypeError(`assessment-scope-tool-policy: unsupported config key '${key}'`)
@@ -98,6 +123,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const credential = optionalSelected(config.credentialTools, 'credentialTools')
   const exploit = optionalSelected(config.exploitTools, 'exploitTools')
   const persistence = optionalSelected(config.persistenceTools, 'persistenceTools')
+  const cloud = optionalSelected(config.cloudTools, 'cloudTools')
   const workspaceCommands = config.workspaceCommands ?? []
   const commandKeys = new Set<string>()
   for (const entry of workspaceCommands) {
@@ -147,9 +173,12 @@ export function apply(ctx: Context, config: Config = {}): void {
         ? 'exploit-execution'
         : persistence.has(exec.name)
           ? 'persistence-change'
-          : browser.has(exec.name)
-            ? (browserRead ? 'reconnaissance' : 'active-validation')
-            : network.has(exec.name) ? 'reconnaissance' : 'active-validation'
+          : cloud.has(exec.name)
+            ? 'reconnaissance'
+            : browser.has(exec.name)
+              ? (browserRead ? 'reconnaissance' : 'active-validation')
+              : network.has(exec.name) ? 'reconnaissance' : 'active-validation'
+    if (target?.kind === 'cloud' && target.cloud !== undefined) assertCloudScope(target.cloud, target.value, args)
     const egress: AssessmentOperationEgress | undefined = url === undefined ? undefined : {
       protocol: url.protocol.slice(0, -1) as 'http' | 'https', host: url.hostname,
       port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)), purpose: 'target-access',
@@ -172,7 +201,8 @@ export function apply(ctx: Context, config: Config = {}): void {
     const agent = exec.agent
     if (agent === undefined
       || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name)
-        && !credential.has(exec.name) && !exploit.has(exec.name) && !persistence.has(exec.name))) {
+        && !credential.has(exec.name) && !exploit.has(exec.name) && !persistence.has(exec.name)
+        && !cloud.has(exec.name))) {
       return next()
     }
     try {
@@ -186,7 +216,8 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.tools.guard((exec) => {
     if (exec.agent === undefined
       || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name)
-        && !credential.has(exec.name) && !exploit.has(exec.name) && !persistence.has(exec.name))) {
+        && !credential.has(exec.name) && !exploit.has(exec.name) && !persistence.has(exec.name)
+        && !cloud.has(exec.name))) {
       return undefined
     }
     return admitted.delete(exec) ? undefined : 'Assessment scope authorization was not admitted for this tool call.'

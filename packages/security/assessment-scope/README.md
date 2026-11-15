@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package defines the authorization model for security assessments. A scope names targets, allowed operations, execution hosts, time bounds, credential references, egress policy, and evidence rules. Providers publish validated grants; assessment consumers must check the grant before admitting work.
+This package defines the authorization model for security assessments. A scope names targets, allowed operations, execution hosts, time bounds, credential references, egress policy, and evidence rules. Targets are hostnames, IP addresses, URL prefixes, artifact scopes, services, or cloud accounts; a cloud target carries the account id as its value plus a provider with optional region, subscription, and project allowlists. Providers publish validated grants; assessment consumers must check the grant before admitting work.
 
 ## Table of Contents
 

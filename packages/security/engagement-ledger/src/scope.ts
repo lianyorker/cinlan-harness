@@ -62,7 +62,7 @@ function urlPrefixHostname(value: string): string | undefined {
 /**
  * Whether one declared grant target covers the given host. Mirrors
  * tool-policy matching (exact, url-prefix) plus wildcard-suffix and CIDR.
- * `service`/`artifact-scope` kinds never match a host.
+ * `service`/`artifact-scope`/`cloud` kinds never match a host.
  */
 export function targetMatchesHost(target: AssessmentTarget, host: string): boolean {
   const value = target.value.toLowerCase()

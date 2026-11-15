@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-本提供方加载一份操作者定义的评估 grant，并通过 assessment-scope 服务公开它。它在发布前验证时间范围、execution-host id、目标选择器、操作权限、egress 规则、凭据引用和证据策略。空 grant 合法且会拒绝评估工作。
+本提供方加载一份操作者定义的评估 grant，并通过 assessment-scope 服务公开它。它在发布前验证时间范围、execution-host id、目标选择器、操作权限、egress 规则、凭据引用和证据策略。`cloud` 目标以目标 value 携带账户 id，并携带 provider 与可选的 region、subscription、project 允许列表；未声明某维度的允许列表时放行该维度的任意值。空 grant 合法且会拒绝评估工作。
 
 ## 目录
 

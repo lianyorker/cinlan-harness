@@ -27,6 +27,8 @@ Mount it after assessment-scope-session and execution-host. Default sets cover `
 
 `exploitTools` and `persistenceTools` follow the same shape and map their calls to the `exploit-execution` and `persistence-change` actions respectively, with no credential argument required. Grants that list those actions in `approvalRequiredActions` turn every such call into an approval prompt.
 
+`cloudTools` follows the same shape and maps its calls to the `reconnaissance` action. When the matched target is a `cloud` target, explicit `region`, `subscription`, and `project` arguments are checked against the target's declared allowlists; a value outside a declared allowlist is denied, while an absent allowlist admits every value of that dimension.
+
 `workspaceCommands` defaults to an empty list. Each entry names a configured shell `tool` and an exact `command`; empty, whitespace-padded, duplicate, or non-shell entries fail at load. A matching call needs an absolute Session workspace and an existing working directory whose resolved path stays inside it. Explicit target or URL arguments, sandbox permission overrides, and background execution exclude the exception. Unmatched calls retain assessment checks; admitted workspace commands still pass downstream guards and sandbox policy.
 
 These entries trust the workspace and its command environment, including scripts invoked by a package manager. They do not classify arbitrary shell text as safe or confine subprocess effects to the working directory. The deployment sandbox owns that confinement.

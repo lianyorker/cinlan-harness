@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This provider loads one operator-defined assessment grant and exposes it through the assessment-scope service. It validates time bounds, execution-host ids, target selectors, action permissions, egress rules, credential references, and evidence policy before publishing the grant. An empty grant is valid and denies assessment work.
+This provider loads one operator-defined assessment grant and exposes it through the assessment-scope service. It validates time bounds, execution-host ids, target selectors, action permissions, egress rules, credential references, and evidence policy before publishing the grant. `cloud` targets carry the account id as the target value plus a provider with optional region, subscription, and project allowlists; an absent allowlist admits every value of that dimension. An empty grant is valid and denies assessment work.
 
 ## Table of Contents
 

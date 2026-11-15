@@ -36,6 +36,21 @@ export type AssessmentAction =
   | 'data-export'
   | 'external-reporting'
 
+/** Closed cloud providers that a `cloud` target may authorize. */
+export type AssessmentCloudProvider = 'aws' | 'azure' | 'gcp' | 'aliyun' | 'tencent' | 'huawei'
+
+/** Account-level scope carried by a `cloud` target; the target `value` is the account id. */
+export interface AssessmentCloudScope {
+  /** Provider whose APIs this target authorizes. */
+  readonly provider: AssessmentCloudProvider
+  /** Optional region allowlist; absent admits every region of the account. */
+  readonly regions?: readonly string[]
+  /** Optional Azure subscription allowlist; absent admits every subscription of the account. */
+  readonly subscriptions?: readonly string[]
+  /** Optional GCP project allowlist; absent admits every project of the account. */
+  readonly projects?: readonly string[]
+}
+
 /** Provider-neutral target classifications. Effect adapters own normalization into these classes. */
 export type AssessmentTargetKind =
   | 'hostname'
@@ -43,6 +58,7 @@ export type AssessmentTargetKind =
   | 'url-prefix'
   | 'artifact-scope'
   | 'service'
+  | 'cloud'
 
 /** One canonical target declared by the written assessment scope. */
 export interface AssessmentTarget {
@@ -52,6 +68,8 @@ export interface AssessmentTarget {
   readonly kind: AssessmentTargetKind
   /** Non-empty operator-owned target value. */
   readonly value: string
+  /** Account scope present exactly when `kind` is `cloud`. */
+  readonly cloud?: AssessmentCloudScope
 }
 
 /** Closed egress protocols that an effect adapter may request. */

@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-本包定义安全评估的授权模型。Scope 命名目标、允许的操作、execution host、时间范围、凭据引用、egress 策略和证据规则。提供方发布经过验证的 grant；评估消费者必须在接纳工作前检查该 grant。
+本包定义安全评估的授权模型。Scope 命名目标、允许的操作、execution host、时间范围、凭据引用、egress 策略和证据规则。目标可以是主机名、IP 地址、URL 前缀、artifact scope、service 或云账户；云账户目标以 value 携带账户 id，并携带 provider 与可选的 region、subscription、project 允许列表。提供方发布经过验证的 grant；评估消费者必须在接纳工作前检查该 grant。
 
 ## 目录
 

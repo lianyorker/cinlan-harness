@@ -11,6 +11,7 @@ import schema from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import {
   ASSESSMENT_ACTIONS,
+  ASSESSMENT_CLOUD_PROVIDERS,
   ASSESSMENT_CREDENTIAL_PURPOSES,
   ASSESSMENT_EGRESS_PROTOCOLS,
   ASSESSMENT_EGRESS_PURPOSES,
@@ -22,6 +23,7 @@ import {
 } from '@deepseek-ai/dsh-assessment-scope'
 import type {
   AssessmentAction,
+  AssessmentCloudProvider,
   AssessmentCredentialPurpose,
   AssessmentEgressProtocol,
   AssessmentEgressPurpose,
@@ -40,6 +42,20 @@ export interface AssessmentTargetConfig {
   readonly kind: AssessmentTargetKind
   /** Non-blank trimmed target value; hostname values are canonicalized by the Service Definition. */
   readonly value: string
+  /** Account scope required when `kind` is `cloud` and forbidden otherwise; `value` carries the account id. */
+  readonly cloud?: AssessmentCloudScopeConfig
+}
+
+/** Operator-owned cloud account scope before canonicalization. */
+export interface AssessmentCloudScopeConfig {
+  /** Closed provider whose APIs the target authorizes. */
+  readonly provider: AssessmentCloudProvider
+  /** Optional region allowlist; absent admits every region of the account. */
+  readonly regions?: readonly string[]
+  /** Optional Azure subscription allowlist; absent admits every subscription of the account. */
+  readonly subscriptions?: readonly string[]
+  /** Optional GCP project allowlist; absent admits every project of the account. */
+  readonly projects?: readonly string[]
 }
 
 /** Operator-owned exact egress grant before branded-id canonicalization. */
@@ -111,10 +127,17 @@ export interface Config {
 
 const id = zod.string().min(1).refine(value => value.trim() === value, 'must be trimmed')
 const safeEpoch = zod.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
+const cloudSchema = zod.strictObject({
+  provider: zod.enum(ASSESSMENT_CLOUD_PROVIDERS),
+  regions: zod.array(id).optional(),
+  subscriptions: zod.array(id).optional(),
+  projects: zod.array(id).optional(),
+})
 const targetSchema = zod.strictObject({
   id,
   kind: zod.enum(ASSESSMENT_TARGET_KINDS),
   value: id,
+  cloud: cloudSchema.optional(),
 })
 const egressSchema = zod.strictObject({
   protocol: zod.enum(ASSESSMENT_EGRESS_PROTOCOLS),
@@ -149,10 +172,14 @@ const rootSchema = zod.strictObject({
 })
 const configSchema = zod.strictObject({ root: rootSchema })
 
+// Schemastery fabricates objects for absent optional fields, so the cloud
+// scope passes through unvalidated here; the canonical grant validation owns
+// its structure, provider enum, allowlists, and kind pairing.
 const targetConfigSchema = schema.object({
   id: schema.string().required(),
   kind: schema.union([...ASSESSMENT_TARGET_KINDS]).required(),
   value: schema.string().required(),
+  cloud: schema.any(),
 })
 const egressConfigSchema = schema.object({
   protocol: schema.union([...ASSESSMENT_EGRESS_PROTOCOLS]).required(),

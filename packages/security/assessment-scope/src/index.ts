@@ -25,6 +25,8 @@ import type {
   AssessmentDecisionId as AssessmentDecisionIdValue,
   AssessmentDecisionOutcome,
   AssessmentEgressGrant,
+  AssessmentCloudProvider,
+  AssessmentCloudScope,
   AssessmentEgressProtocol,
   AssessmentEgressPurpose,
   AssessmentEngagementId as AssessmentEngagementIdValue,
@@ -64,7 +66,18 @@ export const ASSESSMENT_TARGET_KINDS = Object.freeze([
   'url-prefix',
   'artifact-scope',
   'service',
+  'cloud',
 ] as const satisfies readonly AssessmentTargetKind[])
+
+/** Closed cloud-provider order used by `cloud` target validation. */
+export const ASSESSMENT_CLOUD_PROVIDERS = Object.freeze([
+  'aws',
+  'azure',
+  'gcp',
+  'aliyun',
+  'tencent',
+  'huawei',
+] as const satisfies readonly AssessmentCloudProvider[])
 
 /** Closed egress-protocol order used for config and durable validation. */
 export const ASSESSMENT_EGRESS_PROTOCOLS = Object.freeze([
@@ -284,8 +297,12 @@ function normalizeHost(value: unknown, path: string): string {
 
 function canonicalTarget(value: unknown, path: string): AssessmentTarget {
   const input = record(value, path)
-  keysOnly(input, path, ['id', 'kind', 'value'])
   const kind = enumValue(input['kind'], `${path}.kind`, ASSESSMENT_TARGET_KINDS)
+  keysOnly(input, path, ['id', 'kind', 'value', 'cloud'])
+  // Loaders may keep an optional key with an undefined value; presence is judged by the value.
+  if ((input['cloud'] !== undefined) !== (kind === 'cloud')) {
+    invalid(`${path}.cloud`, kind === 'cloud' ? 'required for cloud targets' : 'forbidden for non-cloud targets')
+  }
   const rawValue = stringValue(input['value'], `${path}.value`)
   if (rawValue.trim() !== rawValue || rawValue.length === 0) invalid(`${path}.value`, 'must be non-blank and trimmed')
   const targetValue = kind === 'hostname' ? normalizeHost(rawValue, `${path}.value`) : rawValue
@@ -293,7 +310,44 @@ function canonicalTarget(value: unknown, path: string): AssessmentTarget {
     id: AssessmentTargetId(stringValue(input['id'], `${path}.id`)),
     kind,
     value: targetValue,
+    ...(kind === 'cloud' ? { cloud: canonicalCloudScope(input['cloud'], `${path}.cloud`) } : {}),
   })
+}
+
+function canonicalCloudList(value: unknown, path: string): readonly string[] {
+  return sortedUnique(
+    arrayValue(value, path).map((entry, index) => {
+      const raw = stringValue(entry, `${path}[${index}]`)
+      if (raw.trim() !== raw || raw.length === 0) invalid(`${path}[${index}]`, 'must be non-blank and trimmed')
+      return raw
+    }),
+    entry => entry.toLowerCase(),
+    path,
+  )
+}
+
+function canonicalCloudScope(value: unknown, path: string): AssessmentCloudScope {
+  const input = record(value, path)
+  keysOnly(input, path, ['provider', 'regions', 'subscriptions', 'projects'])
+  const regions = optionalCloudList(input['regions'], `${path}.regions`)
+  const subscriptions = optionalCloudList(input['subscriptions'], `${path}.subscriptions`)
+  const projects = optionalCloudList(input['projects'], `${path}.projects`)
+  return Object.freeze({
+    provider: enumValue(input['provider'], `${path}.provider`, ASSESSMENT_CLOUD_PROVIDERS),
+    ...(regions === undefined ? {} : { regions }),
+    ...(subscriptions === undefined ? {} : { subscriptions }),
+    ...(projects === undefined ? {} : { projects }),
+  })
+}
+
+/**
+ * Canonicalize one optional cloud allowlist. Loaders normalize an unset array
+ * to `[]`; an empty allowlist admits nothing, so it canonicalizes to absent.
+ */
+function optionalCloudList(value: unknown, path: string): readonly string[] | undefined {
+  if (value === undefined) return undefined
+  const list = canonicalCloudList(value, path)
+  return list.length === 0 ? undefined : list
 }
 
 function egressKey(value: AssessmentEgressGrant): string {
@@ -486,13 +540,20 @@ function setContains<T>(parent: readonly T[], child: readonly T[], key: (entry: 
   return child.every(entry => available.has(key(entry)))
 }
 
+function cloudScopeKey(value: AssessmentCloudScope): string {
+  return `provider=${value.provider}`
+    + ` regions=${(value.regions ?? []).join(',')}`
+    + ` subscriptions=${(value.subscriptions ?? []).join(',')}`
+    + ` projects=${(value.projects ?? []).join(',')}`
+}
+
 function subsetViolation(parent: AssessmentGrant, child: AssessmentGrant): string | undefined {
   if (child.engagementId !== parent.engagementId) return 'engagementId differs'
   if (child.authorizationRef !== parent.authorizationRef) return 'authorizationRef differs'
   if (child.notBefore < parent.notBefore) return 'notBefore starts before the parent'
   if (child.expiresAt > parent.expiresAt) return 'expiresAt extends past the parent'
   if (!setContains(parent.executionHostIds, child.executionHostIds, value => value)) return 'executionHostIds expand the parent'
-  if (!setContains(parent.targets, child.targets, target => `${target.id}\u0000${target.kind}\u0000${target.value}`)) {
+  if (!setContains(parent.targets, child.targets, target => `${target.id}\u0000${target.kind}\u0000${target.value}\u0000${target.cloud === undefined ? '' : cloudScopeKey(target.cloud)}`)) {
     return 'targets expand or redefine the parent'
   }
   const childTargetIds = new Set(child.targets.map(target => target.id))
