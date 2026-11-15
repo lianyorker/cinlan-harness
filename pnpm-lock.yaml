@@ -37,6 +37,9 @@ importers:
       '@cinlan/tool-bloodhound':
         specifier: workspace:*
         version: link:packages/security/tool-bloodhound
+      '@cinlan/tool-certipy':
+        specifier: workspace:*
+        version: link:packages/security/tool-certipy
       '@cinlan/tool-ffuf':
         specifier: workspace:*
         version: link:packages/security/tool-ffuf
@@ -55,6 +58,9 @@ importers:
       '@cinlan/tool-knowledge-search':
         specifier: workspace:*
         version: link:packages/knowledge/tool-knowledge-search
+      '@cinlan/tool-listeners':
+        specifier: workspace:*
+        version: link:packages/security/tool-listeners
       '@cinlan/tool-masscan':
         specifier: workspace:*
         version: link:packages/security/tool-masscan
@@ -4542,6 +4548,9 @@ importers:
       '@cinlan/tool-bloodhound':
         specifier: workspace:^
         version: link:../../security/tool-bloodhound
+      '@cinlan/tool-certipy':
+        specifier: workspace:^
+        version: link:../../security/tool-certipy
       '@cinlan/tool-ffuf':
         specifier: workspace:^
         version: link:../../security/tool-ffuf
@@ -4557,6 +4566,9 @@ importers:
       '@cinlan/tool-katana':
         specifier: workspace:^
         version: link:../../security/tool-katana
+      '@cinlan/tool-listeners':
+        specifier: workspace:^
+        version: link:../../security/tool-listeners
       '@cinlan/tool-masscan':
         specifier: workspace:^
         version: link:../../security/tool-masscan
@@ -4611,12 +4623,18 @@ importers:
       '@deepseek-ai/dsh-finding-session':
         specifier: workspace:^
         version: link:../../security/finding-session
+      '@deepseek-ai/dsh-jobs-local':
+        specifier: workspace:^
+        version: link:../../jobs/jobs-local
       '@deepseek-ai/dsh-security-workflow-prompt':
         specifier: workspace:^
         version: link:../../security/security-workflow-prompt
       '@deepseek-ai/dsh-tool-finding':
         specifier: workspace:^
         version: link:../../security/tool-finding
+      '@deepseek-ai/dsh-tool-jobs':
+        specifier: workspace:^
+        version: link:../../jobs/tool-jobs
       '@deepseek-ai/dsh-tool-vuln-kb':
         specifier: workspace:^
         version: link:../../security/tool-vuln-kb
@@ -18999,6 +19017,21 @@ importers:
         specifier: workspace:^
         version: link:../../core/tools
 
+  packages/security/tool-certipy:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
   packages/security/tool-ffuf:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -19098,6 +19131,21 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+
+  packages/security/tool-listeners:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-jobs':
+        specifier: workspace:^
+        version: link:../../jobs/jobs
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess

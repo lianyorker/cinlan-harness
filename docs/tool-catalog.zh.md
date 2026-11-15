@@ -64,8 +64,10 @@
 | `@cinlan/tool-katana` | `katana_crawl` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-gau` | `gau_urls` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-bloodhound` | `bloodhound_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `rbcd`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-listeners` | `ntlm_relay`, `responder_capture` | `ctx.tools`, `ctx.subprocess`, `ctx.jobs` | `tool/call`, `background job output ring` | - | - |
+| `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -2588,7 +2590,6 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
 
 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。
 
-
 <a id="deepseek-aidsh-tool-todo"></a>
 
 ## `@deepseek-ai/dsh-tool-todo`
@@ -3317,6 +3318,51 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 来源：[`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
 
+### `rbcd`
+
+通过在目标上写入 msDS-AllowedToActOnBehalfOfOtherIdentity，为一个受控账户授予一台已授权评估主机上基于资源的约束委派（impacket rbcd -action write）。这是对目标的持久化变更：主机必须匹配当前评估范围授权中声明的目标，凭据引用必须授予，且该动作通常需要审批。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Host receiving the delegation write, as declared in the assessment scope grant (hostname or IP)."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Fully-qualified domain of the target and the authenticated account."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the write."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+    },
+    "delegate_from": {
+      "type": "string",
+      "description": "Account granted delegation on the target (-delegate-from), typically a controlled machine account."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    }
+  },
+  "required": [
+    "target_id",
+    "domain",
+    "username",
+    "credential_ref",
+    "delegate_from"
+  ]
+}
+```
+
+来源：[`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
 ### `secrets_dump`
 
 用一个已认证账户从已授权评估主机转储本地 SAM 或目录凭据（impacket secretsdump），并返回结构化凭据行（账户、RID、LM/NT hash）。`-just-dc` 切换为针对域控制器的目录 DRSUAPI（DCSync）转储。主机与域必须匹配当前评估范围授权中声明的目标，且凭据引用必须授予；hash 按授权 evidence policy 返回以供离线分析。
@@ -3407,6 +3453,112 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-nxc/src/index.ts`](../packages/security/tool-nxc/src/index.ts)
+
+<a id="cinlantool-listeners"></a>
+
+## `@cinlan/tool-listeners`
+
+### `ntlm_relay`
+
+绑定本地 SMB/HTTP 监听器，并以 ntlmrelayx 后台作业形式把捕获的认证中继到一个已授权评估目标。调用立即返回作业 id；用 job_output 读取中继认证事件，用 job_kill 停止会话。中继目标是本运行唯一的外发方向，必须匹配当前评估范围授权中声明的目标；这属于利用执行，因此每次调用通常需要审批。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Relay target host, as declared in the assessment scope grant (the destination for captured authentication)."
+    },
+    "scheme": {
+      "type": "string",
+      "description": "Relay target scheme (-t): smb (default), http, or ldaps."
+    },
+    "listen_window_ms": {
+      "type": "integer",
+      "description": "Listen window in milliseconds; the deployment maxListenMs caps the accepted value."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+来源：[`packages/security/tool-listeners/src/index.ts`](../packages/security/tool-listeners/src/index.ts)
+
+### `responder_capture`
+
+在已授权评估网络接口上用 Responder 毒化 LLMNR/NBT-NS/MDNS 名称解析，并以后台作业形式捕获认证 hash。调用立即返回作业 id；用 job_output 读取捕获的 hash 行，用 job_kill 停止会话。监听窗口受部署配置封顶。该网络必须声明在当前评估范围授权中，且这属于利用执行——hash 按授权 evidence policy 返回以供离线破解。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Assessment network the poisoning session runs on, as declared in the assessment scope grant (e.g. the domain or segment)."
+    },
+    "interface": {
+      "type": "string",
+      "description": "Local network interface to poison on (-I), e.g. eth0."
+    },
+    "listen_window_ms": {
+      "type": "integer",
+      "description": "Listen window in milliseconds; the deployment maxListenMs caps the accepted value."
+    }
+  },
+  "required": [
+    "target_id",
+    "interface"
+  ]
+}
+```
+
+来源：[`packages/security/tool-listeners/src/index.ts`](../packages/security/tool-listeners/src/index.ts)
+
+<a id="cinlantool-certipy"></a>
+
+## `@cinlan/tool-certipy`
+
+### `adcs_find`
+
+用一个已认证账户从已授权评估域收集 Active Directory 证书服务配置（certipy find -stdout），并返回证书颁发机构与模板行。`-vulnerable` 将报告限定为存在已知提权路径（ESC 类）的条目。域名必须匹配当前评估范围授权中声明的目标，且凭据引用必须授予；这是只读目录收集，不是利用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to collect ADCS configuration from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the collection."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    },
+    "vulnerable_only": {
+      "type": "boolean",
+      "description": "Report only certificate authorities and templates with known escalation paths (-vulnerable)."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-certipy/src/index.ts`](../packages/security/tool-certipy/src/index.ts)
 
 <a id="cinlantool-knowledge-search"></a>
 

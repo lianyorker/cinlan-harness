@@ -26,6 +26,7 @@ import { buildKerberoastArgv, parseKerberoastHashes } from './kerberoast.ts'
 import { buildAsrepRoastArgv, parseAsrepRoastHashes } from './asreproast.ts'
 import { buildSecretsDumpArgv, parseSecretsDumpRows, redactSecretsRows } from './secretsdump.ts'
 import type { SecretsRedactionLevel } from './secretsdump.ts'
+import { buildRbcdArgv } from './rbcd.ts'
 
 export const name = 'tool-impacket'
 export const inject = ['tools', 'subprocess']
@@ -38,6 +39,8 @@ export interface Config {
   readonly asreproastCommand?: string
   /** impacket-secretsdump executable name or path. Default `impacket-secretsdump`. */
   readonly secretsdumpCommand?: string
+  /** impacket-rbcd executable name or path. Default `impacket-rbcd`. */
+  readonly rbcdCommand?: string
   /** Whole-run timeout in milliseconds per call; also the subprocess grace period. Default 300000. */
   readonly timeoutMs?: number
   /** Maximum UTF-8 bytes in one serialized tool result. Default 262144. */
@@ -52,6 +55,7 @@ const CONFIG_KEYS = new Set([
   'kerberoastCommand',
   'asreproastCommand',
   'secretsdumpCommand',
+  'rbcdCommand',
   'timeoutMs',
   'maxOutputBytes',
   'redactionLevel',
@@ -61,6 +65,7 @@ interface ResolvedConfig {
   readonly kerberoastCommand: string
   readonly asreproastCommand: string
   readonly secretsdumpCommand: string
+  readonly rbcdCommand: string
   readonly timeoutMs: number
   readonly maxOutputBytes: number
   readonly redactionLevel: SecretsRedactionLevel
@@ -77,6 +82,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     kerberoastCommand: config.kerberoastCommand ?? 'impacket-GetUserSPNs',
     asreproastCommand: config.asreproastCommand ?? 'impacket-GetNPUsers',
     secretsdumpCommand: config.secretsdumpCommand ?? 'impacket-secretsdump',
+    rbcdCommand: config.rbcdCommand ?? 'impacket-rbcd',
     timeoutMs: config.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxOutputBytes: config.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES,
     redactionLevel: config.redactionLevel ?? 'full',
@@ -405,5 +411,79 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Dump host credentials', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'rbcd',
+    description:
+      'Grant one controlled account resource-based constrained delegation on one authorized '
+      + 'assessment host (impacket rbcd -action write) by writing msDS-AllowedToActOnBehalfOf'
+      + 'OtherIdentity on the target. This is a persistence change on the target: the host '
+      + 'must match a target declared in the active assessment-scope grant, the credential '
+      + 'reference must be granted, and the action typically requires approval.',
+    parameters: {
+      target_id: {
+        type: 'string',
+        required: true,
+        description: 'Host receiving the delegation write, as declared in the assessment scope grant (hostname or IP).',
+      },
+      domain: {
+        type: 'string',
+        required: true,
+        description: 'Fully-qualified domain of the target and the authenticated account.',
+      },
+      username: {
+        type: 'string',
+        required: true,
+        description: 'Authenticated account name whose granted credential performs the write.',
+      },
+      credential_ref: {
+        type: 'string',
+        required: true,
+        description: 'Environment-variable-shaped name of the granted credential secret. The value never enters the conversation.',
+      },
+      delegate_from: {
+        type: 'string',
+        required: true,
+        description: 'Account granted delegation on the target (-delegate-from), typically a controlled machine account.',
+      },
+      dc_ip: {
+        type: 'string',
+        description: 'Domain controller address for -dc-ip.',
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          written: { type: 'boolean', required: true },
+          target: { type: 'string', required: true },
+          delegateFrom: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => [{
+        type: 'text',
+        text: `rbcd: delegation for ${value.delegateFrom} ${value.written ? 'written to' : 'NOT written to'} ${value.target}.`,
+      }],
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const password = await resolvePassword(ctx, refName)
+      const target = String(args.target_id)
+      const delegateFrom = String(args.delegate_from)
+      const argv = buildRbcdArgv(resolved.rbcdCommand, {
+        domain: String(args.domain),
+        username: String(args.username),
+        password,
+        target,
+        delegateFrom,
+        credentialRef: refName,
+        ...(optionalString(args.dc_ip) !== undefined ? { dcIp: String(args.dc_ip) } : {}),
+      })
+      await runCommand(ctx, argv, resolved.rbcdCommand, resolved.timeoutMs, exec.signal)
+      return { written: true, target, delegateFrom }
+    },
+    presentCall: args => ({ card: 'generic', title: 'Write RBCD delegation', kind: 'other', rawInput: args }),
   }))
 }

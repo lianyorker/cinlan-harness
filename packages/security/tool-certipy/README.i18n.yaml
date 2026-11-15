@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-certipy/README.md
+/:
+  en: 01be43624cff7865
+  zh: a5c1725f2ec96800
+/cinlan-tool-certipy:
+  en: 93ecdf92d429ae8b
+  zh: b11085cbb9f2bb0c
+/cinlan-tool-certipy/summary:
+  en: 5e7e4827c25e0cc2
+  zh: c7bbc627a8239d7f
+/cinlan-tool-certipy/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-certipy/use-this-package:
+  en: 23f88b34a556f4a1
+  zh: f3c99d1ad1db7f36
+/cinlan-tool-certipy/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-certipy/model-experience/adcs-find-tool-schema:
+  en: 5ab23548f2a460e9
+  zh: 6a02dfba17fae96c
+/cinlan-tool-certipy/model-experience/adcs-find-tool-schema/what-the-model-sees:
+  en: 66e2f93e197f9e1b
+  zh: 9f27fe9679ef98a0
+/cinlan-tool-certipy/model-experience/adcs-find-tool-schema/token-effect:
+  en: dc82d6e409f6be6b
+  zh: c89f820ecd4100e1
+/cinlan-tool-certipy/model-experience/adcs-find-tool-schema/kv-cache-effect:
+  en: 0460f98bf90e522a
+  zh: 66143d86da335745
+/cinlan-tool-certipy/known-limitations-and-deferred-work:
+  en: d3c5d19218c11f1a
+  zh: 754d6d2ba7679c0a
+/cinlan-tool-certipy/known-limitations-and-deferred-work/dev-note:
+  en: d4966f744017e86d
+  zh: 96cad4a1d2c7d1ea

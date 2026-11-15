@@ -64,6 +64,12 @@
           - asrep_roast
           - secrets_dump
           - nxc_spray
+          - adcs_find
+        exploitTools:
+          - responder_capture
+          - ntlm_relay
+        persistenceTools:
+          - rbcd
         browserTools:
           - browser_list
           - browser_snapshot
@@ -114,6 +120,10 @@
       name: '@cinlan/vuln-playbook'
     - id: engagement-ledger
       name: '@cinlan/engagement-ledger'
+    - id: jobs-local
+      name: '@deepseek-ai/dsh-jobs-local'
+    - id: tool-jobs
+      name: '@deepseek-ai/dsh-tool-jobs'
     - id: tool-nmap
       name: '@cinlan/tool-nmap'
     - id: tool-httpx
@@ -138,6 +148,10 @@
       name: '@cinlan/tool-impacket'
     - id: tool-nxc
       name: '@cinlan/tool-nxc'
+    - id: tool-listeners
+      name: '@cinlan/tool-listeners'
+    - id: tool-certipy
+      name: '@cinlan/tool-certipy'
 
     - id: security-workflow-prompt
       name: '@deepseek-ai/dsh-security-workflow-prompt'

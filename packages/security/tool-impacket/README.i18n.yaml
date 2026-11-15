@@ -9,32 +9,32 @@
   en: 52c8da99cfcbd9f7
   zh: 04b1a37b511bab79
 /cinlan-tool-impacket/summary:
-  en: e1a6769eed8da4de
-  zh: 8123e3bfd6b4f55c
+  en: 5eec002ec79e30aa
+  zh: 7e3932aa069f8d81
 /cinlan-tool-impacket/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: c31f6cc006584bc8
 /cinlan-tool-impacket/use-this-package:
-  en: feec2e361f2e5f8b
-  zh: d0aab25ceae3b3b6
+  en: 70d2339ea2732417
+  zh: 27c5694fe286be4e
 /cinlan-tool-impacket/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
-/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas:
-  en: b5b4f35a5e6a3624
-  zh: 08cbc45193553c55
-/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas/what-the-model-sees:
-  en: 4bfde9ec28a83ff9
-  zh: 3e4ad3ed63ec37ad
-/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas/token-effect:
-  en: 045653aa8337ce86
-  zh: b229145f6ef4b8ba
-/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-and-secrets-dump-tool-schemas/kv-cache-effect:
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-secrets-dump-and-rbcd-tool-schemas:
+  en: c40ec792565f44ea
+  zh: 917add2b1c8ed13a
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-secrets-dump-and-rbcd-tool-schemas/what-the-model-sees:
+  en: a9909fec0aa92489
+  zh: 74655e605e1f54c7
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-secrets-dump-and-rbcd-tool-schemas/token-effect:
+  en: 3c8d390fa714328b
+  zh: 37bbb7be96a8fcbf
+/cinlan-tool-impacket/model-experience/kerberoast-asrep-roast-secrets-dump-and-rbcd-tool-schemas/kv-cache-effect:
   en: 8a1a2e0cd13cd80a
   zh: 66143d86da335745
 /cinlan-tool-impacket/known-limitations-and-deferred-work:
-  en: ecd4fb8b74178d9e
-  zh: 23242cf09484750e
+  en: 7ddc3dc9a86eb1f1
+  zh: 875539fd5f25c057
 /cinlan-tool-impacket/known-limitations-and-deferred-work/dev-note:
   en: b9c12e272b276f7b
-  zh: ea64ce0bda9c660c
+  zh: dcb8ee95878ebd8b

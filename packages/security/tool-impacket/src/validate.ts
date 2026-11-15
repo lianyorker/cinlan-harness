@@ -7,7 +7,7 @@
 
 const MAX_DOMAIN_LENGTH = 253
 const DOMAIN_PATTERN = /^[A-Za-z0-9._\-]+$/
-const USERNAME_PATTERN = /^[A-Za-z0-9._@\-]+$/
+const USERNAME_PATTERN = /^[A-Za-z0-9._@\-]+[$]?$/
 const HOST_PATTERN = /^[A-Za-z0-9._:\[\]-]+$/
 const REF_SEGMENT_PATTERN = /^[A-Za-z0-9._\-]+$/
 

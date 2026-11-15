@@ -60,8 +60,10 @@ This table connects model-visible tool names to the plugin package and service s
 | `@cinlan/tool-katana` | `katana_crawl` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-gau` | `gau_urls` | `ctx.tools`, `ctx.subprocess` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-bloodhound` | `bloodhound_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `rbcd`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-listeners` | `ntlm_relay`, `responder_capture` | `ctx.tools`, `ctx.subprocess`, `ctx.jobs` | `tool/call`, `background job output ring` | - | - |
+| `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -3310,6 +3312,51 @@ Request service tickets for all SPN-bearing accounts in one authorized assessmen
 
 Source: [`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
 
+### `rbcd`
+
+Grant one controlled account resource-based constrained delegation on one authorized assessment host (impacket rbcd -action write) by writing msDS-AllowedToActOnBehalfOfOtherIdentity on the target. This is a persistence change on the target: the host must match a target declared in the active assessment-scope grant, the credential reference must be granted, and the action typically requires approval.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Host receiving the delegation write, as declared in the assessment scope grant (hostname or IP)."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Fully-qualified domain of the target and the authenticated account."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the write."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+    },
+    "delegate_from": {
+      "type": "string",
+      "description": "Account granted delegation on the target (-delegate-from), typically a controlled machine account."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    }
+  },
+  "required": [
+    "target_id",
+    "domain",
+    "username",
+    "credential_ref",
+    "delegate_from"
+  ]
+}
+```
+
+Source: [`packages/security/tool-impacket/src/index.ts`](../packages/security/tool-impacket/src/index.ts)
+
 ### `secrets_dump`
 
 Dump local SAM or directory credentials from one authorized assessment host with an authenticated account (impacket secretsdump) and return structured credential rows (account, rid, LM/NT hash). `-just-dc` switches to the directory DRSUAPI (DCSync) dump against a domain controller. The host and domain must match targets declared in the active assessment-scope grant and the credential reference must be granted; hashes are returned for offline analysis under the grant evidence policy.
@@ -3400,6 +3447,112 @@ Try one granted credential against candidate accounts on one authorized assessme
 ```
 
 Source: [`packages/security/tool-nxc/src/index.ts`](../packages/security/tool-nxc/src/index.ts)
+
+<a id="cinlantool-listeners"></a>
+
+## `@cinlan/tool-listeners`
+
+### `ntlm_relay`
+
+Bind local SMB/HTTP listeners and relay captured authentication to one authorized assessment target with ntlmrelayx as a background job. The call returns a job id at once; read relayed-authentication events with job_output and stop the session with job_kill. The relay target is the run's only outbound destination and must match a target declared in the active assessment-scope grant; this is exploit execution, so each call typically requires approval.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Relay target host, as declared in the assessment scope grant (the destination for captured authentication)."
+    },
+    "scheme": {
+      "type": "string",
+      "description": "Relay target scheme (-t): smb (default), http, or ldaps."
+    },
+    "listen_window_ms": {
+      "type": "integer",
+      "description": "Listen window in milliseconds; the deployment maxListenMs caps the accepted value."
+    }
+  },
+  "required": [
+    "target_id"
+  ]
+}
+```
+
+Source: [`packages/security/tool-listeners/src/index.ts`](../packages/security/tool-listeners/src/index.ts)
+
+### `responder_capture`
+
+Poison LLMNR/NBT-NS/MDNS name resolution on one assessment network interface with Responder and capture authentication hashes as a background job. The call returns a job id at once; read captured hash lines with job_output and stop the session with job_kill. The listen window is capped by deployment config. The network must be declared in the active assessment-scope grant and this is exploit execution — hashes are returned for offline cracking under the grant evidence policy.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Assessment network the poisoning session runs on, as declared in the assessment scope grant (e.g. the domain or segment)."
+    },
+    "interface": {
+      "type": "string",
+      "description": "Local network interface to poison on (-I), e.g. eth0."
+    },
+    "listen_window_ms": {
+      "type": "integer",
+      "description": "Listen window in milliseconds; the deployment maxListenMs caps the accepted value."
+    }
+  },
+  "required": [
+    "target_id",
+    "interface"
+  ]
+}
+```
+
+Source: [`packages/security/tool-listeners/src/index.ts`](../packages/security/tool-listeners/src/index.ts)
+
+<a id="cinlantool-certipy"></a>
+
+## `@cinlan/tool-certipy`
+
+### `adcs_find`
+
+Collect Active Directory Certificate Services configuration from one authorized assessment domain with an authenticated account (certipy find -stdout) and return certificate-authority and template rows. `-vulnerable` restricts the report to entries with known escalation paths (ESC classes). The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted; this is read-only directory collection, not exploitation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to collect ADCS configuration from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the collection."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    },
+    "vulnerable_only": {
+      "type": "boolean",
+      "description": "Report only certificate authorities and templates with known escalation paths (-vulnerable)."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-certipy/src/index.ts`](../packages/security/tool-certipy/src/index.ts)
 
 <a id="cinlantool-knowledge-search"></a>
 

@@ -28,6 +28,8 @@ async function mount(outcome: 'allow' | 'deny' | 'approval-required' = 'allow', 
     ...(config.networkTools === undefined ? {} : { networkTools: [...config.networkTools] }),
     ...(config.browserTools === undefined ? {} : { browserTools: [...config.browserTools] }),
     ...(config.credentialTools === undefined ? {} : { credentialTools: [...config.credentialTools] }),
+    ...(config.exploitTools === undefined ? {} : { exploitTools: [...config.exploitTools] }),
+    ...(config.persistenceTools === undefined ? {} : { persistenceTools: [...config.persistenceTools] }),
     ...(config.workspaceCommands === undefined ? {} : { workspaceCommands: config.workspaceCommands.map(entry => ({ ...entry })) }),
   })
   return { ctx, authorize }
@@ -122,6 +124,26 @@ describe('assessment scope tool policy', () => {
     const b = await mount('approval-required', { credentialTools: ['nxc_spray'] })
     const execution = makeExecution('nxc_spray', { target_id: 'example.test', credential_ref: 'ASSESS_AD_PASS' })
     await expect(pre(b.ctx, execution)).resolves.toMatchObject({ kind: 'ask' })
+  })
+
+  it('maps exploit and persistence tools onto their actions without credential arguments', async () => {
+    const b = await mount('allow', { exploitTools: ['responder_capture'], persistenceTools: ['rbcd'] })
+    await expect(pre(b.ctx, makeExecution('responder_capture', { target_id: 'example.test', interface: 'eth0' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+    expect(b.authorize).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      action: 'exploit-execution',
+    }))
+    await expect(pre(b.ctx, makeExecution('rbcd', { target_id: 'example.test', delegate_from: 'EVIL$' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+    expect(b.authorize).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      action: 'persistence-change',
+    }))
+  })
+
+  it('rejects invalid exploitTools and persistenceTools configuration at load', async () => {
+    await expect(mount('deny', { exploitTools: [''] })).rejects.toThrow(/invalid exploitTools/)
+    await expect(mount('deny', { persistenceTools: [' rbcd'] })).rejects.toThrow(/invalid persistenceTools/)
+    await expect(mount('deny', { persistenceTools: ['rbcd', 'rbcd'] })).rejects.toThrow(/invalid persistenceTools/)
   })
 
   it('rejects invalid credentialTools configuration at load', async () => {

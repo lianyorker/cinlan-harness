@@ -25,6 +25,8 @@ kind: "package-reference"
 
 `credentialTools` 默认为空（不启用任何凭据工具）。每个列入的工具调用映射为 `credential-use` 动作，且必须携带格式合法的 `credential_ref` 参数（已授权密钥的 env-var 语法名字，绝不是值）；Consumer 把该引用解析为运算凭据，供范围服务按 `target-authentication` 用途与授权的 `credentials` 条目匹配。把 `credential-use` 列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示。缺省或空列表均不启用凭据工具；提供的列表必须无首尾空白且无重复。
 
+`exploitTools` 与 `persistenceTools` 形状相同，分别把调用映射为 `exploit-execution` 与 `persistence-change` 动作，且不要求凭据参数。把这两个动作列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示。
+
 `workspaceCommands` 默认为空列表。每项指定已配置的 shell `tool` 和精确 `command`；空值、首尾空白、重复项或非 shell 项会在加载时失败。匹配调用必须具有绝对路径的 Session 工作区，且实际工作目录存在、解析后的路径位于工作区内。显式目标或 URL 参数、sandbox 权限覆盖及后台执行不适用此例外。未匹配的调用继续检查评估范围；获准的工作区命令仍经过下游守卫和 sandbox policy。
 
 这些配置项信任工作区及其命令环境，包括包管理器执行的脚本。它们不会把任意 shell 文本判定为安全，也不会把子进程影响限制在工作目录内；此隔离由部署 sandbox 负责。

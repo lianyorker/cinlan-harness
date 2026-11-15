@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 2e5804e1655baadf
-  zh: 20633d536062e9b0
+  en: cd5f707bb3c6703c
+  zh: 9d99d6de5871c302
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -416,6 +416,9 @@
 /tool-schema-catalog/cinlan-tool-impacket/kerberoast:
   en: 16cf18bc00e320cd
   zh: f48e98c114202192
+/tool-schema-catalog/cinlan-tool-impacket/rbcd:
+  en: 85cc13362d66c797
+  zh: d0b3363350369b81
 /tool-schema-catalog/cinlan-tool-impacket/secrets-dump:
   en: f6b2fa6dad963c5b
   zh: f692cba68be331fb
@@ -423,8 +426,23 @@
   en: 303c481addf10a03
   zh: 303c481addf10a03
 /tool-schema-catalog/cinlan-tool-nxc/nxc-spray:
-  en: e1351d32839d0281
-  zh: 148be75ccf4d132c
+  en: 8f30b70073c5e36a
+  zh: 45c9598b768422e0
+/tool-schema-catalog/cinlan-tool-listeners:
+  en: f9b76f295d6eaa0c
+  zh: f9b76f295d6eaa0c
+/tool-schema-catalog/cinlan-tool-listeners/ntlm-relay:
+  en: 1e71be78be3bd1c0
+  zh: 60680b7776d2f764
+/tool-schema-catalog/cinlan-tool-listeners/responder-capture:
+  en: 923ea9b62c71d24f
+  zh: a744cb0b33cb29c7
+/tool-schema-catalog/cinlan-tool-certipy:
+  en: 3f979726d4bc4bd2
+  zh: 3f979726d4bc4bd2
+/tool-schema-catalog/cinlan-tool-certipy/adcs-find:
+  en: a80a346019e78cfc
+  zh: e494ea9460a40caf
 /tool-schema-catalog/cinlan-tool-knowledge-search:
   en: ae89aad320d90482
   zh: ae89aad320d90482

@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/security/tool-listeners/README.md
+/:
+  en: 99d1e0fb4129b0e5
+  zh: fb41ec230b60585a
+/cinlan-tool-listeners:
+  en: 9507845f61108148
+  zh: 016e7cf598b4b9a1
+/cinlan-tool-listeners/summary:
+  en: e51ca733a40ac77c
+  zh: cbd40b39842750aa
+/cinlan-tool-listeners/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: c31f6cc006584bc8
+/cinlan-tool-listeners/use-this-package:
+  en: b4916ef3d6ed8ecc
+  zh: c6ea24925e31e35c
+/cinlan-tool-listeners/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/cinlan-tool-listeners/model-experience/responder-capture-and-ntlm-relay-tool-schemas:
+  en: 4461856650b8081a
+  zh: b92cb0bda37ec193
+/cinlan-tool-listeners/model-experience/responder-capture-and-ntlm-relay-tool-schemas/what-the-model-sees:
+  en: 7ef8b332ded86af2
+  zh: 633dae1ae2dc0b54
+/cinlan-tool-listeners/model-experience/responder-capture-and-ntlm-relay-tool-schemas/token-effect:
+  en: 5e21286eb36a1b41
+  zh: 562cd738885382de
+/cinlan-tool-listeners/model-experience/responder-capture-and-ntlm-relay-tool-schemas/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
+  zh: 66143d86da335745
+/cinlan-tool-listeners/known-limitations-and-deferred-work:
+  en: 94c0bca37cd2ea93
+  zh: 72f3c66d658cad39
+/cinlan-tool-listeners/known-limitations-and-deferred-work/dev-note:
+  en: 9bbd185cde1bbb8b
+  zh: b71b58acd15fc80e

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildKerberoastArgv, parseKerberoastHashes } from '../src/kerberoast.ts'
 import { buildAsrepRoastArgv, parseAsrepRoastHashes } from '../src/asreproast.ts'
 import { buildSecretsDumpArgv, parseSecretsDumpRows, redactSecretsRows } from '../src/secretsdump.ts'
+import { buildRbcdArgv } from '../src/rbcd.ts'
 
 const BASE = {
   domain: 'lab.example.invalid',
@@ -103,5 +104,30 @@ describe('parseSecretsDumpRows and redactSecretsRows', () => {
       { account: 'GUEST', rid: 501, lmHash: '[redacted]', ntHash: '[redacted]' },
       { account: 'krbtgt', rid: 502, lmHash: '[redacted]', ntHash: '[redacted]' },
     ])
+  })
+})
+
+describe('buildRbcdArgv', () => {
+  it('builds a fixed write action with delegate-from and the secret in the target argument', () => {
+    expect(buildRbcdArgv('impacket-rbcd', {
+      ...BASE,
+      target: 'ws01.lab.example.invalid',
+      delegateFrom: 'EVIL-WS$',
+    })).toEqual([
+      'impacket-rbcd', '-delegate-from', 'EVIL-WS$', '-action', 'write',
+      'lab.example.invalid/svc-scan:resolved-secret@ws01.lab.example.invalid',
+    ])
+    expect(buildRbcdArgv('impacket-rbcd', {
+      ...BASE,
+      target: 'ws01.lab.example.invalid',
+      delegateFrom: 'EVIL-WS$',
+      dcIp: '10.0.0.10',
+    })).toContain('-dc-ip')
+  })
+
+  it('rejects injection-shaped targets and delegate accounts', () => {
+    expect(() => buildRbcdArgv('impacket-rbcd', { ...BASE, target: '-action', delegateFrom: 'EVIL-WS$' })).toThrow(TypeError)
+    expect(() => buildRbcdArgv('impacket-rbcd', { ...BASE, target: 'ws01.lab.example.invalid', delegateFrom: 'a;id' })).toThrow(TypeError)
+    expect(() => buildRbcdArgv('impacket-rbcd', { ...BASE, target: 'ws01.lab.example.invalid', delegateFrom: '' })).toThrow(TypeError)
   })
 })

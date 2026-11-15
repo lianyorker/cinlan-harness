@@ -1425,7 +1425,13 @@
       "path": "./packages/security/tool-subfinder"
     },
     {
+      "path": "./packages/security/tool-certipy"
+    },
+    {
       "path": "./packages/security/tool-httpx"
+    },
+    {
+      "path": "./packages/security/tool-listeners"
     },
     {
       "path": "./packages/security/tool-ffuf"

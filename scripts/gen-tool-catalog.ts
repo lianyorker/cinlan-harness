@@ -106,6 +106,8 @@ import * as ToolGau from '@cinlan/tool-gau'
 import * as ToolBloodhound from '@cinlan/tool-bloodhound'
 import * as ToolImpacket from '@cinlan/tool-impacket'
 import * as ToolNxc from '@cinlan/tool-nxc'
+import * as ToolListeners from '@cinlan/tool-listeners'
+import * as ToolCertipy from '@cinlan/tool-certipy'
 import BrowserRuntime from '@deepseek-ai/dsh-browser'
 import ComputerUseRuntime from '@deepseek-ai/dsh-computer-use'
 import MobileDeviceRuntime from '@deepseek-ai/dsh-mobile-device'
@@ -899,6 +901,29 @@ const TOOL_PACKAGES: ToolPackage[] = [
     async mount(ctx) {
       await ctx.plugin(LocalSubprocessRuntime)
       await ctx.plugin(ToolNxc)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-listeners',
+    dir: 'tool-listeners',
+    source: 'packages/security/tool-listeners/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.jobs'],
+    writes: ['tool/call', 'background job output ring'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(LocalJobRegistry)
+      await ctx.plugin(ToolListeners)
+    },
+  },
+  {
+    pkg: '@cinlan/tool-certipy',
+    dir: 'tool-certipy',
+    source: 'packages/security/tool-certipy/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.credentials (execution-time secret resolution)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolCertipy)
     },
   },
   {

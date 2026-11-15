@@ -269,6 +269,9 @@ securityInstallCommand: 'dsh --profile security-research',
 | `tool-bloodhound` | `bloodhound_enum` | 目录收集 → mkdtemp 产物 → 分诊摘要（各收集器计数 + 可 Kerberoast/AS-REP Roast 账户清单）→ 自清理 |
 | `tool-impacket` | `keroboast` / `asrep_roast` / `secrets_dump` | 一包三工具：SPN 票据请求、无预认证 hash、SAM/NTDS 转储（`-just-dc` 含 DCSync 路径）；`redactionLevel: full\|masked`（默认 full） |
 | `tool-nxc` | `nxc_spray` | 密码喷洒（smb/ldap/mssql/winrm/ssh），命中行解析时抹除密码，`--threads` 受部署 `maxThreads` 上限 |
+| `tool-listeners` | `responder_capture` / `ntlm_relay` | ctx.jobs 后台监听作业（立即返回 jobId，`job_output`/`job_kill` 操作）；本地 bind 为监听面、relay 目标为唯一外发方向，`maxListenMs` 封顶会话窗口；映射 `exploit-execution` |
+| `tool-certipy` | `adcs_find` | ADCS 收集（certipy find -stdout），CA/模板行解析，`-vulnerable` 过滤 ESC 类路径；映射 `credential-use` |
+| `tool-impacket` 增量 | `rbcd` | impacket-rbcd 约束委派写入（固定 `-action write`），映射 `persistence-change` |
 
 接线点（每包相同清单）：`package.json`（`@cinlan/*`，peer/devDep cordis+dsh-subprocess+dsh-tools）、`tsconfig.json`（引用 vendor/cordis、core/tools、subprocess/subprocess）、`src/<tool>.ts` 纯函数、`src/index.ts` 注册、`tests/*.spec.ts`、README（英/中/`README.i18n.yaml`，哈希已用 pairing 命令重录）、`packages/bundle/security-research/cordis.patch.yml`（insert + `networkTools`）、`packages/bundle/security-research/package.json` 依赖、`tsconfig.host.json` references（九个 tool-* 与 `vuln-playbook`/`engagement-ledger` 均已登记）、`tsconfig.base.json` paths（`@cinlan/tool-*` 源码映射，供脚本源码面解析）。
 
@@ -280,11 +283,14 @@ securityInstallCommand: 'dsh --profile security-research',
 
 ### 9.3 P0 后续批次
 
-1. 域环境第二批：`Responder` / `ntlmrelayx`（设计见 9.5）；委派攻击（rbcd）、ADCS（certipy）同批增量。
+1. ESC 利用链（certipy req/forge）、ntlmrelayx SOCKS 链、Responder 之外的投毒面——待第二批验证反馈后评估。
+2. 云平台批次（AWS/Azure/GCP/阿里云/腾讯云/华为云 CLI + 元数据利用）。
 
-### 9.5 域环境第二批设计草案（监听器生命周期，待确认）
+### 9.5 域环境第二批（已实施，按最优选项落地）
 
-#### 现有机制（设计依据）
+三项设计决策均按建议落地：监听器用 ctx.jobs 后台作业（`@cinlan/tool-listeners` 一包两工具，`responder_capture` + `ntlm_relay`）；`exploit-execution` 与 `persistence-change` 建议部署列入 grant 的 `approvalRequiredActions`（bundle `exploitTools`/`persistenceTools` 列表已接线）；responder 捕获 hash 沿用 `full`（作业环形缓冲原样流式）。同批增量：`rbcd`（impacket 包第 4 工具，`persistenceTools` → `persistence-change`）、`adcs_find`（`@cinlan/tool-certipy`，`credentialTools` → `credential-use`）。授权侧 `assessment-scope-tool-policy` 泛化出 `optionalSelected` 并新增 `exploitTools`/`persistenceTools` 两类映射。
+
+#### 设计依据（保留记录）
 
 - `ctx.jobs.start({kind, label, owner, toolCall, run(job)})`：run 同步返回 `JobHooks`（`cancel(reason)` 同步终止 + `done: Promise<JobOutcome>`），`job.append` 写入输出环形缓冲；模型经 `job_list`/`job_output`/`job_kill` 观察、读取、终止——tool-bash 的 `run_in_background` 即此模式。**监听器生命周期无需新基础设施**。
 - `AssessmentAction` 已含 `exploit-execution`；照抄 `credentialTools` 模式新增第 5 类 `exploitTools` 即完成动作映射。
@@ -305,11 +311,11 @@ securityInstallCommand: 'dsh --profile security-research',
 - `tool-rbcd`：`impacket-rbcd`（RBCD 委派篡改，写目标机器的 msDS-AllowedToActOnBehalfOfOtherIdentity——`persistence-change` 动作，需新增第 6 类 `persistenceTools`）
 - `tool-certipy`：`certipy find`（ADCS ESC 面检查，只读，`credentialTools` 或 `reconnaissance` 二选一，推荐 `credential-use`——需要域凭据）
 
-#### 待决策
+#### 已采纳的决策
 
-1. Responder/ntlmrelayx 用 ctx.jobs 后台作业（长窗口、可观察）而非有界前台窗口（简单但阻塞回合）——推荐前者；
-2. `exploit-execution` 与 `persistence-change` 强制进 `approvalRequiredActions`（bundle 侧 grant 示例直接写死）；
-3. responder 捕获 hash 回显策略沿用 `full`（与 secrets_dump 一致）。
+1. 监听器走 ctx.jobs 后台作业（长窗口、流式观察、不阻塞回合）；
+2. `exploit-execution` 与 `persistence-change` 进部署 grant 示例的 `approvalRequiredActions`；
+3. responder 捕获 hash 回显 `full`（与 secrets_dump 一致）。
 
 ### 9.4 域环境批次（已实施，按最优选项落地）
 
