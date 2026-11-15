@@ -68,12 +68,12 @@
 | `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-listeners` | `ntlm_relay`, `responder_capture` | `ctx.tools`, `ctx.subprocess`, `ctx.jobs` | `tool/call`, `background job output ring` | - | - |
 | `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-aws` | `iam_enum`, `s3_enum`, `sts_get_caller_identity` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-azure` | `az_account_show`, `azure_ad_enum`, `azure_storage_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-gcp` | `gcp_iam_enum`, `gcp_identity_get`, `gcs_bucket_iam`, `gcs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-aliyun` | `aliyun_identity_get`, `oss_enum`, `ram_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-tencent` | `cam_enum`, `cos_enum`, `tencent_identity_get` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
-| `@cinlan/tool-huawei` | `huawei_iam_enum`, `huawei_identity_get`, `obs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-aws` | `iam_enum`, `iam_policy_attach`, `iam_policy_detach`, `s3_enum`, `sts_get_caller_identity` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-azure` | `az_account_show`, `azure_ad_enum`, `azure_storage_enum`, `role_assignment_create`, `role_assignment_delete` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-gcp` | `gcp_iam_enum`, `gcp_identity_get`, `gcs_bucket_iam`, `gcs_enum`, `iam_binding_add`, `iam_binding_remove` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-aliyun` | `aliyun_identity_get`, `oss_enum`, `ram_enum`, `ram_policy_attach`, `ram_policy_detach` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-tencent` | `cam_enum`, `cam_policy_attach`, `cam_policy_detach`, `cos_enum`, `tencent_identity_get` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-huawei` | `huawei_iam_enum`, `huawei_identity_get`, `iam_group_add_user`, `iam_group_remove_user`, `obs_enum` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-knowledge-search` | `knowledge_list_documents`, `knowledge_search` | `ctx.tools`, `ctx.knowledgeBase` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser` | `browser_back`, `browser_click`, `browser_close`, `browser_downloads`, `browser_forward`, `browser_history`, `browser_home`, `browser_list`, `browser_navigate`, `browser_network`, `browser_open`, `browser_save_download`, `browser_screenshot`, `browser_search`, `browser_snapshot`, `browser_upload` | `ctx.tools`, `ctx.browser`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (download persistence, screenshot admission)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
@@ -3612,6 +3612,83 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
+### `iam_policy_attach`
+
+把一个已存在的 AWS managed policy 授予一个已授权 IAM 用户（aws iam attach-user-policy）。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，写动作必须授予，且部署通常要求每次调用审批。之后用 iam_policy_detach 验证/回滚授予；绝不构造策略文档。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "AWS account id holding the user and policy, as declared in the assessment scope grant."
+    },
+    "policy_arn": {
+      "type": "string",
+      "description": "ARN of an existing managed policy to grant; no policy document is ever composed."
+    },
+    "username": {
+      "type": "string",
+      "description": "IAM user name the policy is granted to or rolled back for."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "policy_arn",
+    "username"
+  ]
+}
+```
+
+来源：[`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
+### `iam_policy_detach`
+
+回滚一个已授权 IAM 用户身上的 AWS managed policy 授予（aws iam detach-user-policy）。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且写动作必须授予；部署通常要求每次调用审批。卸下未附加的策略会以明确的 CLI 错误失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "AWS account id holding the user and policy, as declared in the assessment scope grant."
+    },
+    "policy_arn": {
+      "type": "string",
+      "description": "ARN of an existing managed policy to grant; no policy document is ever composed."
+    },
+    "username": {
+      "type": "string",
+      "description": "IAM user name the policy is granted to or rolled back for."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "policy_arn",
+    "username"
+  ]
+}
+```
+
+来源：[`packages/security/tool-aws/src/index.ts`](../packages/security/tool-aws/src/index.ts)
+
 ### `s3_enum`
 
 用授予的凭据列出一个已授权 AWS 账户的 S3 桶（aws s3api list-buckets），并可选地用 get-bucket-policy-status 逐桶检查公开策略状态。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；公开策略检查按 region 作用域执行，与桶不匹配的 region 会把该桶报告为 unknown。这是只读存储侦察。
@@ -3772,6 +3849,94 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-azure/src/index.ts`](../packages/security/tool-azure/src/index.ts)
+### `role_assignment_create`
+
+把一个已存在的 Azure 角色在已授权 scope 授予一个 assignee（az role assignment create）。这是对租户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，写动作必须授予，且部署通常要求每次调用审批。之后用 role_assignment_delete 验证/回滚授予。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Azure tenant or account id holding the assignee and role, as declared in the assessment scope grant."
+    },
+    "assignee": {
+      "type": "string",
+      "description": "Assignee object id (GUID) or user principal name the role is granted to or rolled back for."
+    },
+    "role": {
+      "type": "string",
+      "description": "Existing role display name or role-definition GUID; no role definition is ever composed."
+    },
+    "scope": {
+      "type": "string",
+      "description": "Assignment scope, as /subscriptions/<guid>/... paths."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+    },
+    "subscription": {
+      "type": "string",
+      "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "assignee",
+    "role",
+    "scope",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-azure/src/index.ts`](../packages/security/tool-azure/src/index.ts)
+### `role_assignment_delete`
+
+回滚一个已授权 scope 上某 assignee 的 Azure 角色分配（az role assignment delete）。这是对租户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且写动作必须授予；部署通常要求每次调用审批。删除不存在的分配以无变更结束。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Azure tenant or account id holding the assignee and role, as declared in the assessment scope grant."
+    },
+    "assignee": {
+      "type": "string",
+      "description": "Assignee object id (GUID) or user principal name the role is granted to or rolled back for."
+    },
+    "role": {
+      "type": "string",
+      "description": "Existing role display name or role-definition GUID; no role definition is ever composed."
+    },
+    "scope": {
+      "type": "string",
+      "description": "Assignment scope, as /subscriptions/<guid>/... paths."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+    },
+    "subscription": {
+      "type": "string",
+      "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "assignee",
+    "role",
+    "scope",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-azure/src/index.ts`](../packages/security/tool-azure/src/index.ts)
 
 <a id="cinlantool-gcp"></a>
 
@@ -3900,6 +4065,86 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
+### `iam_binding_add`
+
+把一个已存在的 GCP 角色在已授权项目上授予一个成员（gcloud projects add-iam-policy-binding）。这是对项目的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，写动作必须授予，且部署通常要求每次调用审批。之后用 iam_binding_remove 验证/回滚授予。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "GCP account to modify, as declared in the assessment scope grant."
+    },
+    "project": {
+      "type": "string",
+      "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+    },
+    "member": {
+      "type": "string",
+      "description": "Member to bind or unbind, as user:<email>, serviceAccount:<email>, group:<email>, or domain:<domain>."
+    },
+    "role": {
+      "type": "string",
+      "description": "Existing role name, as roles/<name>; no policy document is ever composed."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+    }
+  },
+  "required": [
+    "target_id",
+    "project",
+    "member",
+    "role",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
+### `iam_binding_remove`
+
+回滚一个已授权项目上某成员的 GCP 角色绑定（gcloud projects remove-iam-policy-binding）。这是对项目的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且写动作必须授予；部署通常要求每次调用审批。移除不存在的绑定会以明确的 CLI 错误失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "GCP account to modify, as declared in the assessment scope grant."
+    },
+    "project": {
+      "type": "string",
+      "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+    },
+    "member": {
+      "type": "string",
+      "description": "Member to bind or unbind, as user:<email>, serviceAccount:<email>, group:<email>, or domain:<domain>."
+    },
+    "role": {
+      "type": "string",
+      "description": "Existing role name, as roles/<name>; no policy document is ever composed."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+    }
+  },
+  "required": [
+    "target_id",
+    "project",
+    "member",
+    "role",
+    "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-gcp/src/index.ts`](../packages/security/tool-gcp/src/index.ts)
 
 <a id="cinlantool-aliyun"></a>
 
@@ -4002,6 +4247,103 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
+### `ram_policy_attach`
+
+把一个已存在的阿里云 RAM policy 授予一个已授权 RAM 用户（aliyun ram AttachUserPolicy）。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，写动作必须授予，且部署通常要求每次调用审批。之后用 ram_policy_detach 验证/回滚授予。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Alibaba Cloud account id holding the user and policy, as declared in the assessment scope grant."
+    },
+    "policy_type": {
+      "type": "string",
+      "description": "RAM policy type of an existing policy; no policy document is ever composed.",
+      "enum": [
+        "Custom",
+        "System"
+      ]
+    },
+    "policy_name": {
+      "type": "string",
+      "description": "Name of an existing RAM policy to grant or roll back."
+    },
+    "username": {
+      "type": "string",
+      "description": "RAM user name the policy is granted to or rolled back for."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+    }
+  },
+  "required": [
+    "target_id",
+    "policy_type",
+    "policy_name",
+    "username",
+    "region"
+  ]
+}
+```
+
+来源：[`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
+### `ram_policy_detach`
+
+回滚一个已授权 RAM 用户身上的阿里云 RAM policy 授予（aliyun ram DetachUserPolicy）。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且写动作必须授予；部署通常要求每次调用审批。卸下未附加的策略会以明确的 CLI 错误失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Alibaba Cloud account id holding the user and policy, as declared in the assessment scope grant."
+    },
+    "policy_type": {
+      "type": "string",
+      "description": "RAM policy type of an existing policy; no policy document is ever composed.",
+      "enum": [
+        "Custom",
+        "System"
+      ]
+    },
+    "policy_name": {
+      "type": "string",
+      "description": "Name of an existing RAM policy to grant or roll back."
+    },
+    "username": {
+      "type": "string",
+      "description": "RAM user name the policy is granted to or rolled back for."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+    }
+  },
+  "required": [
+    "target_id",
+    "policy_type",
+    "policy_name",
+    "username",
+    "region"
+  ]
+}
+```
+
+来源：[`packages/security/tool-aliyun/src/index.ts`](../packages/security/tool-aliyun/src/index.ts)
+
 <a id="cinlantool-tencent"></a>
 
 ## `@cinlan/tool-tencent`
@@ -4048,6 +4390,85 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
+### `cam_policy_attach`
+
+把一个已存在的腾讯云 CAM policy 授予一个已授权用户（tccli cam AttachUserPolicy）。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，写动作必须授予，且部署通常要求每次调用审批。之后用 cam_policy_detach 验证/回滚授予。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Tencent Cloud account id holding the user and policy, as declared in the assessment scope grant."
+    },
+    "policy_id": {
+      "type": "number",
+      "description": "Numeric id of an existing CAM policy; no policy document is ever composed."
+    },
+    "uin": {
+      "type": "number",
+      "description": "Numeric UIN of the CAM user the policy is granted to or rolled back for."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "policy_id",
+    "uin",
+    "region"
+  ]
+}
+```
+
+来源：[`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
+### `cam_policy_detach`
+
+回滚一个已授权用户身上的腾讯云 CAM policy 授予（tccli cam DetachUserPolicy）。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且写动作必须授予；部署通常要求每次调用审批。卸下未附加的策略会以明确的 CLI 错误失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Tencent Cloud account id holding the user and policy, as declared in the assessment scope grant."
+    },
+    "policy_id": {
+      "type": "number",
+      "description": "Numeric id of an existing CAM policy; no policy document is ever composed."
+    },
+    "uin": {
+      "type": "number",
+      "description": "Numeric UIN of the CAM user the policy is granted to or rolled back for."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "policy_id",
+    "uin",
+    "region"
+  ]
+}
+```
+
+来源：[`packages/security/tool-tencent/src/index.ts`](../packages/security/tool-tencent/src/index.ts)
+
 ### `cos_enum`
 
 用授予的凭据列出一个已授权腾讯云账户的 COS 桶（tccli cos GetService），并可选地用 GetBucketAcl 逐桶检查匿名读授权。target_id 必须匹配当前评估范围授权中声明的 cloud 目标；这是只读存储侦察。
@@ -4183,6 +4604,87 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   },
   "required": [
     "target_id",
+    "credential_ref",
+    "region"
+  ]
+}
+```
+
+来源：[`packages/security/tool-huawei/src/index.ts`](../packages/security/tool-huawei/src/index.ts)
+
+### `iam_group_add_user`
+
+把一个已授权华为云用户加入一个 IAM 用户组（华为云 KooCLI：hcloud IAM KeystoneAddUserToGroup）——组成员继承组的策略，由此验证写路径。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，写动作必须授予，且部署通常要求每次调用审批。之后用 iam_group_remove_user 验证/回滚。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Huawei Cloud account id holding the user and group, as declared in the assessment scope grant."
+    },
+    "user_id": {
+      "type": "string",
+      "description": "IAM user id to add to or remove from the authorization group."
+    },
+    "group_id": {
+      "type": "string",
+      "description": "IAM user-group id — the group's own policies govern what the membership grants; no group or policy document is ever composed."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "user_id",
+    "group_id",
+    "credential_ref",
+    "region"
+  ]
+}
+```
+
+来源：[`packages/security/tool-huawei/src/index.ts`](../packages/security/tool-huawei/src/index.ts)
+### `iam_group_remove_user`
+
+把一个已授权华为云用户从一个 IAM 用户组移除（华为云 KooCLI：hcloud IAM KeystoneRemoveUserFromGroup）。这是对账户的持久化变更：target_id 必须匹配当前评估范围授权中声明的 cloud 目标，且写动作必须授予；部署通常要求每次调用审批。移除不存在的成员关系会以明确的 CLI 错误失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Huawei Cloud account id holding the user and group, as declared in the assessment scope grant."
+    },
+    "user_id": {
+      "type": "string",
+      "description": "IAM user id to add to or remove from the authorization group."
+    },
+    "group_id": {
+      "type": "string",
+      "description": "IAM user-group id — the group's own policies govern what the membership grants; no group or policy document is ever composed."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+    },
+    "region": {
+      "type": "string",
+      "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+    }
+  },
+  "required": [
+    "target_id",
+    "user_id",
+    "group_id",
     "credential_ref",
     "region"
   ]

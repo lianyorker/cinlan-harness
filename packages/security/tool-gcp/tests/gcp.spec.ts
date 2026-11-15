@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildGcsBucketIamArgv, buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
+  buildBindingAddArgv, buildBindingRemoveArgv, buildGcsBucketIamArgv, buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
   isPublicBucketIam, parseAncestors, parseGcsBucketIam, parseGcsBuckets, parseIamBindings, parseServiceAccountSecret,
 } from '../src/gcp.ts'
 
@@ -78,6 +78,29 @@ describe('parseGcsBucketIam and isPublicBucketIam', () => {
     expect(parseGcsBucketIam('')).toEqual([])
     expect(parseGcsBucketIam('not json')).toEqual([])
     expect(parseGcsBucketIam('{"bindings": "no"}')).toEqual([])
+  })
+})
+
+describe('buildBindingAddArgv and buildBindingRemoveArgv', () => {
+  const REQUEST = { projectId: 'proj-a', member: 'user:svc-scan@example.invalid', role: 'roles/viewer' } as const
+  it('builds symmetric add and remove binding calls', () => {
+    expect(buildBindingAddArgv('gcloud', REQUEST)).toEqual([
+      'gcloud', 'projects', 'add-iam-policy-binding', 'proj-a',
+      '--member=user:svc-scan@example.invalid', '--role=roles/viewer', '--format=json',
+    ])
+    expect(buildBindingRemoveArgv('gcloud', REQUEST)).toEqual([
+      'gcloud', 'projects', 'remove-iam-policy-binding', 'proj-a',
+      '--member=user:svc-scan@example.invalid', '--role=roles/viewer', '--format=json',
+    ])
+  })
+
+  it('rejects policy documents, malformed members, and injection-shaped roles', () => {
+    for (const member of ['', '-user:x', 'svc-scan@example.invalid', 'user:x;id', 'user:']) {
+      expect(() => buildBindingAddArgv('gcloud', { ...REQUEST, member })).toThrow(TypeError)
+    }
+    for (const role of ['', '-roles/x', 'roles/x;id', 'viewer', 'roles/']) {
+      expect(() => buildBindingRemoveArgv('gcloud', { ...REQUEST, role })).toThrow(TypeError)
+    }
   })
 })
 

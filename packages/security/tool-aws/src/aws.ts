@@ -151,6 +151,69 @@ export function buildIamArgv(awsPath: string, request: IamRequest): string[] {
   return argv
 }
 
+/** Validated managed-policy grant request accepted by the attach/detach builders. */
+export interface AttachPolicyRequest {
+  /** ARN of an existing managed policy. Never starts with `-`. */
+  readonly policyArn: string
+  /** User name the policy is granted to. Never starts with `-`. */
+  readonly userName: string
+  /** Explicit `--region`; absent uses no region flag. */
+  readonly region?: string
+}
+
+const POLICY_ARN_PATTERN = /^arn:aws[a-z0-9-]*:iam::[0-9*:]*:policy\/[A-Za-z0-9+=,.@_-]+$/
+
+function validatePolicyArn(arn: string): string {
+  const trimmed = arn.trim()
+  if (trimmed.length === 0 || trimmed.length > 2048 || trimmed.startsWith('-') || !POLICY_ARN_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-aws: invalid policy ARN ${JSON.stringify(arn)}`)
+  }
+  return trimmed
+}
+
+function validateUserName(userName: string): string {
+  const trimmed = userName.trim()
+  if (trimmed.length === 0 || trimmed.length > 128 || trimmed.startsWith('-') || !/^[A-Za-z0-9+=,.@_\-]+$/.test(trimmed)) {
+    throw new TypeError(`tool-aws: invalid user name ${JSON.stringify(userName)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the `aws iam attach-user-policy` argv granting an existing managed
+ * policy to one user. Only existing policy ARNs are accepted — no policy
+ * document is ever composed or written.
+ * @param awsPath - resolved aws executable path.
+ * @param request - validated attach request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildAttachPolicyArgv(awsPath: string, request: AttachPolicyRequest): string[] {
+  return [
+    awsPath, 'iam', 'attach-user-policy',
+    '--policy-arn', validatePolicyArn(request.policyArn),
+    '--user-name', validateUserName(request.userName),
+    '--output', 'json', '--no-cli-paginate',
+    ...(request.region === undefined ? [] : ['--region', validateRegion(request.region)]),
+  ]
+}
+
+/**
+ * Build the `aws iam detach-user-policy` argv rolling back one managed-policy
+ * grant.
+ * @param awsPath - resolved aws executable path.
+ * @param request - validated detach request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildDetachPolicyArgv(awsPath: string, request: AttachPolicyRequest): string[] {
+  return [
+    awsPath, 'iam', 'detach-user-policy',
+    '--policy-arn', validatePolicyArn(request.policyArn),
+    '--user-name', validateUserName(request.userName),
+    '--output', 'json', '--no-cli-paginate',
+    ...(request.region === undefined ? [] : ['--region', validateRegion(request.region)]),
+  ]
+}
+
 /**
  * Build the `aws s3api list-buckets` argv. Account-level listing only; the
  * per-bucket public-policy check is a separate argv built by

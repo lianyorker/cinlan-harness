@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `huawei_identity_get`, `huawei_iam_enum`, and `obs_enum` tools on `ctx.tools`. It shells out to the Huawei Cloud KooCLI (`hcloud`) through `ctx.subprocess` — the binary name is shared with the unrelated Hetzner Cloud CLI, so every error message names the Huawei Cloud KooCLI explicitly — and `obs_enum` uses the separate `obsutil` binary. KooCLI calls carry fixed region and project arguments and print JSON; the obsutil listing prints text lines parsed into bounded rows. No output-file arguments are ever emitted. The access key pair is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and never appears in model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `huawei_identity_get` under the `credential-use` action, `huawei_iam_enum` and `obs_enum` under the `reconnaissance` action through `cloudTools`.
+This package registers the `huawei_identity_get`, `huawei_iam_enum`, `obs_enum`, `iam_group_add_user`, and `iam_group_remove_user` tools on `ctx.tools`. It shells out to the Huawei Cloud KooCLI (`hcloud`) through `ctx.subprocess` — the binary name is shared with the unrelated Hetzner Cloud CLI, so every error message names the Huawei Cloud KooCLI explicitly — and `obs_enum` uses the separate `obsutil` binary. KooCLI calls carry fixed region and project arguments and print JSON; the obsutil listing prints text lines parsed into bounded rows. No output-file arguments are ever emitted. The access key pair is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and never appears in model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `huawei_identity_get` under the `credential-use` action, `huawei_iam_enum` and `obs_enum` under the `reconnaissance` action through `cloudTools`, and the group membership pair under the `persistence-change` action through `cloudWriteTools`.
 
 ## Table of Contents
 
@@ -43,9 +43,21 @@ The model receives the generated [`huawei_iam_enum` schema](../../../docs/tool-c
 
 The model receives the generated [`obs_enum` schema](../../../docs/tool-catalog.md#cinlantool-huawei): `target_id`, `credential_ref`, and `region`, all required. Results are bucket rows parsed from the obsutil text listing.
 
+### iam_group_add_user tool schema
+
+#### What the model sees
+
+The model receives the generated [`iam_group_add_user` schema](../../../docs/tool-catalog.md#cinlantool-huawei): `target_id`, `user_id`, `group_id` (an existing group — its own policies govern what the membership grants; no group or policy document is ever composed), `credential_ref`, and `region`, all required. Grants that list `persistence-change` in `approvalRequiredActions` turn every call into an approval prompt.
+
+### iam_group_remove_user tool schema
+
+#### What the model sees
+
+The model receives the generated [`iam_group_remove_user` schema](../../../docs/tool-catalog.md#cinlantool-huawei): the same parameter set as `iam_group_add_user`; it rolls the membership back. Removing a membership that does not exist fails with a clear CLI error.
+
 #### Token effect
 
-The tools add three descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
+The tools add five descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
 
 #### KV Cache effect
 

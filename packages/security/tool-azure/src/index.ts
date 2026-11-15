@@ -28,7 +28,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildEnumArgv, buildLoginArgv, buildStorageArgv,
+  buildEnumArgv, buildLoginArgv, buildRoleCreateArgv, buildRoleDeleteArgv, buildStorageArgv,
   parseAdUsers, parseAzureSecret, parseLoginRows, parseRoleAssignments, parseStorageAccounts,
 } from './azure.ts'
 import type { AzurePrincipal, AzureResource } from './azure.ts'
@@ -354,5 +354,129 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Enumerate Azure storage accounts', kind: 'other', rawInput: args }),
+  }))
+
+  const ROLE_PARAMETERS = {
+    target_id: {
+      type: 'string',
+      required: true,
+      description: 'Azure tenant or account id holding the assignee and role, as declared in the assessment scope grant.',
+    },
+    assignee: {
+      type: 'string',
+      required: true,
+      description: 'Assignee object id (GUID) or user principal name the role is granted to or rolled back for.',
+    },
+    role: {
+      type: 'string',
+      required: true,
+      description: 'Existing role display name or role-definition GUID; no role definition is ever composed.',
+    },
+    scope: {
+      type: 'string',
+      required: true,
+      description: 'Assignment scope, as /subscriptions/<guid>/... paths.',
+    },
+    credential_ref: {
+      type: 'string',
+      required: true,
+      description: CREDENTIAL_REF_DESCRIPTION,
+    },
+    subscription: {
+      type: 'string',
+      description: SUBSCRIPTION_DESCRIPTION,
+    },
+  } as const
+
+  ctx.tools.register(defineTool({
+    name: 'role_assignment_create',
+    description:
+      'Grant one existing Azure role to one assignee at one authorized scope (az role assignment create). '
+      + 'This is a persistence change on the tenant: the target_id must match a cloud target declared in the '
+      + 'active assessment-scope grant, the write action must be granted, and deployments typically require '
+      + 'approval for every call. Verify the grant with role_assignment_delete afterwards.',
+    parameters: ROLE_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          created: { type: 'boolean', required: true },
+          assignee: { type: 'string', required: true },
+          role: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { assignee?: string; role?: string }
+        return [{ type: 'text', text: `assigned ${result.role ?? '?'} to ${result.assignee ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const principal: AzurePrincipal = parseAzureSecret(await resolveSecret(ctx, refName))
+      const subscription = optionalSubscription(args.subscription)
+      await requireSuccess(await runAz(
+        ctx, exec, resolved,
+        buildLoginArgv(resolved.command, { credentialRef: refName }, principal),
+      ), 'az login')
+      const request = {
+        assignee: String(args.assignee),
+        role: String(args.role),
+        scope: String(args.scope),
+        ...(subscription !== undefined ? { subscriptionId: subscription } : {}),
+      }
+      await requireSuccess(await runAz(ctx, exec, resolved,
+        buildRoleCreateArgv(resolved.command, request)), 'role assignment create')
+      const value = { created: true, assignee: request.assignee, role: request.role }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Grant a role assignment', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'role_assignment_delete',
+    description:
+      'Roll back one Azure role assignment from one assignee at one authorized scope (az role assignment '
+      + 'delete). This is a persistence change on the tenant: the target_id must match a cloud target declared '
+      + 'in the active assessment-scope grant and the write action must be granted; deployments typically '
+      + 'require approval for every call. Deleting an assignment that does not exist completes with no change.',
+    parameters: ROLE_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          removed: { type: 'boolean', required: true },
+          assignee: { type: 'string', required: true },
+          role: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { assignee?: string; role?: string }
+        return [{ type: 'text', text: `removed ${result.role ?? '?'} from ${result.assignee ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const principal: AzurePrincipal = parseAzureSecret(await resolveSecret(ctx, refName))
+      const subscription = optionalSubscription(args.subscription)
+      await requireSuccess(await runAz(
+        ctx, exec, resolved,
+        buildLoginArgv(resolved.command, { credentialRef: refName }, principal),
+      ), 'az login')
+      const request = {
+        assignee: String(args.assignee),
+        role: String(args.role),
+        scope: String(args.scope),
+        ...(subscription !== undefined ? { subscriptionId: subscription } : {}),
+      }
+      await requireSuccess(await runAz(ctx, exec, resolved,
+        buildRoleDeleteArgv(resolved.command, request)), 'role assignment delete')
+      const value = { removed: true, assignee: request.assignee, role: request.role }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Roll back a role assignment', kind: 'other', rawInput: args }),
   }))
 }

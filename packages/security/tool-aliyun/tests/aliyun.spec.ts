@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildIdentityArgv, buildOssAclArgv, buildOssListArgv, buildRamArgv,
+  buildIdentityArgv, buildOssAclArgv, buildOssListArgv, buildRamArgv, buildRamAttachArgv, buildRamDetachArgv,
   isPublicOssGrants, parseAliyunEnvSecret, parseCallerIdentity, parseOssAclGrants, parseOssRows, parseRamUsers,
 } from '../src/aliyun.ts'
 
@@ -50,6 +50,35 @@ describe('buildOssListArgv', () => {
     expect(buildOssListArgv('aliyun', { region: 'cn-hangzhou' })).toEqual([
       'aliyun', 'oss', 'ls', '--region', 'cn-hangzhou',
     ])
+  })
+})
+
+describe('buildRamAttachArgv and buildRamDetachArgv', () => {
+  const REQUEST = {
+    policyType: 'Custom',
+    policyName: 'assess-verify',
+    userName: 'svc-scan',
+    region: 'cn-hangzhou',
+  } as const
+  it('builds symmetric attach and detach calls', () => {
+    expect(buildRamAttachArgv('aliyun', REQUEST)).toEqual([
+      'aliyun', 'ram', 'AttachUserPolicy',
+      '--PolicyType', 'Custom', '--PolicyName', 'assess-verify', '--UserName', 'svc-scan', '--region', 'cn-hangzhou',
+    ])
+    expect(buildRamDetachArgv('aliyun', REQUEST)).toEqual([
+      'aliyun', 'ram', 'DetachUserPolicy',
+      '--PolicyType', 'Custom', '--PolicyName', 'assess-verify', '--UserName', 'svc-scan', '--region', 'cn-hangzhou',
+    ])
+  })
+
+  it('rejects policy documents, malformed names, and injection-shaped inputs', () => {
+    for (const policyName of ['', '-p', 'pol;icy', 'pol icy']) {
+      expect(() => buildRamAttachArgv('aliyun', { ...REQUEST, policyName })).toThrow(TypeError)
+    }
+    for (const userName of ['', '-u', 'user;id', 'user name']) {
+      expect(() => buildRamDetachArgv('aliyun', { ...REQUEST, userName })).toThrow(TypeError)
+    }
+    expect(() => buildRamAttachArgv('aliyun', { ...REQUEST, region: '-r' })).toThrow(TypeError)
   })
 })
 

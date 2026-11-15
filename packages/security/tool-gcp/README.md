@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `gcp_identity_get`, `gcp_iam_enum`, and `gcs_enum` tools on `ctx.tools`. It shells out to a locally installed gcloud CLI through `ctx.subprocess` with fixed `--format=json` flags and explicit `--project` arguments, parses the JSON into bounded rows, and never emits output-file arguments. The service-account JSON is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')`, validated as service-account JSON, written to a private temporary file (mode 0600), and exposed to gcloud only through the `CLOUDSDK_AUTH_CREDENTIALS_FILE_OVERRIDE` environment variable; the file is deleted when the call finishes. The secret never appears in argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `gcp_identity_get` under the `credential-use` action, `gcp_iam_enum` and `gcs_enum` under the `reconnaissance` action through `cloudTools`.
+This package registers the `gcp_identity_get`, `gcp_iam_enum`, `gcs_enum`, `gcs_bucket_iam`, `iam_binding_add`, and `iam_binding_remove` tools on `ctx.tools`. It shells out to a locally installed gcloud CLI through `ctx.subprocess` with fixed `--format=json` flags and explicit `--project` arguments, parses the JSON into bounded rows, and never emits output-file arguments. The service-account JSON is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')`, validated as service-account JSON, written to a private temporary file (mode 0600), and exposed to gcloud only through the `CLOUDSDK_AUTH_CREDENTIALS_FILE_OVERRIDE` environment variable; the file is deleted when the call finishes. The secret never appears in argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `gcp_identity_get` under the `credential-use` action, `gcp_iam_enum`, `gcs_enum`, and `gcs_bucket_iam` under the `reconnaissance` action through `cloudTools`, and the binding pair under the `persistence-change` action through `cloudWriteTools`.
 
 ## Table of Contents
 
@@ -49,9 +49,21 @@ The model receives the generated [`gcs_enum` schema](../../../docs/tool-catalog.
 
 The model receives the generated [`gcs_bucket_iam` schema](../../../docs/tool-catalog.md#cinlantool-gcp): `target_id`, `credential_ref`, and `bucket` (a bucket name reported by `gcs_enum`, without the `gs://` scheme), all required. Results are the bucket's IAM role-binding rows plus a `public` flag that reports whether an anonymous principal (`allUsers` / `allAuthenticatedUsers`) holds any role.
 
+### iam_binding_add tool schema
+
+#### What the model sees
+
+The model receives the generated [`iam_binding_add` schema](../../../docs/tool-catalog.md#cinlantool-gcp): `target_id`, `project`, `member` (`user:<email>` / `serviceAccount:<email>` / `group:<email>` / `domain:<domain>`), `role` (an existing `roles/<name>` — no policy document is ever composed), and `credential_ref`, all required. Grants that list `persistence-change` in `approvalRequiredActions` turn every call into an approval prompt.
+
+### iam_binding_remove tool schema
+
+#### What the model sees
+
+The model receives the generated [`iam_binding_remove` schema](../../../docs/tool-catalog.md#cinlantool-gcp): the same parameter set as `iam_binding_add`; it rolls the binding back. Removing a binding that does not exist fails with a clear CLI error.
+
 #### Token effect
 
-The tools add four descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
+The tools add six descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
 
 #### KV Cache effect
 

@@ -9,8 +9,8 @@
   en: 0b667c1e070e84ac
   zh: 27a4339353ba180b
 /cinlan-tool-gcp/summary:
-  en: a74bd5cc38f7d3e7
-  zh: a5d91a9c5fe63c3c
+  en: 2210d4dce96d6839
+  zh: 75d3b2e117a64f39
 /cinlan-tool-gcp/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 37e7da5e4699fa17
@@ -44,10 +44,22 @@
 /cinlan-tool-gcp/model-experience/gcs-bucket-iam-tool-schema/what-the-model-sees:
   en: 1cf37953d85b345e
   zh: 164329e56b7b9bb0
-/cinlan-tool-gcp/model-experience/gcs-bucket-iam-tool-schema/token-effect:
-  en: 3c8d390fa714328b
-  zh: 9d9be1f117bb73a0
-/cinlan-tool-gcp/model-experience/gcs-bucket-iam-tool-schema/kv-cache-effect:
+/cinlan-tool-gcp/model-experience/iam-binding-add-tool-schema:
+  en: 86fd8aa264e2a5ef
+  zh: 28b5083b3caaae16
+/cinlan-tool-gcp/model-experience/iam-binding-add-tool-schema/what-the-model-sees:
+  en: 4589c551fe42e649
+  zh: 3c90418818cb1fd9
+/cinlan-tool-gcp/model-experience/iam-binding-remove-tool-schema:
+  en: 7ab2211b3a9a114d
+  zh: 95f282eb0c788af3
+/cinlan-tool-gcp/model-experience/iam-binding-remove-tool-schema/what-the-model-sees:
+  en: 8c41522e3af8b744
+  zh: 2c7b7448e8211068
+/cinlan-tool-gcp/model-experience/iam-binding-remove-tool-schema/token-effect:
+  en: bd7aeb3f25d2f28f
+  zh: f34dd55a37b21ff9
+/cinlan-tool-gcp/model-experience/iam-binding-remove-tool-schema/kv-cache-effect:
   en: 8a1a2e0cd13cd80a
   zh: 9e215e26c9100407
 /cinlan-tool-gcp/known-limitations-and-deferred-work:

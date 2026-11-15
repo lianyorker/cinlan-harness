@@ -9,8 +9,8 @@
   en: 92d26b599f8d85e9
   zh: cc11dbf523c48ece
 /cinlan-tool-azure/summary:
-  en: 5b9a9411fd07f174
-  zh: 8a5a91d4876e674b
+  en: 4354329c369f781e
+  zh: 66ead43964164c07
 /cinlan-tool-azure/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 37e7da5e4699fa17
@@ -38,10 +38,22 @@
 /cinlan-tool-azure/model-experience/azure-storage-enum-tool-schema/what-the-model-sees:
   en: c1da77d7222e0251
   zh: 18edf620c79e3822
-/cinlan-tool-azure/model-experience/azure-storage-enum-tool-schema/token-effect:
-  en: 045653aa8337ce86
-  zh: 50ededef9c60c785
-/cinlan-tool-azure/model-experience/azure-storage-enum-tool-schema/kv-cache-effect:
+/cinlan-tool-azure/model-experience/role-assignment-create-tool-schema:
+  en: c48d76f4c1747b66
+  zh: 696c3c745fdcd9f2
+/cinlan-tool-azure/model-experience/role-assignment-create-tool-schema/what-the-model-sees:
+  en: 4e647d800fd1ba5f
+  zh: cb3ccd770f07a5ff
+/cinlan-tool-azure/model-experience/role-assignment-delete-tool-schema:
+  en: 422651eb723a68fa
+  zh: fe07ad4987b8e8d1
+/cinlan-tool-azure/model-experience/role-assignment-delete-tool-schema/what-the-model-sees:
+  en: 833b6affedb1dc94
+  zh: a835304c817ef9e8
+/cinlan-tool-azure/model-experience/role-assignment-delete-tool-schema/token-effect:
+  en: 8d72aa2799525921
+  zh: 73e034be1af23351
+/cinlan-tool-azure/model-experience/role-assignment-delete-tool-schema/kv-cache-effect:
   en: 8a1a2e0cd13cd80a
   zh: 9e215e26c9100407
 /cinlan-tool-azure/known-limitations-and-deferred-work:

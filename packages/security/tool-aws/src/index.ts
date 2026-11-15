@@ -25,7 +25,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildIamArgv, buildPolicyStatusArgv, buildS3ListArgv, buildStsArgv,
+  buildAttachPolicyArgv, buildDetachPolicyArgv, buildIamArgv, buildPolicyStatusArgv, buildS3ListArgv, buildStsArgv,
   parseAwsEnvSecret, parseIamRows, parsePolicyStatus, parseS3Buckets, parseStsIdentity,
 } from './aws.ts'
 import type { IamResource } from './aws.ts'
@@ -398,5 +398,107 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Enumerate S3 buckets', kind: 'other', rawInput: args }),
+  }))
+
+  const POLICY_GRANT_PARAMETERS = {
+    target_id: {
+      type: 'string',
+      required: true,
+      description: 'AWS account id holding the user and policy, as declared in the assessment scope grant.',
+    },
+    policy_arn: {
+      type: 'string',
+      required: true,
+      description: 'ARN of an existing managed policy to grant; no policy document is ever composed.',
+    },
+    username: {
+      type: 'string',
+      required: true,
+      description: 'IAM user name the policy is granted to or rolled back for.',
+    },
+    credential_ref: {
+      type: 'string',
+      description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local AWS configuration chain supplies the credentials.',
+    },
+    region: {
+      type: 'string',
+      description: REGION_DESCRIPTION,
+    },
+  } as const
+
+  ctx.tools.register(defineTool({
+    name: 'iam_policy_attach',
+    description:
+      'Grant one existing AWS managed policy to one authorized IAM user (aws iam attach-user-policy). This is a '
+      + 'persistence change on the account: the target_id must match a cloud target declared in the active '
+      + 'assessment-scope grant, the write action must be granted, and deployments typically require approval for '
+      + 'every call. Verify the grant with iam_policy_detach afterwards; no policy document is ever composed.',
+    parameters: POLICY_GRANT_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          attached: { type: 'boolean', required: true },
+          policyArn: { type: 'string', required: true },
+          userName: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { policyArn?: string; userName?: string }
+        return [{ type: 'text', text: `attached ${result.policyArn ?? '?'} to ${result.userName ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const env = await resolveAwsEnv(ctx, args)
+      const request = {
+        policyArn: String(args.policy_arn),
+        userName: String(args.username),
+        ...(optionalString(args.region) !== undefined ? { region: String(args.region) } : {}),
+      }
+      await requireSuccess(await runAws(ctx, exec, resolved, buildAttachPolicyArgv(resolved.command, request), env), 'iam attach-user-policy')
+      const value = { attached: true, policyArn: request.policyArn, userName: request.userName }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Grant a managed policy', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'iam_policy_detach',
+    description:
+      'Roll back one AWS managed-policy grant from one authorized IAM user (aws iam detach-user-policy). This is '
+      + 'a persistence change on the account: the target_id must match a cloud target declared in the active '
+      + 'assessment-scope grant and the write action must be granted; deployments typically require approval for '
+      + 'every call. Detaching a policy that is not attached fails with a clear CLI error.',
+    parameters: POLICY_GRANT_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          detached: { type: 'boolean', required: true },
+          policyArn: { type: 'string', required: true },
+          userName: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { policyArn?: string; userName?: string }
+        return [{ type: 'text', text: `detached ${result.policyArn ?? '?'} from ${result.userName ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const env = await resolveAwsEnv(ctx, args)
+      const request = {
+        policyArn: String(args.policy_arn),
+        userName: String(args.username),
+        ...(optionalString(args.region) !== undefined ? { region: String(args.region) } : {}),
+      }
+      await requireSuccess(await runAws(ctx, exec, resolved, buildDetachPolicyArgv(resolved.command, request), env), 'iam detach-user-policy')
+      const value = { detached: true, policyArn: request.policyArn, userName: request.userName }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Roll back a managed policy', kind: 'other', rawInput: args }),
   }))
 }

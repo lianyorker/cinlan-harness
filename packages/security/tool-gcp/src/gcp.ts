@@ -137,6 +137,68 @@ export function buildGcsBucketIamArgv(gcloudPath: string, request: GcsBucketIamR
   return [gcloudPath, 'storage', 'buckets', 'get-iam-policy', 'gs://' + validateBucketName(request.bucket), '--format=json']
 }
 
+/** Validated IAM binding change request accepted by the binding builders. */
+export interface BindingRequest {
+  /** Project whose IAM policy gains or loses the binding. */
+  readonly projectId: string
+  /** Member to bind, as `user:<email>` / `serviceAccount:<email>` / `group:<email>`. */
+  readonly member: string
+  /** Existing role name, as `roles/<name>`. */
+  readonly role: string
+}
+
+const MEMBER_PATTERN = /^(user|serviceAccount|group|domain):[A-Za-z0-9.@_\-]+$/
+const ROLE_PATTERN = /^roles\/[A-Za-z0-9._\-]+$/
+
+function validateMember(member: string): string {
+  const trimmed = member.trim()
+  if (trimmed.length === 0 || trimmed.length > 256 || trimmed.startsWith('-') || !MEMBER_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-gcp: invalid member ${JSON.stringify(member)}`)
+  }
+  return trimmed
+}
+
+function validateRole(role: string): string {
+  const trimmed = role.trim()
+  if (trimmed.length === 0 || trimmed.length > 256 || trimmed.startsWith('-') || !ROLE_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-gcp: invalid role ${JSON.stringify(role)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the `gcloud projects add-iam-policy-binding` argv granting an
+ * existing role to one member. Only existing roles are accepted — no policy
+ * document is ever composed or written.
+ * @param gcloudPath - resolved gcloud executable path.
+ * @param request - validated binding request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildBindingAddArgv(gcloudPath: string, request: BindingRequest): string[] {
+  return [
+    gcloudPath, 'projects', 'add-iam-policy-binding', validateProject(request.projectId),
+    `--member=${validateMember(request.member)}`,
+    `--role=${validateRole(request.role)}`,
+    '--format=json',
+  ]
+}
+
+/**
+ * Build the `gcloud projects remove-iam-policy-binding` argv rolling back one
+ * role binding.
+ * @param gcloudPath - resolved gcloud executable path.
+ * @param request - validated binding request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildBindingRemoveArgv(gcloudPath: string, request: BindingRequest): string[] {
+  return [
+    gcloudPath, 'projects', 'remove-iam-policy-binding', validateProject(request.projectId),
+    `--member=${validateMember(request.member)}`,
+    `--role=${validateRole(request.role)}`,
+    '--format=json',
+  ]
+}
+
 /** One ancestor row (project, folder, or organization). */
 export interface AncestorRow {
   /** Ancestor kind as reported by gcloud. */

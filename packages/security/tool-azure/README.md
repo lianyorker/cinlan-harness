@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `az_account_show`, `azure_ad_enum`, and `azure_storage_enum` tools on `ctx.tools`. It shells out to a locally installed Azure CLI (`az`) through `ctx.subprocess`; every call first logs the service principal in with a fixed `--output json` argv and then runs its read-only listing, parsing the JSON into bounded rows. The client secret is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and never appears in model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `az_account_show` under the `credential-use` action, `azure_ad_enum` and `azure_storage_enum` under the `reconnaissance` action through `cloudTools`.
+This package registers the `az_account_show`, `azure_ad_enum`, `azure_storage_enum`, `role_assignment_create`, and `role_assignment_delete` tools on `ctx.tools`. It shells out to a locally installed Azure CLI (`az`) through `ctx.subprocess`; every call first logs the service principal in with a fixed `--output json` argv and then runs its read-only listing, parsing the JSON into bounded rows. The client secret is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and never appears in model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `az_account_show` under the `credential-use` action, `azure_ad_enum` and `azure_storage_enum` under the `reconnaissance` action through `cloudTools`, and the role-assignment pair under the `persistence-change` action through `cloudWriteTools`.
 
 ## Table of Contents
 
@@ -43,9 +43,21 @@ The model receives the generated [`azure_ad_enum` schema](../../../docs/tool-cat
 
 The model receives the generated [`azure_storage_enum` schema](../../../docs/tool-catalog.md#cinlantool-azure): `target_id`, `credential_ref`, and optional `subscription`. Results are account rows carrying `allowBlobPublicAccess` and HTTPS-only settings.
 
+### role_assignment_create tool schema
+
+#### What the model sees
+
+The model receives the generated [`role_assignment_create` schema](../../../docs/tool-catalog.md#cinlantool-azure): `target_id`, `assignee` (object id or UPN), `role` (an existing role name — no role definition is ever composed), `scope` (`/subscriptions/...` paths), `credential_ref`, and optional `subscription`, with the first five required. Grants that list `persistence-change` in `approvalRequiredActions` turn every call into an approval prompt.
+
+### role_assignment_delete tool schema
+
+#### What the model sees
+
+The model receives the generated [`role_assignment_delete` schema](../../../docs/tool-catalog.md#cinlantool-azure): the same parameter set as `role_assignment_create`; it rolls the assignment back. Deleting an assignment that does not exist completes with no change.
+
 #### Token effect
 
-The tools add three descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
+The tools add five descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
 
 #### KV Cache effect
 

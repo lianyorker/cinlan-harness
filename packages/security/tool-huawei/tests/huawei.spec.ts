@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildIamArgv, buildIdentityArgv, buildObsListArgv,
+  buildGroupAddArgv, buildGroupRemoveArgv, buildIamArgv, buildIdentityArgv, buildObsListArgv,
   parseCallerIdentity, parseHuaweiSecret, parseIamRows, parseObsRows,
 } from '../src/huawei.ts'
 
@@ -102,6 +102,32 @@ describe('parseIamRows', () => {
     expect(parseIamRows('', 'users')).toEqual([])
     expect(parseIamRows('not json', 'keys')).toEqual([])
     expect(parseIamRows('{"userlist": "no"}', 'users')).toEqual([])
+  })
+})
+
+describe('buildGroupAddArgv and buildGroupRemoveArgv', () => {
+  const REQUEST = { userId: 'hwuser-example', groupId: 'hwgroup-authorized', region: 'cn-north-4' } as const
+  it('builds symmetric group membership calls with key flags', () => {
+    expect(buildGroupAddArgv('hcloud', REQUEST, PAIR)).toEqual([
+      'hcloud', 'IAM', 'KeystoneAddUserToGroup',
+      '--user_id=hwuser-example', '--group_id=hwgroup-authorized', '--cli-region=cn-north-4',
+      '--cli-access-key=HWAKEXAMPLE', '--cli-secret-key=resolved-secret',
+    ])
+    expect(buildGroupRemoveArgv('hcloud', REQUEST, PAIR)).toEqual([
+      'hcloud', 'IAM', 'KeystoneRemoveUserFromGroup',
+      '--user_id=hwuser-example', '--group_id=hwgroup-authorized', '--cli-region=cn-north-4',
+      '--cli-access-key=HWAKEXAMPLE', '--cli-secret-key=resolved-secret',
+    ])
+  })
+
+  it('rejects injection-shaped ids and invalid regions', () => {
+    for (const userId of ['', '-u', 'user;id', 'user id']) {
+      expect(() => buildGroupAddArgv('hcloud', { ...REQUEST, userId }, PAIR)).toThrow(TypeError)
+    }
+    for (const groupId of ['', '-g', 'group;id']) {
+      expect(() => buildGroupRemoveArgv('hcloud', { ...REQUEST, groupId }, PAIR)).toThrow(TypeError)
+    }
+    expect(() => buildGroupAddArgv('hcloud', { ...REQUEST, region: '' }, PAIR)).toThrow(TypeError)
   })
 })
 

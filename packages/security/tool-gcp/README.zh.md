@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-本包在 `ctx.tools` 上注册 `gcp_identity_get`、`gcp_iam_enum`、`gcs_enum` 三个工具。它通过 `ctx.subprocess` 调用本机安装的 gcloud CLI，固定 `--format=json` 旗标并显式携带 `--project` 参数，把 JSON 解析为有界行，且从不发出文件输出参数。service-account JSON 在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，校验为 service-account JSON 后写入私有临时文件（权限 0600），仅通过 `CLOUDSDK_AUTH_CREDENTIALS_FILE_OVERRIDE` 环境变量暴露给 gcloud；调用结束时删除该文件。secret 绝不进入 argv、模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`gcp_identity_get` 走 `credential-use` 动作，`gcp_iam_enum` 与 `gcs_enum` 经 `cloudTools` 走 `reconnaissance` 动作。
+本包在 `ctx.tools` 上注册 `gcp_identity_get`、`gcp_iam_enum`、`gcs_enum`、`gcs_bucket_iam`、`iam_binding_add`、`iam_binding_remove` 六个工具。它通过 `ctx.subprocess` 调用本机安装的 gcloud CLI，固定 `--format=json` 旗标并显式携带 `--project` 参数，把 JSON 解析为有界行，且从不发出文件输出参数。service-account JSON 在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，校验为 service-account JSON 后写入私有临时文件（权限 0600），仅通过 `CLOUDSDK_AUTH_CREDENTIALS_FILE_OVERRIDE` 环境变量暴露给 gcloud；调用结束时删除该文件。secret 绝不进入 argv、模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`gcp_identity_get` 走 `credential-use` 动作，`gcp_iam_enum`、`gcs_enum`、`gcs_bucket_iam` 经 `cloudTools` 走 `reconnaissance` 动作，绑定对经 `cloudWriteTools` 走 `persistence-change` 动作。
 
 ## 目录
 
@@ -49,9 +49,21 @@ kind: "package-reference"
 
 模型收到生成的 [`gcs_bucket_iam` schema](../../../docs/tool-catalog.zh.md#cinlantool-gcp)：`target_id`、`credential_ref`、`bucket`（`gcs_enum` 报告的桶名，不含 `gs://` 前缀），全部必需。结果为桶的 IAM 角色绑定行，以及 `public` 标志——报告匿名主体（`allUsers` / `allAuthenticatedUsers`）是否持有任一角色。
 
+### iam_binding_add 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`iam_binding_add` schema](../../../docs/tool-catalog.zh.md#cinlantool-gcp)：`target_id`、`project`、`member`（`user:<email>` / `serviceAccount:<email>` / `group:<email>` / `domain:<domain>`）、`role`（已存在的 `roles/<name>`——绝不构造策略文档）、`credential_ref`，全部必需。把 `persistence-change` 列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示。
+
+### iam_binding_remove 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`iam_binding_remove` schema](../../../docs/tool-catalog.zh.md#cinlantool-gcp)：参数集与 `iam_binding_add` 相同；它回滚该绑定。移除不存在的绑定会以明确的 CLI 错误失败。
+
 #### Token 效应
 
-四个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
+六个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
 
 #### KV Cache 效应
 

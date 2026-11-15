@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-本包在 `ctx.tools` 上注册 `huawei_identity_get`、`huawei_iam_enum`、`obs_enum` 三个工具。它通过 `ctx.subprocess` 调用华为云 KooCLI（`hcloud`）——该二进制名与无关的 Hetzner Cloud CLI 同名，因此所有错误信息都明确写出"华为云 KooCLI"；`obs_enum` 使用独立的 `obsutil` 二进制。KooCLI 调用携带固定的 region 与 project 参数并输出 JSON；obsutil 列表输出文本行并解析为有界行。从不发出文件输出参数。访问密钥对在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，绝不进入模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`huawei_identity_get` 走 `credential-use` 动作，`huawei_iam_enum` 与 `obs_enum` 经 `cloudTools` 走 `reconnaissance` 动作。
+本包在 `ctx.tools` 上注册 `huawei_identity_get`、`huawei_iam_enum`、`obs_enum`、`iam_group_add_user`、`iam_group_remove_user` 五个工具。它通过 `ctx.subprocess` 调用华为云 KooCLI（`hcloud`）——该二进制名与无关的 Hetzner Cloud CLI 同名，因此所有错误信息都明确写出"华为云 KooCLI"；`obs_enum` 使用独立的 `obsutil` 二进制。KooCLI 调用携带固定的 region 与 project 参数并输出 JSON；obsutil 列表输出文本行并解析为有界行。从不发出文件输出参数。访问密钥对在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，绝不进入模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`huawei_identity_get` 走 `credential-use` 动作，`huawei_iam_enum` 与 `obs_enum` 经 `cloudTools` 走 `reconnaissance` 动作，组成员对经 `cloudWriteTools` 走 `persistence-change` 动作。
 
 ## 目录
 
@@ -43,9 +43,21 @@ kind: "package-reference"
 
 模型收到生成的 [`obs_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-huawei)：`target_id`、`credential_ref`、`region`，全部必需。结果是从 obsutil 文本列表解析出的桶行。
 
+### iam_group_add_user 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`iam_group_add_user` schema](../../../docs/tool-catalog.zh.md#cinlantool-huawei)：`target_id`、`user_id`、`group_id`（已存在的组——组的自有策略决定该成员关系授予什么；绝不构造组或策略文档）、`credential_ref`、`region`，全部必需。把 `persistence-change` 列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示。
+
+### iam_group_remove_user 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`iam_group_remove_user` schema](../../../docs/tool-catalog.zh.md#cinlantool-huawei)：参数集与 `iam_group_add_user` 相同；它回滚该成员关系。移除不存在的成员关系会以明确的 CLI 错误失败。
+
 #### Token 效应
 
-三个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
+五个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
 
 #### KV Cache 效应
 

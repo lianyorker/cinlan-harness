@@ -9,8 +9,8 @@
   en: 1d5a8188d9289c4e
   zh: d9440f3eb0e4f140
 /cinlan-tool-aws/summary:
-  en: b4122108543b9892
-  zh: 4f56e603028a76e7
+  en: 0f176e528d0397cf
+  zh: 04ebc20cf2d63370
 /cinlan-tool-aws/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 37e7da5e4699fa17
@@ -38,10 +38,22 @@
 /cinlan-tool-aws/model-experience/s3-enum-tool-schema/what-the-model-sees:
   en: 05558d6fcd123514
   zh: c14483dbce135a0e
-/cinlan-tool-aws/model-experience/s3-enum-tool-schema/token-effect:
-  en: 045653aa8337ce86
-  zh: 50ededef9c60c785
-/cinlan-tool-aws/model-experience/s3-enum-tool-schema/kv-cache-effect:
+/cinlan-tool-aws/model-experience/iam-policy-attach-tool-schema:
+  en: 58767b3014330c37
+  zh: ccb2cf2b4f873269
+/cinlan-tool-aws/model-experience/iam-policy-attach-tool-schema/what-the-model-sees:
+  en: f8f364eaee107b8e
+  zh: f8f6ef7ff7048744
+/cinlan-tool-aws/model-experience/iam-policy-detach-tool-schema:
+  en: fbca4d5b24c5907f
+  zh: 367f170207211dd8
+/cinlan-tool-aws/model-experience/iam-policy-detach-tool-schema/what-the-model-sees:
+  en: e630c8a43c5bc742
+  zh: be5e7afd3ebad7fb
+/cinlan-tool-aws/model-experience/iam-policy-detach-tool-schema/token-effect:
+  en: 8d72aa2799525921
+  zh: 73e034be1af23351
+/cinlan-tool-aws/model-experience/iam-policy-detach-tool-schema/kv-cache-effect:
   en: 8a1a2e0cd13cd80a
   zh: 9e215e26c9100407
 /cinlan-tool-aws/known-limitations-and-deferred-work:

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildIamArgv, buildPolicyStatusArgv, buildS3ListArgv, buildStsArgv,
+  buildAttachPolicyArgv, buildDetachPolicyArgv, buildIamArgv, buildPolicyStatusArgv, buildS3ListArgv, buildStsArgv,
   parseAwsEnvSecret, parseIamRows, parsePolicyStatus, parseS3Buckets, parseStsIdentity,
 } from '../src/aws.ts'
 
@@ -71,6 +71,37 @@ describe('buildS3ListArgv and buildPolicyStatusArgv', () => {
     expect(() => buildPolicyStatusArgv('aws', { bucket: '-bucket', region: 'us-east-1' })).toThrow(TypeError)
     expect(() => buildPolicyStatusArgv('aws', { bucket: 'bucket;id', region: 'us-east-1' })).toThrow(TypeError)
     expect(() => buildPolicyStatusArgv('aws', { bucket: 'bucket', region: '' })).toThrow(TypeError)
+  })
+})
+
+describe('buildAttachPolicyArgv and buildDetachPolicyArgv', () => {
+  const REQUEST = {
+    policyArn: 'arn:aws:iam::123456789012:policy/assess-verify',
+    userName: 'svc-scan',
+    region: 'us-east-1',
+  } as const
+  it('builds symmetric attach and detach calls with JSON output', () => {
+    expect(buildAttachPolicyArgv('aws', REQUEST)).toEqual([
+      'aws', 'iam', 'attach-user-policy',
+      '--policy-arn', 'arn:aws:iam::123456789012:policy/assess-verify',
+      '--user-name', 'svc-scan',
+      '--output', 'json', '--no-cli-paginate', '--region', 'us-east-1',
+    ])
+    expect(buildDetachPolicyArgv('aws', REQUEST)).toEqual([
+      'aws', 'iam', 'detach-user-policy',
+      '--policy-arn', 'arn:aws:iam::123456789012:policy/assess-verify',
+      '--user-name', 'svc-scan',
+      '--output', 'json', '--no-cli-paginate', '--region', 'us-east-1',
+    ])
+  })
+
+  it('rejects policy documents, malformed ARNs, and injection-shaped names', () => {
+    for (const policyArn of ['', '-a', 'not-an-arn', 'arn:aws:iam::123456789012:policy/name;id', 'arn:aws:s3:::bucket']) {
+      expect(() => buildAttachPolicyArgv('aws', { ...REQUEST, policyArn })).toThrow(TypeError)
+    }
+    for (const userName of ['', '-user', 'user;id', 'user name']) {
+      expect(() => buildDetachPolicyArgv('aws', { ...REQUEST, userName })).toThrow(TypeError)
+    }
   })
 })
 

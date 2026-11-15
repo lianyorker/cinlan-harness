@@ -30,7 +30,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildGcsBucketIamArgv, buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
+  buildBindingAddArgv, buildBindingRemoveArgv, buildGcsBucketIamArgv, buildGcsListArgv, buildIamPolicyArgv, buildIdentityArgv,
   isPublicBucketIam, parseAncestors, parseGcsBucketIam, parseGcsBuckets, parseIamBindings, parseServiceAccountSecret,
 } from './gcp.ts'
 
@@ -418,5 +418,106 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Read bucket IAM policy', kind: 'other', rawInput: args }),
+  }))
+
+  const BINDING_PARAMETERS = {
+    target_id: {
+      type: 'string',
+      required: true,
+      description: 'GCP account to modify, as declared in the assessment scope grant.',
+    },
+    project: {
+      type: 'string',
+      required: true,
+      description: PROJECT_DESCRIPTION,
+    },
+    member: {
+      type: 'string',
+      required: true,
+      description: 'Member to bind or unbind, as user:<email>, serviceAccount:<email>, group:<email>, or domain:<domain>.',
+    },
+    role: {
+      type: 'string',
+      required: true,
+      description: 'Existing role name, as roles/<name>; no policy document is ever composed.',
+    },
+    credential_ref: {
+      type: 'string',
+      required: true,
+      description: 'Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation.',
+    },
+  } as const
+
+  ctx.tools.register(defineTool({
+    name: 'iam_binding_add',
+    description:
+      'Grant one existing GCP role to one member on one authorized project (gcloud projects '
+      + 'add-iam-policy-binding). This is a persistence change on the project: the target_id must match a cloud '
+      + 'target declared in the active assessment-scope grant, the write action must be granted, and deployments '
+      + 'typically require approval for every call. Verify the grant with iam_binding_remove afterwards.',
+    parameters: BINDING_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          added: { type: 'boolean', required: true },
+          member: { type: 'string', required: true },
+          role: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { member?: string; role?: string }
+        return [{ type: 'text', text: `bound ${result.role ?? '?'} to ${result.member ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const secret = parseServiceAccountSecret(await resolveSecret(ctx, refName))
+      const request = { projectId: String(args.project), member: String(args.member), role: String(args.role) }
+      await requireSuccess(await runGcloud(ctx, exec, resolved,
+        buildBindingAddArgv(resolved.command, request), secret), 'projects add-iam-policy-binding')
+      const value = { added: true, member: request.member, role: request.role }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Grant a role binding', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'iam_binding_remove',
+    description:
+      'Roll back one GCP role binding from one member on one authorized project (gcloud projects '
+      + 'remove-iam-policy-binding). This is a persistence change on the project: the target_id must match a '
+      + 'cloud target declared in the active assessment-scope grant and the write action must be granted; '
+      + 'deployments typically require approval for every call. Removing a binding that does not exist fails '
+      + 'with a clear CLI error.',
+    parameters: BINDING_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          removed: { type: 'boolean', required: true },
+          member: { type: 'string', required: true },
+          role: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { member?: string; role?: string }
+        return [{ type: 'text', text: `unbound ${result.role ?? '?'} from ${result.member ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const secret = parseServiceAccountSecret(await resolveSecret(ctx, refName))
+      const request = { projectId: String(args.project), member: String(args.member), role: String(args.role) }
+      await requireSuccess(await runGcloud(ctx, exec, resolved,
+        buildBindingRemoveArgv(resolved.command, request), secret), 'projects remove-iam-policy-binding')
+      const value = { removed: true, member: request.member, role: request.role }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Roll back a role binding', kind: 'other', rawInput: args }),
   }))
 }

@@ -30,7 +30,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildIamArgv, buildIdentityArgv, buildObsListArgv,
+  buildGroupAddArgv, buildGroupRemoveArgv, buildIamArgv, buildIdentityArgv, buildObsListArgv,
   parseCallerIdentity, parseHuaweiSecret, parseIamRows, parseObsRows,
 } from './huawei.ts'
 import type { HuaweiIamResource } from './huawei.ts'
@@ -358,5 +358,107 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Enumerate OBS buckets', kind: 'other', rawInput: args }),
+  }))
+
+  const GROUP_PARAMETERS = {
+    target_id: {
+      type: 'string',
+      required: true,
+      description: 'Huawei Cloud account id holding the user and group, as declared in the assessment scope grant.',
+    },
+    user_id: {
+      type: 'string',
+      required: true,
+      description: 'IAM user id to add to or remove from the authorization group.',
+    },
+    group_id: {
+      type: 'string',
+      required: true,
+      description: 'IAM user-group id — the group\'s own policies govern what the membership grants; no group or policy document is ever composed.',
+    },
+    credential_ref: {
+      type: 'string',
+      required: true,
+      description: CREDENTIAL_REF_DESCRIPTION,
+    },
+    region: {
+      type: 'string',
+      required: true,
+      description: REGION_DESCRIPTION,
+    },
+  } as const
+
+  ctx.tools.register(defineTool({
+    name: 'iam_group_add_user',
+    description:
+      'Add one authorized Huawei Cloud user to one IAM user group (Huawei Cloud KooCLI: hcloud IAM '
+      + 'KeystoneAddUserToGroup) — group membership inherits the group\'s policies, which verifies the write path. '
+      + 'This is a persistence change on the account: the target_id must match a cloud target declared in the '
+      + 'active assessment-scope grant, the write action must be granted, and deployments typically require '
+      + 'approval for every call. Verify with iam_group_remove_user afterwards.',
+    parameters: GROUP_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          added: { type: 'boolean', required: true },
+          userId: { type: 'string', required: true },
+          groupId: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { userId?: string; groupId?: string }
+        return [{ type: 'text', text: `added ${result.userId ?? '?'} to group ${result.groupId ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const pair = parseHuaweiSecret(await resolveSecret(ctx, refName))
+      const request = { userId: String(args.user_id), groupId: String(args.group_id), region: String(args.region) }
+      await requireSuccess(await runHuawei(ctx, exec, resolved,
+        buildGroupAddArgv(resolved.command, request, pair), resolved.command), 'IAM KeystoneAddUserToGroup')
+      const value = { added: true, userId: request.userId, groupId: request.groupId }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Add a user to an IAM group', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'iam_group_remove_user',
+    description:
+      'Remove one authorized Huawei Cloud user from one IAM user group (Huawei Cloud KooCLI: hcloud IAM '
+      + 'KeystoneRemoveUserFromGroup). This is a persistence change on the account: the target_id must match a '
+      + 'cloud target declared in the active assessment-scope grant and the write action must be granted; '
+      + 'deployments typically require approval for every call. Removing a membership that does not exist fails '
+      + 'with a clear CLI error.',
+    parameters: GROUP_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          removed: { type: 'boolean', required: true },
+          userId: { type: 'string', required: true },
+          groupId: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { userId?: string; groupId?: string }
+        return [{ type: 'text', text: `removed ${result.userId ?? '?'} from group ${result.groupId ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const refName = String(args.credential_ref)
+      const pair = parseHuaweiSecret(await resolveSecret(ctx, refName))
+      const request = { userId: String(args.user_id), groupId: String(args.group_id), region: String(args.region) }
+      await requireSuccess(await runHuawei(ctx, exec, resolved,
+        buildGroupRemoveArgv(resolved.command, request, pair), resolved.command), 'IAM KeystoneRemoveUserFromGroup')
+      const value = { removed: true, userId: request.userId, groupId: request.groupId }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Remove a user from an IAM group', kind: 'other', rawInput: args }),
   }))
 }

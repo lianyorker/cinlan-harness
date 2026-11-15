@@ -29,6 +29,8 @@ kind: "package-reference"
 
 `cloudTools` 形状相同，把调用映射为 `reconnaissance` 动作。当匹配的目标是 `cloud` 目标时，显式的 `region`、`subscription`、`project` 参数会对照目标声明的允许列表检查：落在声明范围外的值被拒绝，未声明该维度的允许列表时放行该维度的任意值。
 
+`cloudWriteTools` 形状相同，把调用映射为 `persistence-change` 动作，并同样执行 `cloud` 目标与允许列表检查。把 `persistence-change` 列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示——这是云写路径工具的推荐部署形态。
+
 `workspaceCommands` 默认为空列表。每项指定已配置的 shell `tool` 和精确 `command`；空值、首尾空白、重复项或非 shell 项会在加载时失败。匹配调用必须具有绝对路径的 Session 工作区，且实际工作目录存在、解析后的路径位于工作区内。显式目标或 URL 参数、sandbox 权限覆盖及后台执行不适用此例外。未匹配的调用继续检查评估范围；获准的工作区命令仍经过下游守卫和 sandbox policy。
 
 这些配置项信任工作区及其命令环境，包括包管理器执行的脚本。它们不会把任意 shell 文本判定为安全，也不会把子进程影响限制在工作目录内；此隔离由部署 sandbox 负责。

@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-本包在 `ctx.tools` 上注册 `az_account_show`、`azure_ad_enum`、`azure_storage_enum` 三个工具。它通过 `ctx.subprocess` 调用本机安装的 Azure CLI（`az`）；每次调用先以固定的 `--output json` argv 执行 service principal 登录，再执行只读列表调用，把 JSON 解析为有界行。client secret 在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，绝不进入模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`az_account_show` 走 `credential-use` 动作，`azure_ad_enum` 与 `azure_storage_enum` 经 `cloudTools` 走 `reconnaissance` 动作。
+本包在 `ctx.tools` 上注册 `az_account_show`、`azure_ad_enum`、`azure_storage_enum`、`role_assignment_create`、`role_assignment_delete` 五个工具。它通过 `ctx.subprocess` 调用本机安装的 Azure CLI（`az`）；每次调用先以固定的 `--output json` argv 执行 service principal 登录，再执行只读列表调用，把 JSON 解析为有界行。client secret 在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，绝不进入模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`az_account_show` 走 `credential-use` 动作，`azure_ad_enum` 与 `azure_storage_enum` 经 `cloudTools` 走 `reconnaissance` 动作，角色分配对经 `cloudWriteTools` 走 `persistence-change` 动作。
 
 ## 目录
 
@@ -43,9 +43,21 @@ kind: "package-reference"
 
 模型收到生成的 [`azure_storage_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-azure)：`target_id`、`credential_ref`、可选 `subscription`。结果为账户行，携带 `allowBlobPublicAccess` 与 HTTPS-only 设置。
 
+### role_assignment_create 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`role_assignment_create` schema](../../../docs/tool-catalog.zh.md#cinlantool-azure)：`target_id`、`assignee`（object id 或 UPN）、`role`（已存在角色名——绝不构造角色定义）、`scope`（`/subscriptions/...` 路径）、`credential_ref`、可选 `subscription`，前五项必需。把 `persistence-change` 列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示。
+
+### role_assignment_delete 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`role_assignment_delete` schema](../../../docs/tool-catalog.zh.md#cinlantool-azure)：参数集与 `role_assignment_create` 相同；它回滚该分配。删除不存在的分配以无变更结束。
+
 #### Token 效应
 
-三个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
+五个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
 
 #### KV Cache 效应
 

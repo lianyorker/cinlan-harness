@@ -169,6 +169,62 @@ export function buildCosAclArgv(tccliPath: string, request: CosAclRequest): stri
   return [tccliPath, 'cos', 'GetBucketAcl', '--bucket', validateBucket(request.bucket), '--region', validateRegion(request.region), '--output', 'json']
 }
 
+/** Validated CAM policy grant request accepted by the attach/detach builders. */
+export interface CamPolicyRequest {
+  /** Numeric id of an existing CAM policy. */
+  readonly policyId: number
+  /** Numeric UIN of the CAM user the policy is granted to. */
+  readonly attachUin: number
+  /** Explicit `--region` for the tccli call. */
+  readonly region: string
+}
+
+/**
+ * Build the `tccli cam AttachUserPolicy` argv granting an existing policy to
+ * one CAM user. Only existing numeric policy ids are accepted — no policy
+ * document is ever composed or written.
+ * @param tccliPath - resolved tccli executable path.
+ * @param request - validated attach request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildCamAttachArgv(tccliPath: string, request: CamPolicyRequest): string[] {
+  return [
+    tccliPath, 'cam', 'AttachUserPolicy',
+    '--policyId', String(validatePolicyId(request.policyId)),
+    '--attachUin', String(validateUin(request.attachUin)),
+    '--region', validateRegion(request.region), '--output', 'json',
+  ]
+}
+
+/**
+ * Build the `tccli cam DetachUserPolicy` argv rolling back one policy grant.
+ * @param tccliPath - resolved tccli executable path.
+ * @param request - validated detach request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildCamDetachArgv(tccliPath: string, request: CamPolicyRequest): string[] {
+  return [
+    tccliPath, 'cam', 'DetachUserPolicy',
+    '--policyId', String(validatePolicyId(request.policyId)),
+    '--detachUin', String(validateUin(request.attachUin)),
+    '--region', validateRegion(request.region), '--output', 'json',
+  ]
+}
+
+function validatePolicyId(policyId: number): number {
+  if (!Number.isSafeInteger(policyId) || policyId < 1) {
+    throw new TypeError(`tool-tencent: invalid policyId ${JSON.stringify(policyId)}`)
+  }
+  return policyId
+}
+
+function validateUin(uin: number): number {
+  if (!Number.isSafeInteger(uin) || uin < 1) {
+    throw new TypeError(`tool-tencent: invalid UIN ${JSON.stringify(uin)}`)
+  }
+  return uin
+}
+
 /** One row of the caller-identity report. */
 export interface CallerIdentityRow {
   /** Caller user id as reported by STS. */

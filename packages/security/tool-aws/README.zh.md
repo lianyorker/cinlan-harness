@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 概述
-本包在 `ctx.tools` 上注册 `sts_get_caller_identity`、`iam_enum`、`s3_enum` 三个工具。它通过 `ctx.subprocess` 调用本机安装的 AWS CLI v2（`aws`），固定 `--output json --no-cli-paginate` 旗标，把 JSON 解析为有界行，且从不发出文件输出参数。AWS 密钥材料在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，并注入子进程环境变量（`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`），绝不进入 argv、模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`sts_get_caller_identity` 走 `credential-use` 动作，`iam_enum` 与 `s3_enum` 经 `cloudTools` 走 `reconnaissance` 动作。
+本包在 `ctx.tools` 上注册 `sts_get_caller_identity`、`iam_enum`、`s3_enum`、`iam_policy_attach`、`iam_policy_detach` 五个工具。它通过 `ctx.subprocess` 调用本机安装的 AWS CLI v2（`aws`），固定 `--output json --no-cli-paginate` 旗标，把 JSON 解析为有界行，且从不发出文件输出参数。AWS 密钥材料在执行时经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，并注入子进程环境变量（`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`），绝不进入 argv、模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制：`sts_get_caller_identity` 走 `credential-use` 动作，`iam_enum` 与 `s3_enum` 经 `cloudTools` 走 `reconnaissance` 动作，策略附加/卸下对经 `cloudWriteTools` 走 `persistence-change` 动作。
 
 ## 目录
 
@@ -43,9 +43,21 @@ kind: "package-reference"
 
 模型收到生成的 [`s3_enum` schema](../../../docs/tool-catalog.zh.md#cinlantool-aws)：`target_id`（必需）、可选 `credential_ref`（以子进程环境变量注入；缺省时由本机 AWS 配置链提供凭据）、可选 `region`、可选 `public_status`（逐桶 `get-bucket-policy-status`；该检查按 region 作用域执行，必须显式传 region）。
 
+### iam_policy_attach 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`iam_policy_attach` schema](../../../docs/tool-catalog.zh.md#cinlantool-aws)：`target_id`、`policy_arn`（已存在 managed policy 的 ARN——绝不构造策略文档）、`username`、可选 `credential_ref`、可选 `region`，前三项必需。把 `persistence-change` 列入 `approvalRequiredActions` 的授权会把每个此类调用转为审批提示。
+
+### iam_policy_detach 工具 schema
+
+#### 模型所见
+
+模型收到生成的 [`iam_policy_detach` schema](../../../docs/tool-catalog.zh.md#cinlantool-aws)：参数集与 `iam_policy_attach` 相同；它回滚该授予。卸下未附加的策略会以明确的 CLI 错误失败。
+
 #### Token 效应
 
-三个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
+五个工具向模型工具上下文各添加一条 description 与 JSON schema；结果字节上限由 `maxOutputBytes`（默认 256 KiB）约束。
 
 #### KV Cache 效应
 

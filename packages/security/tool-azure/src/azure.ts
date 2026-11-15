@@ -161,6 +161,83 @@ export function buildStorageArgv(azPath: string, request: AzureStorageRequest): 
   return argv
 }
 
+/** Validated role-assignment change request accepted by the assignment builders. */
+export interface RoleAssignmentRequest {
+  /** Assignee object id, user principal name, or service principal id. Never starts with `-`. */
+  readonly assignee: string
+  /** Existing role display name or role-definition GUID. Never starts with `-`. */
+  readonly role: string
+  /** Assignment scope, as `/subscriptions/<guid>/...` style paths. Never starts with `-`. */
+  readonly scope: string
+  /** Optional subscription GUID scoping the call. */
+  readonly subscriptionId?: string
+}
+
+const SCOPE_PATTERN = /^\/(subscriptions|resourceGroups|resourceGroups\/[A-Za-z0-9._\-]+)\/[A-Za-z0-9._\-/]+$/
+
+function validateAssignee(assignee: string): string {
+  const trimmed = assignee.trim()
+  if (trimmed.length === 0 || trimmed.length > 256 || trimmed.startsWith('-') || !GUID_PATTERN.test(trimmed) && !/^[A-Za-z0-9._@\-]+@(?:[A-Za-z0-9\-]+\.)+[A-Za-z]{2,}$/.test(trimmed)) {
+    throw new TypeError(`tool-azure: invalid assignee ${JSON.stringify(assignee)}`)
+  }
+  return trimmed
+}
+
+function validateRole(role: string): string {
+  const trimmed = role.trim()
+  if (trimmed.length === 0 || trimmed.length > 256 || trimmed.startsWith('-') || !/^[A-Za-z0-9][A-Za-z0-9 .()_\-]*$/.test(trimmed)) {
+    throw new TypeError(`tool-azure: invalid role ${JSON.stringify(role)}`)
+  }
+  return trimmed
+}
+
+function validateScope(scope: string): string {
+  const trimmed = scope.trim()
+  if (trimmed.length === 0 || trimmed.length > 512 || trimmed.startsWith('-') || !SCOPE_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-azure: invalid scope ${JSON.stringify(scope)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the `az role assignment create` argv granting an existing role to one
+ * assignee at one scope. Only existing roles are accepted — no role
+ * definition is ever composed or written.
+ * @param azPath - resolved az executable path.
+ * @param request - validated assignment request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildRoleCreateArgv(azPath: string, request: RoleAssignmentRequest): string[] {
+  const argv: string[] = [
+    azPath, 'role', 'assignment', 'create',
+    '--assignee', validateAssignee(request.assignee),
+    '--role', validateRole(request.role),
+    '--scope', validateScope(request.scope),
+    '--output', 'json',
+  ]
+  if (request.subscriptionId !== undefined) argv.push('--subscription', validateGuid(request.subscriptionId, 'subscriptionId'))
+  return argv
+}
+
+/**
+ * Build the `az role assignment delete` argv rolling back one role
+ * assignment.
+ * @param azPath - resolved az executable path.
+ * @param request - validated assignment request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildRoleDeleteArgv(azPath: string, request: RoleAssignmentRequest): string[] {
+  const argv: string[] = [
+    azPath, 'role', 'assignment', 'delete',
+    '--assignee', validateAssignee(request.assignee),
+    '--role', validateRole(request.role),
+    '--scope', validateScope(request.scope),
+    '--output', 'json',
+  ]
+  if (request.subscriptionId !== undefined) argv.push('--subscription', validateGuid(request.subscriptionId, 'subscriptionId'))
+  return argv
+}
+
 /** One login row (one authorized subscription of the principal). */
 export interface AzureAccountRow {
   /** Principal name as reported by the login (the application id for service principals). */

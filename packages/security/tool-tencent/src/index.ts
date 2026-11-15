@@ -27,7 +27,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildCamArgv, buildCosAclArgv, buildCosServiceArgv, buildIdentityArgv,
+  buildCamArgv, buildCamAttachArgv, buildCamDetachArgv, buildCosAclArgv, buildCosServiceArgv, buildIdentityArgv,
   isPublicGrants, parseAclGrants, parseCamRows, parseCallerIdentity, parseCosBuckets,
   parseTencentEnvSecret,
 } from './tencent.ts'
@@ -391,5 +391,112 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Enumerate COS buckets', kind: 'other', rawInput: args }),
+  }))
+
+  const CAM_POLICY_PARAMETERS = {
+    target_id: {
+      type: 'string',
+      required: true,
+      description: 'Tencent Cloud account id holding the user and policy, as declared in the assessment scope grant.',
+    },
+    policy_id: {
+      type: 'number',
+      required: true,
+      description: 'Numeric id of an existing CAM policy; no policy document is ever composed.',
+    },
+    uin: {
+      type: 'number',
+      required: true,
+      description: 'Numeric UIN of the CAM user the policy is granted to or rolled back for.',
+    },
+    credential_ref: {
+      type: 'string',
+      description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local tccli configuration chain supplies the credentials.',
+    },
+    region: {
+      type: 'string',
+      required: true,
+      description: REGION_DESCRIPTION,
+    },
+  } as const
+
+  ctx.tools.register(defineTool({
+    name: 'cam_policy_attach',
+    description:
+      'Grant one existing Tencent Cloud CAM policy to one authorized user (tccli cam AttachUserPolicy). This is a '
+      + 'persistence change on the account: the target_id must match a cloud target declared in the active '
+      + 'assessment-scope grant, the write action must be granted, and deployments typically require approval for '
+      + 'every call. Verify the grant with cam_policy_detach afterwards.',
+    parameters: CAM_POLICY_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          attached: { type: 'boolean', required: true },
+          policyId: { type: 'number', required: true },
+          uin: { type: 'number', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { policyId?: number; uin?: number }
+        return [{ type: 'text', text: `attached policy ${result.policyId ?? '?'} to uin ${result.uin ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const env = await resolveTencentEnv(ctx, args)
+      const policyId = args.policy_id
+      const uin = args.uin
+      if (typeof policyId !== 'number' || typeof uin !== 'number') {
+        throw new Error('tool-tencent: cam_policy_attach requires numeric policy_id and uin arguments.')
+      }
+      const request = { policyId, attachUin: uin, region: String(args.region) }
+      await requireSuccess(await runTccli(ctx, exec, resolved,
+        buildCamAttachArgv(resolved.command, request), env), 'cam AttachUserPolicy')
+      const value = { attached: true, policyId, uin }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Grant a CAM policy', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'cam_policy_detach',
+    description:
+      'Roll back one Tencent Cloud CAM policy grant from one authorized user (tccli cam DetachUserPolicy). This is '
+      + 'a persistence change on the account: the target_id must match a cloud target declared in the active '
+      + 'assessment-scope grant and the write action must be granted; deployments typically require approval for '
+      + 'every call. Detaching a policy that is not attached fails with a clear CLI error.',
+    parameters: CAM_POLICY_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          detached: { type: 'boolean', required: true },
+          policyId: { type: 'number', required: true },
+          uin: { type: 'number', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { policyId?: number; uin?: number }
+        return [{ type: 'text', text: `detached policy ${result.policyId ?? '?'} from uin ${result.uin ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const env = await resolveTencentEnv(ctx, args)
+      const policyId = args.policy_id
+      const uin = args.uin
+      if (typeof policyId !== 'number' || typeof uin !== 'number') {
+        throw new Error('tool-tencent: cam_policy_detach requires numeric policy_id and uin arguments.')
+      }
+      const request = { policyId, attachUin: uin, region: String(args.region) }
+      await requireSuccess(await runTccli(ctx, exec, resolved,
+        buildCamDetachArgv(resolved.command, request), env), 'cam DetachUserPolicy')
+      const value = { detached: true, policyId, uin }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Roll back a CAM policy', kind: 'other', rawInput: args }),
   }))
 }

@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `tencent_identity_get`, `cam_enum`, and `cos_enum` tools on `ctx.tools`. It shells out to a locally installed Tencent Cloud tccli through `ctx.subprocess` with fixed `--output json` flags and explicit `--region` arguments, parses the JSON into bounded rows, and never emits output-file arguments. The CAM secret key material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY` / `TENCENTCLOUD_SESSION_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `tencent_identity_get` under the `credential-use` action, `cam_enum` and `cos_enum` under the `reconnaissance` action through `cloudTools`.
+This package registers the `tencent_identity_get`, `cam_enum`, `cos_enum`, `cam_policy_attach`, and `cam_policy_detach` tools on `ctx.tools`. It shells out to a locally installed Tencent Cloud tccli through `ctx.subprocess` with fixed `--output json` flags and explicit `--region` arguments, parses the JSON into bounded rows, and never emits output-file arguments. The CAM secret key material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY` / `TENCENTCLOUD_SESSION_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `tencent_identity_get` under the `credential-use` action, `cam_enum` and `cos_enum` under the `reconnaissance` action through `cloudTools`, and the policy attach/detach pair under the `persistence-change` action through `cloudWriteTools`.
 
 ## Table of Contents
 
@@ -43,9 +43,21 @@ The model receives the generated [`cam_enum` schema](../../../docs/tool-catalog.
 
 The model receives the generated [`cos_enum` schema](../../../docs/tool-catalog.md#cinlantool-tencent): `target_id`, `region`, optional `credential_ref` (injected as subprocess environment entries; without it the local tccli configuration chain supplies the credentials), and optional `public_status` (per-bucket `GetBucketAcl` anonymous-read check).
 
+### cam_policy_attach tool schema
+
+#### What the model sees
+
+The model receives the generated [`cam_policy_attach` schema](../../../docs/tool-catalog.md#cinlantool-tencent): `target_id`, `policy_id` (a numeric id of an existing policy — no policy document is ever composed), `uin` (the numeric UIN of the user), optional `credential_ref`, and `region`, with the first three required. Grants that list `persistence-change` in `approvalRequiredActions` turn every call into an approval prompt.
+
+### cam_policy_detach tool schema
+
+#### What the model sees
+
+The model receives the generated [`cam_policy_detach` schema](../../../docs/tool-catalog.md#cinlantool-tencent): the same parameter set as `cam_policy_attach`; it rolls the grant back. Detaching a policy that is not attached fails with a clear CLI error.
+
 #### Token effect
 
-The tools add three descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
+The tools add five descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
 
 #### KV Cache effect
 

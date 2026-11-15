@@ -29,6 +29,8 @@ export interface Config {
   readonly persistenceTools?: readonly string[]
   /** Tool names that enumerate authorized cloud accounts and need reconnaissance authority. */
   readonly cloudTools?: readonly string[]
+  /** Tool names that grant or roll back cloud access bindings and need persistence-change authority. */
+  readonly cloudWriteTools?: readonly string[]
   /** Exact shell commands admitted in the calling Session's workspace without assessment authority. Sandbox policy still applies. */
   readonly workspaceCommands?: readonly {
     /** Configured shell tool name. */
@@ -47,6 +49,7 @@ export const Config = schema.object({
   exploitTools: schema.array(schema.string()),
   persistenceTools: schema.array(schema.string()),
   cloudTools: schema.array(schema.string()),
+  cloudWriteTools: schema.array(schema.string()),
   workspaceCommands: schema.array(schema.object({ tool: schema.string().required(), command: schema.string().required() })),
 })
 
@@ -61,7 +64,7 @@ const DEFAULT_BROWSER = [
   'browser_history', 'browser_network', 'browser_home', 'browser_search', 'browser_back',
   'browser_forward', 'browser_open', 'browser_navigate', 'browser_click', 'browser_close',
 ] as const
-const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools', 'credentialTools', 'exploitTools', 'persistenceTools', 'cloudTools', 'workspaceCommands'])
+const CONFIG_KEYS = new Set(['shellTools', 'networkTools', 'browserTools', 'credentialTools', 'exploitTools', 'persistenceTools', 'cloudTools', 'cloudWriteTools', 'workspaceCommands'])
 
 function selected(value: readonly string[] | undefined, fallback: readonly string[], name: string): Set<string> {
   const result = value === undefined || value.length === 0 ? fallback : value
@@ -124,6 +127,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const exploit = optionalSelected(config.exploitTools, 'exploitTools')
   const persistence = optionalSelected(config.persistenceTools, 'persistenceTools')
   const cloud = optionalSelected(config.cloudTools, 'cloudTools')
+  const cloudWrite = optionalSelected(config.cloudWriteTools, 'cloudWriteTools')
   const workspaceCommands = config.workspaceCommands ?? []
   const commandKeys = new Set<string>()
   for (const entry of workspaceCommands) {
@@ -171,7 +175,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       ? 'credential-use'
       : exploit.has(exec.name)
         ? 'exploit-execution'
-        : persistence.has(exec.name)
+        : persistence.has(exec.name) || cloudWrite.has(exec.name)
           ? 'persistence-change'
           : cloud.has(exec.name)
             ? 'reconnaissance'
@@ -208,7 +212,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     if (agent === undefined
       || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name)
         && !credential.has(exec.name) && !exploit.has(exec.name) && !persistence.has(exec.name)
-        && !cloud.has(exec.name))) {
+        && !cloud.has(exec.name) && !cloudWrite.has(exec.name))) {
       return next()
     }
     try {
@@ -223,7 +227,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     if (exec.agent === undefined
       || (!shell.has(exec.name) && !network.has(exec.name) && !browser.has(exec.name)
         && !credential.has(exec.name) && !exploit.has(exec.name) && !persistence.has(exec.name)
-        && !cloud.has(exec.name))) {
+        && !cloud.has(exec.name) && !cloudWrite.has(exec.name))) {
       return undefined
     }
     return admitted.delete(exec) ? undefined : 'Assessment scope authorization was not admitted for this tool call.'

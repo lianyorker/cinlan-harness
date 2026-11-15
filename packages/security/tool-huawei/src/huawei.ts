@@ -182,6 +182,63 @@ export function buildObsListArgv(obsutilPath: string, request: ObsListRequest, p
   ]
 }
 
+/** Validated user-group membership request accepted by the group builders. */
+export interface GroupUserRequest {
+  /** IAM user id to add or remove. Never starts with `-`. */
+  readonly userId: string
+  /** IAM user-group id. Never starts with `-`. */
+  readonly groupId: string
+  /** Explicit `--cli-region` for the KooCLI call. */
+  readonly region: string
+}
+
+const HW_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._\-]*$/
+
+function validateHwId(id: string, label: string): string {
+  const trimmed = id.trim()
+  if (trimmed.length === 0 || trimmed.length > 128 || trimmed.startsWith('-') || !HW_ID_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-huawei: invalid ${label} ${JSON.stringify(id)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the `hcloud IAM KeystoneAddUserToGroup` argv adding one user to one
+ * authorization group. Only existing group ids are accepted — no group or
+ * policy document is ever composed or written.
+ * @param hcloudPath - resolved hcloud executable path.
+ * @param request - validated membership request.
+ * @param pair - resolved key pair.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildGroupAddArgv(hcloudPath: string, request: GroupUserRequest, pair: HuaweiKeyPair): string[] {
+  return [
+    hcloudPath, 'IAM', 'KeystoneAddUserToGroup',
+    '--user_id=' + validateHwId(request.userId, 'user id'),
+    '--group_id=' + validateHwId(request.groupId, 'group id'),
+    '--cli-region=' + validateRegion(request.region),
+    ...keyFlags(pair),
+  ]
+}
+
+/**
+ * Build the `hcloud IAM KeystoneRemoveUserFromGroup` argv rolling back one
+ * group membership.
+ * @param hcloudPath - resolved hcloud executable path.
+ * @param request - validated membership request.
+ * @param pair - resolved key pair.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildGroupRemoveArgv(hcloudPath: string, request: GroupUserRequest, pair: HuaweiKeyPair): string[] {
+  return [
+    hcloudPath, 'IAM', 'KeystoneRemoveUserFromGroup',
+    '--user_id=' + validateHwId(request.userId, 'user id'),
+    '--group_id=' + validateHwId(request.groupId, 'group id'),
+    '--cli-region=' + validateRegion(request.region),
+    ...keyFlags(pair),
+  ]
+}
+
 /** One row of the caller-identity report. */
 export interface CallerIdentityRow {
   /** Caller user id as reported by IAM5. */

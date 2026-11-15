@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 142228c6cb1a91a4
-  zh: 88da14bc7692d58e
+  en: 0c0db36ac9a32d15
+  zh: b0e97b6f54423231
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -449,6 +449,12 @@
 /tool-schema-catalog/cinlan-tool-aws/iam-enum:
   en: e664b7731d0f2c04
   zh: 9e2a966eebcf9dd4
+/tool-schema-catalog/cinlan-tool-aws/iam-policy-attach:
+  en: 837f044440ac9ae3
+  zh: 4a425bf25a532cb5
+/tool-schema-catalog/cinlan-tool-aws/iam-policy-detach:
+  en: c095c010f0ec8904
+  zh: 98d96189a0c7737b
 /tool-schema-catalog/cinlan-tool-aws/s3-enum:
   en: aeb50215bf3a6c26
   zh: 48d26706ea9ca05b
@@ -465,8 +471,14 @@
   en: b8c2ecde469ec13a
   zh: adc5669229159a27
 /tool-schema-catalog/cinlan-tool-azure/azure-storage-enum:
-  en: 701c74c6ef4fbce1
-  zh: 727a2ccb554c172c
+  en: d6aa8d21d5bd4a32
+  zh: 84264301b91e483c
+/tool-schema-catalog/cinlan-tool-azure/role-assignment-create:
+  en: 8ba2198fdc5e402a
+  zh: bda5aeb6885cde54
+/tool-schema-catalog/cinlan-tool-azure/role-assignment-delete:
+  en: 3b6bf3314cbffe37
+  zh: e579430497661cd4
 /tool-schema-catalog/cinlan-tool-gcp:
   en: f6d3c51d1e5be087
   zh: f6d3c51d1e5be087
@@ -480,8 +492,14 @@
   en: 13b6a57e9b93d063
   zh: 0f8f4b958774be7e
 /tool-schema-catalog/cinlan-tool-gcp/gcs-enum:
-  en: 1ee3dd7c901e739a
-  zh: bc7e20ac4552ac0d
+  en: a5c5c574c010f569
+  zh: ae25eb17c0816551
+/tool-schema-catalog/cinlan-tool-gcp/iam-binding-add:
+  en: e8d0bbdad6877659
+  zh: d2b86b68cf176c60
+/tool-schema-catalog/cinlan-tool-gcp/iam-binding-remove:
+  en: fb1c434960e6f69b
+  zh: 993c70dee86620e4
 /tool-schema-catalog/cinlan-tool-aliyun:
   en: 03e3694900d74f17
   zh: 03e3694900d74f17
@@ -492,14 +510,26 @@
   en: cc61427925bc5045
   zh: 44d7ed02d75f88a3
 /tool-schema-catalog/cinlan-tool-aliyun/ram-enum:
-  en: 1572f0c8d4d6c5e4
-  zh: 0052a079c90b75da
+  en: 6afcea7f0cedbfdd
+  zh: e8da522fd894dfff
+/tool-schema-catalog/cinlan-tool-aliyun/ram-policy-attach:
+  en: 9ddc3ddf3ceca355
+  zh: fa52a0314ffd8170
+/tool-schema-catalog/cinlan-tool-aliyun/ram-policy-detach:
+  en: 5e29c8d465c7a045
+  zh: df8f35c30de51957
 /tool-schema-catalog/cinlan-tool-tencent:
   en: baed81c7073a1b99
   zh: baed81c7073a1b99
 /tool-schema-catalog/cinlan-tool-tencent/cam-enum:
   en: f902e135e5d1259f
   zh: 7a6e6b0c6953fa6f
+/tool-schema-catalog/cinlan-tool-tencent/cam-policy-attach:
+  en: 4425a7ac85e926d6
+  zh: 52be61048e74eb61
+/tool-schema-catalog/cinlan-tool-tencent/cam-policy-detach:
+  en: f19c0f959073a582
+  zh: b8fe28c80c1ed3f5
 /tool-schema-catalog/cinlan-tool-tencent/cos-enum:
   en: 5f3b2e82594b07ba
   zh: e0026c9e0ba9055f
@@ -515,6 +545,12 @@
 /tool-schema-catalog/cinlan-tool-huawei/huawei-identity-get:
   en: c03f206d8feda475
   zh: 19915c8f15f58ecd
+/tool-schema-catalog/cinlan-tool-huawei/iam-group-add-user:
+  en: ac50ece7eee58c3f
+  zh: 001d1b5c745e17b7
+/tool-schema-catalog/cinlan-tool-huawei/iam-group-remove-user:
+  en: 80235887348618a7
+  zh: 7a237c55eab8775d
 /tool-schema-catalog/cinlan-tool-huawei/obs-enum:
   en: f12d6aee5cfeeee2
   zh: 6c26e4169035928e

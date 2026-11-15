@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildCamArgv, buildCosAclArgv, buildCosServiceArgv, buildIdentityArgv,
+  buildCamArgv, buildCamAttachArgv, buildCamDetachArgv, buildCosAclArgv, buildCosServiceArgv, buildIdentityArgv,
   isPublicGrants, parseAclGrants, parseCamRows, parseCallerIdentity, parseCosBuckets,
   parseTencentEnvSecret,
 } from '../src/tencent.ts'
@@ -59,6 +59,30 @@ describe('buildCosServiceArgv and buildCosAclArgv', () => {
     ])
     expect(() => buildCosAclArgv('tccli', { bucket: '-bucket', region: 'ap-guangzhou' })).toThrow(TypeError)
     expect(() => buildCosAclArgv('tccli', { bucket: 'bucket;id', region: 'ap-guangzhou' })).toThrow(TypeError)
+  })
+})
+
+describe('buildCamAttachArgv and buildCamDetachArgv', () => {
+  const REQUEST = { policyId: 123456, attachUin: 900000000000, region: 'ap-guangzhou' } as const
+  it('builds symmetric attach and detach calls with JSON output', () => {
+    expect(buildCamAttachArgv('tccli', REQUEST)).toEqual([
+      'tccli', 'cam', 'AttachUserPolicy',
+      '--policyId', '123456', '--attachUin', '900000000000', '--region', 'ap-guangzhou', '--output', 'json',
+    ])
+    expect(buildCamDetachArgv('tccli', REQUEST)).toEqual([
+      'tccli', 'cam', 'DetachUserPolicy',
+      '--policyId', '123456', '--detachUin', '900000000000', '--region', 'ap-guangzhou', '--output', 'json',
+    ])
+  })
+
+  it('rejects non-numeric and non-positive ids', () => {
+    for (const policyId of [0, -1, 1.5, Number.NaN]) {
+      expect(() => buildCamAttachArgv('tccli', { ...REQUEST, policyId })).toThrow(TypeError)
+    }
+    for (const attachUin of [0, -1, 1.5]) {
+      expect(() => buildCamDetachArgv('tccli', { ...REQUEST, attachUin })).toThrow(TypeError)
+    }
+    expect(() => buildCamAttachArgv('tccli', { ...REQUEST, region: '-r' })).toThrow(TypeError)
   })
 })
 

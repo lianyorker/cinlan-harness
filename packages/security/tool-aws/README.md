@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `sts_get_caller_identity`, `iam_enum`, and `s3_enum` tools on `ctx.tools`. It shells out to a locally installed AWS CLI v2 (`aws`) through `ctx.subprocess` with fixed `--output json --no-cli-paginate` flags, parses the JSON into bounded rows, and never emits output-file arguments. The AWS key material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `sts_get_caller_identity` under the `credential-use` action, `iam_enum` and `s3_enum` under the `reconnaissance` action through `cloudTools`.
+This package registers the `sts_get_caller_identity`, `iam_enum`, `s3_enum`, `iam_policy_attach`, and `iam_policy_detach` tools on `ctx.tools`. It shells out to a locally installed AWS CLI v2 (`aws`) through `ctx.subprocess` with fixed `--output json --no-cli-paginate` flags, parses the JSON into bounded rows, and never emits output-file arguments. The AWS key material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `sts_get_caller_identity` under the `credential-use` action, `iam_enum` and `s3_enum` under the `reconnaissance` action through `cloudTools`, and the policy attach/detach pair under the `persistence-change` action through `cloudWriteTools`.
 
 ## Table of Contents
 
@@ -43,9 +43,21 @@ The model receives the generated [`iam_enum` schema](../../../docs/tool-catalog.
 
 The model receives the generated [`s3_enum` schema](../../../docs/tool-catalog.md#cinlantool-aws): `target_id` (required), optional `credential_ref` (injected as subprocess environment entries; without it the local AWS configuration chain supplies the credentials), optional `region`, and optional `public_status` (per-bucket `get-bucket-policy-status`, which requires an explicit region because the check is region-scoped).
 
+### iam_policy_attach tool schema
+
+#### What the model sees
+
+The model receives the generated [`iam_policy_attach` schema](../../../docs/tool-catalog.md#cinlantool-aws): `target_id`, `policy_arn` (an existing managed-policy ARN — no policy document is ever composed), `username`, optional `credential_ref`, and optional `region`, with the first three required. Grants that list `persistence-change` in `approvalRequiredActions` turn every call into an approval prompt.
+
+### iam_policy_detach tool schema
+
+#### What the model sees
+
+The model receives the generated [`iam_policy_detach` schema](../../../docs/tool-catalog.md#cinlantool-aws): the same parameter set as `iam_policy_attach`; it rolls the grant back. Detaching a policy that is not attached fails with a clear CLI error.
+
 #### Token effect
 
-The tools add three descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
+The tools add five descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
 
 #### KV Cache effect
 

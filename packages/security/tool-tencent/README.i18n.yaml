@@ -9,8 +9,8 @@
   en: e247650017767bae
   zh: f18eb94ec31f9288
 /cinlan-tool-tencent/summary:
-  en: 23342edf3706e406
-  zh: ddba081e8377ece4
+  en: afd8dd188bb84d89
+  zh: 48e1d9c4ae7f3fa6
 /cinlan-tool-tencent/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 37e7da5e4699fa17
@@ -38,10 +38,22 @@
 /cinlan-tool-tencent/model-experience/cos-enum-tool-schema/what-the-model-sees:
   en: b253ec9a1dcea762
   zh: dcd43827035c9b91
-/cinlan-tool-tencent/model-experience/cos-enum-tool-schema/token-effect:
-  en: 045653aa8337ce86
-  zh: 50ededef9c60c785
-/cinlan-tool-tencent/model-experience/cos-enum-tool-schema/kv-cache-effect:
+/cinlan-tool-tencent/model-experience/cam-policy-attach-tool-schema:
+  en: 5610ec4545978d65
+  zh: e25d0c3c0a74ab51
+/cinlan-tool-tencent/model-experience/cam-policy-attach-tool-schema/what-the-model-sees:
+  en: f014f667ed608acb
+  zh: c240c6ed34a2a0d3
+/cinlan-tool-tencent/model-experience/cam-policy-detach-tool-schema:
+  en: 3956af1c87219697
+  zh: 24cda33b1feb0f06
+/cinlan-tool-tencent/model-experience/cam-policy-detach-tool-schema/what-the-model-sees:
+  en: 0db5a637d1bab438
+  zh: 567e859294b3f730
+/cinlan-tool-tencent/model-experience/cam-policy-detach-tool-schema/token-effect:
+  en: 8d72aa2799525921
+  zh: 73e034be1af23351
+/cinlan-tool-tencent/model-experience/cam-policy-detach-tool-schema/kv-cache-effect:
   en: 8a1a2e0cd13cd80a
   zh: 9e215e26c9100407
 /cinlan-tool-tencent/known-limitations-and-deferred-work:

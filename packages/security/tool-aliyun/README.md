@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `aliyun_identity_get`, `ram_enum`, and `oss_enum` tools on `ctx.tools`. It shells out to a locally installed Alibaba Cloud CLI (`aliyun`) through `ctx.subprocess` with explicit `--region` arguments, parses stdout into bounded rows, and never emits output-file arguments. The AccessKey material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`ALIBABA_CLOUD_ACCESS_KEY_ID` / `ALIBABA_CLOUD_ACCESS_KEY_SECRET` / `ALIBABA_CLOUD_SECURITY_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `aliyun_identity_get` under the `credential-use` action, `ram_enum` and `oss_enum` under the `reconnaissance` action through `cloudTools`.
+This package registers the `aliyun_identity_get`, `ram_enum`, `oss_enum`, `ram_policy_attach`, and `ram_policy_detach` tools on `ctx.tools`. It shells out to a locally installed Alibaba Cloud CLI (`aliyun`) through `ctx.subprocess` with explicit `--region` arguments, parses stdout into bounded rows, and never emits output-file arguments. The AccessKey material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`ALIBABA_CLOUD_ACCESS_KEY_ID` / `ALIBABA_CLOUD_ACCESS_KEY_SECRET` / `ALIBABA_CLOUD_SECURITY_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `aliyun_identity_get` under the `credential-use` action, `ram_enum` and `oss_enum` under the `reconnaissance` action through `cloudTools`, and the policy attach/detach pair under the `persistence-change` action through `cloudWriteTools`.
 
 ## Table of Contents
 
@@ -43,9 +43,21 @@ The model receives the generated [`ram_enum` schema](../../../docs/tool-catalog.
 
 The model receives the generated [`oss_enum` schema](../../../docs/tool-catalog.md#cinlantool-aliyun): `target_id`, optional `credential_ref`, `region`, and optional `public_status` (per-bucket `ossutil api get-bucket-acl` anonymous-read check, which requires an aliyun CLI with embedded ossutil 2.0). Results are bucket rows parsed from the built-in ossutil text listing.
 
+### ram_policy_attach tool schema
+
+#### What the model sees
+
+The model receives the generated [`ram_policy_attach` schema](../../../docs/tool-catalog.md#cinlantool-aliyun): `target_id`, `policy_type` (`Custom` or `System`), `policy_name` (an existing policy — no policy document is ever composed), `username`, optional `credential_ref`, and `region`, with the first four required. Grants that list `persistence-change` in `approvalRequiredActions` turn every call into an approval prompt.
+
+### ram_policy_detach tool schema
+
+#### What the model sees
+
+The model receives the generated [`ram_policy_detach` schema](../../../docs/tool-catalog.md#cinlantool-aliyun): the same parameter set as `ram_policy_attach`; it rolls the grant back. Detaching a policy that is not attached fails with a clear CLI error.
+
 #### Token effect
 
-The tools add three descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
+The tools add five descriptions and JSON schemas to the model tool context; results are byte-bounded by `maxOutputBytes` (default 256 KiB).
 
 #### KV Cache effect
 

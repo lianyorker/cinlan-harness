@@ -35,6 +35,7 @@ async function mount(
     ...(config.exploitTools === undefined ? {} : { exploitTools: [...config.exploitTools] }),
     ...(config.persistenceTools === undefined ? {} : { persistenceTools: [...config.persistenceTools] }),
     ...(config.cloudTools === undefined ? {} : { cloudTools: [...config.cloudTools] }),
+    ...(config.cloudWriteTools === undefined ? {} : { cloudWriteTools: [...config.cloudWriteTools] }),
     ...(config.workspaceCommands === undefined ? {} : { workspaceCommands: config.workspaceCommands.map(entry => ({ ...entry })) }),
   })
   return { ctx, authorize }
@@ -225,6 +226,23 @@ describe('assessment scope tool policy', () => {
   it('rejects invalid cloudTools configuration at load', async () => {
     for (const cloudTools of [[''], [' s3_enum'], ['dup', 'dup']]) {
       await expect(mount('deny', { cloudTools })).rejects.toThrow(/invalid cloudTools/)
+    }
+  })
+
+  it('maps cloud write tools onto persistence-change against a cloud target', async () => {
+    const targets = [{ id: 'target', value: '123456789012', kind: 'cloud', cloud: { provider: 'aws' } }]
+    const b = await mount('allow', { cloudWriteTools: ['iam_policy_attach'] }, targets)
+    await expect(pre(b.ctx, makeExecution('iam_policy_attach', { target_id: '123456789012', credential_ref: 'ASSESS_AWS_KEYS' })))
+      .resolves.toMatchObject({ kind: 'allow' })
+    expect(b.authorize).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      action: 'persistence-change',
+      credential: { ref: 'ASSESS_AWS_KEYS', purpose: 'target-authentication' },
+    }))
+  })
+
+  it('rejects invalid cloudWriteTools configuration at load', async () => {
+    for (const cloudWriteTools of [[''], [' iam_policy_attach'], ['dup', 'dup']]) {
+      await expect(mount('deny', { cloudWriteTools })).rejects.toThrow(/invalid cloudWriteTools/)
     }
   })
 })

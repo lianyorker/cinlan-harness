@@ -340,11 +340,9 @@ securityInstallCommand: 'dsh --profile security-research',
 - GCP：新工具 `gcs_bucket_iam`（`gcloud storage buckets get-iam-policy`，返回绑定行 + 匿名主体标志）；华为：`huawei_iam_enum` 的 `resource` 扩展 `keys`（`IAM ListPermanentAccessKeys`，回到草案设计）；阿里：`oss_enum` 加 `public_status`（`aliyun ossutil api get-bucket-acl`——新版 CLI 透传内嵌 ossutil 2.0，按 `public-read`/`public-read-write` 权限判定公开性，`maxPublicChecks` 封顶同 AWS/Tencent 形态）。
 - 修复批次 5 实现缺陷：AWS/阿里/腾讯的 recon 工具（`iam_enum`、`s3_enum`、`ram_enum`、`oss_enum`、`cam_enum`、`cos_enum`）此前没有暴露 `credential_ref`——env 注入型 CLI 的凭据没有传给子进程，会退回本机配置链。全部补可选 `credential_ref` 参数 + `resolveXxxEnv` helper；缺省时由本机配置链提供（README 记录），呈现引用时经 policy 构造 `operation.credential` 对照 grant。
 
-### 9.7 云写路径第二批设计草案（待实施）
+### 9.7 云写路径批次（已实施，按草案落地）
 
-目标：六云各 1 对"验证 + 回滚"写工具，共 12 个。设计原则：**只授予/移除已存在的策略或角色绑定，不接受任意策略 JSON 文档**（任意文档等价于任意权限写入），attach/detach 严格配对自清理，验证对目标账户的写权限后立即回滚。
-
-授权：policy 新增第 8 类 `cloudWriteTools`（空列表=不启用）映射 `persistence-change` 动作；grant 部署示例把 `persistence-change` 列入 `approvalRequiredActions`——每次授予/回滚都走人工审批（与 rbcd 同级别）。凭据注入沿用各包既有通道。
+按 2026-11-16 草案实施：六云各 1 对授予/回滚写工具共 12 个，policy 新增第 8 类 `cloudWriteTools`（空=不启用）映射 `persistence-change` 并沿用 cloud 目标 allowlist 检查；bundle 示例把全部 12 个列入 `cloudWriteTools`。工具与授权映射：AWS `iam_policy_attach`/`iam_policy_detach`（`aws iam attach/detach-user-policy`，policy-arn 格式校验）、Azure `role_assignment_create`/`role_assignment_delete`（`az role assignment create/delete`，assignee/scope 格式校验）、GCP `iam_binding_add`/`iam_binding_remove`（`gcloud projects add/remove-iam-policy-binding`，member/role 格式校验）、阿里 `ram_policy_attach`/`ram_policy_detach`（`AttachUserPolicy`/`DetachUserPolicy`）、腾讯 `cam_policy_attach`/`cam_policy_detach`（数字 policyId/UIN）、华为 `iam_group_add_user`/`iam_group_remove_user`（`KeystoneAddUserToGroup`/`KeystoneRemoveUserFromGroup`）。
 
 | 包 | 授予工具 | 回滚工具 | CLI |
 |----|----------|----------|-----|
@@ -357,7 +355,7 @@ securityInstallCommand: 'dsh --profile security-research',
 
 安全线：授予工具回显操作前的绑定状态（attach 前先读，便于确认回滚目标）；参数全部显式（用户/策略/角色/组 id 或名称，含注入校验）；不可发出删除资源、修改策略文档本身、或创建新策略的调用；执行结果按 grant evidence policy 记录。grant 示例：`actions` 需含 `persistence-change` 且建议列入 `approvalRequiredActions`。
 
-实施顺序：policy 横切（`cloudWriteTools` 类 + 用例）→ 六包逐个（argv 纯函数 + spec + README + bundle 接线）→ catalog/目录/pairing 全套验证一次提交。
+实施结果与草案差异：全部遵循"只引用已存在策略/角色/组"的安全线（参数格式白名单校验拒绝注入与任意文档），attach/detach 严格配对，未做"操作前绑定状态回读"（描述里引导先跑对应 enum 工具，避免每次写前翻倍 CLI 调用）。policy.spec 补 `cloudWriteTools` 正反用例（映射 persistence-change + 带 credential 构造 operation.credential + 配置校验）。实施插曲：ZH 目录插入时 `iam_group_*` 锚点选错导致 huawei 段块序错位，pairing 块级校验抓到后已按 EN 字母序归位。
 
 ### 9.8 dsh-purge-safe 差距分析与原生集成草案（待实施）
 

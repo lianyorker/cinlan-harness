@@ -221,6 +221,70 @@ export function isPublicOssGrants(grants: readonly OssAclGrantRow[]): boolean {
   return grants.some(grant => /^public-(read|read-write)$/i.test(grant.permission))
 }
 
+/** Validated RAM policy grant request accepted by the attach/detach builders. */
+export interface RamPolicyRequest {
+  /** Policy type: `Custom` or `System`. */
+  readonly policyType: 'Custom' | 'System'
+  /** Name of an existing policy. Never starts with `-`. */
+  readonly policyName: string
+  /** RAM user name the policy is granted to. Never starts with `-`. */
+  readonly userName: string
+  /** Explicit `--region` for the aliyun call. */
+  readonly region: string
+}
+
+const RAM_POLICY_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._\-]*$/
+
+function validatePolicyName(policyName: string): string {
+  const trimmed = policyName.trim()
+  if (trimmed.length === 0 || trimmed.length > 128 || trimmed.startsWith('-') || !RAM_POLICY_NAME_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-aliyun: invalid policy name ${JSON.stringify(policyName)}`)
+  }
+  return trimmed
+}
+
+function validateRamUserName(userName: string): string {
+  const trimmed = userName.trim()
+  if (trimmed.length === 0 || trimmed.length > 64 || trimmed.startsWith('-') || !/^[A-Za-z0-9._@\-]+$/.test(trimmed)) {
+    throw new TypeError(`tool-aliyun: invalid user name ${JSON.stringify(userName)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the `aliyun ram AttachUserPolicy` argv granting an existing policy
+ * to one RAM user. Only existing policy names are accepted — no policy
+ * document is ever composed or written.
+ * @param aliyunPath - resolved aliyun executable path.
+ * @param request - validated attach request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildRamAttachArgv(aliyunPath: string, request: RamPolicyRequest): string[] {
+  return [
+    aliyunPath, 'ram', 'AttachUserPolicy',
+    '--PolicyType', request.policyType,
+    '--PolicyName', validatePolicyName(request.policyName),
+    '--UserName', validateRamUserName(request.userName),
+    '--region', validateRegion(request.region),
+  ]
+}
+
+/**
+ * Build the `aliyun ram DetachUserPolicy` argv rolling back one policy grant.
+ * @param aliyunPath - resolved aliyun executable path.
+ * @param request - validated detach request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildRamDetachArgv(aliyunPath: string, request: RamPolicyRequest): string[] {
+  return [
+    aliyunPath, 'ram', 'DetachUserPolicy',
+    '--PolicyType', request.policyType,
+    '--PolicyName', validatePolicyName(request.policyName),
+    '--UserName', validateRamUserName(request.userName),
+    '--region', validateRegion(request.region),
+  ]
+}
+
 /** One row of the caller-identity report. */
 export interface CallerIdentityRow {
   /** Caller identity type as reported by STS (e.g. RAMUser). */

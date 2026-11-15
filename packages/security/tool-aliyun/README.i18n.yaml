@@ -9,8 +9,8 @@
   en: 639a0eb06a7ebb45
   zh: 42f183637640eda8
 /cinlan-tool-aliyun/summary:
-  en: 9d8fc4b85ceeb902
-  zh: 9b2a416c549f804b
+  en: 6f479b305efd07b9
+  zh: e0662d0c49407ba7
 /cinlan-tool-aliyun/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 37e7da5e4699fa17
@@ -38,10 +38,22 @@
 /cinlan-tool-aliyun/model-experience/oss-enum-tool-schema/what-the-model-sees:
   en: 423b86b90313a723
   zh: 0a7cee60f21c407b
-/cinlan-tool-aliyun/model-experience/oss-enum-tool-schema/token-effect:
-  en: 045653aa8337ce86
-  zh: 50ededef9c60c785
-/cinlan-tool-aliyun/model-experience/oss-enum-tool-schema/kv-cache-effect:
+/cinlan-tool-aliyun/model-experience/ram-policy-attach-tool-schema:
+  en: e7d0b20276f6acea
+  zh: 29d7ade5276c7c52
+/cinlan-tool-aliyun/model-experience/ram-policy-attach-tool-schema/what-the-model-sees:
+  en: 8134f7a61a61ec66
+  zh: 4f4286284e4cabc8
+/cinlan-tool-aliyun/model-experience/ram-policy-detach-tool-schema:
+  en: 183baa43d48b8eb9
+  zh: 057066ae92cdcd45
+/cinlan-tool-aliyun/model-experience/ram-policy-detach-tool-schema/what-the-model-sees:
+  en: 1d61845f471f495b
+  zh: 6a8f7d073730728a
+/cinlan-tool-aliyun/model-experience/ram-policy-detach-tool-schema/token-effect:
+  en: 8d72aa2799525921
+  zh: 73e034be1af23351
+/cinlan-tool-aliyun/model-experience/ram-policy-detach-tool-schema/kv-cache-effect:
   en: 8a1a2e0cd13cd80a
   zh: 9e215e26c9100407
 /cinlan-tool-aliyun/known-limitations-and-deferred-work:

@@ -9,8 +9,8 @@
   en: 65ec2f9214750f74
   zh: fdf03307abb51452
 /cinlan-tool-huawei/summary:
-  en: 76f20c7d0b912b45
-  zh: 9d28017b4f1d6351
+  en: 6d829850306b7fd8
+  zh: 4e8a9ba57ca49a49
 /cinlan-tool-huawei/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 37e7da5e4699fa17
@@ -38,10 +38,22 @@
 /cinlan-tool-huawei/model-experience/obs-enum-tool-schema/what-the-model-sees:
   en: 7225d6c64fd70b85
   zh: 5970408e3887fa5d
-/cinlan-tool-huawei/model-experience/obs-enum-tool-schema/token-effect:
-  en: 045653aa8337ce86
-  zh: 50ededef9c60c785
-/cinlan-tool-huawei/model-experience/obs-enum-tool-schema/kv-cache-effect:
+/cinlan-tool-huawei/model-experience/iam-group-add-user-tool-schema:
+  en: 8c7fb4ae98257e75
+  zh: a0b59a271b08f970
+/cinlan-tool-huawei/model-experience/iam-group-add-user-tool-schema/what-the-model-sees:
+  en: 31d01cfe5b2854aa
+  zh: 89912aed525f148c
+/cinlan-tool-huawei/model-experience/iam-group-remove-user-tool-schema:
+  en: fc89075af6f5c15f
+  zh: 873948b5632bea51
+/cinlan-tool-huawei/model-experience/iam-group-remove-user-tool-schema/what-the-model-sees:
+  en: 6b2a9b9415443896
+  zh: 2371a96604f809ac
+/cinlan-tool-huawei/model-experience/iam-group-remove-user-tool-schema/token-effect:
+  en: 8d72aa2799525921
+  zh: 73e034be1af23351
+/cinlan-tool-huawei/model-experience/iam-group-remove-user-tool-schema/kv-cache-effect:
   en: 8a1a2e0cd13cd80a
   zh: 9e215e26c9100407
 /cinlan-tool-huawei/known-limitations-and-deferred-work:

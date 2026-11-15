@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildEnumArgv, buildLoginArgv, buildStorageArgv,
+  buildEnumArgv, buildLoginArgv, buildRoleCreateArgv, buildRoleDeleteArgv, buildStorageArgv,
   parseAdUsers, parseAzureSecret, parseLoginRows, parseRoleAssignments, parseStorageAccounts,
 } from '../src/azure.ts'
 
@@ -59,6 +59,42 @@ describe('buildEnumArgv and buildStorageArgv', () => {
   it('rejects non-GUID subscription scopes', () => {
     expect(() => buildEnumArgv('az', { resource: 'users', subscriptionId: 'my-subscription' })).toThrow(TypeError)
     expect(() => buildStorageArgv('az', { subscriptionId: '-sub' })).toThrow(TypeError)
+  })
+})
+
+describe('buildRoleCreateArgv and buildRoleDeleteArgv', () => {
+  const REQUEST = {
+    assignee: '44444444-4444-4444-4444-444444444444',
+    role: 'Reader',
+    scope: '/subscriptions/33333333-3333-3333-3333-333333333333',
+    subscriptionId: '33333333-3333-3333-3333-333333333333',
+  } as const
+  it('builds symmetric create and delete assignment calls with JSON output', () => {
+    expect(buildRoleCreateArgv('az', REQUEST)).toEqual([
+      'az', 'role', 'assignment', 'create',
+      '--assignee', '44444444-4444-4444-4444-444444444444',
+      '--role', 'Reader',
+      '--scope', '/subscriptions/33333333-3333-3333-3333-333333333333',
+      '--output', 'json', '--subscription', '33333333-3333-3333-3333-333333333333',
+    ])
+    expect(buildRoleDeleteArgv('az', REQUEST)).toEqual([
+      'az', 'role', 'assignment', 'delete',
+      '--assignee', '44444444-4444-4444-4444-444444444444',
+      '--role', 'Reader',
+      '--scope', '/subscriptions/33333333-3333-3333-3333-333333333333',
+      '--output', 'json', '--subscription', '33333333-3333-3333-3333-333333333333',
+    ])
+  })
+
+  it('rejects role definitions, malformed assignees, and injection-shaped scopes', () => {
+    expect(() => buildRoleCreateArgv('az', { ...REQUEST, assignee: '-a' })).toThrow(TypeError)
+    expect(() => buildRoleCreateArgv('az', { ...REQUEST, assignee: 'not-a-guid' })).toThrow(TypeError)
+    for (const role of ['', '-role', 'role;id', 'role "quoted"']) {
+      expect(() => buildRoleDeleteArgv('az', { ...REQUEST, role })).toThrow(TypeError)
+    }
+    for (const scope of ['', '-scope', 'subscriptions/33333333', 'https://management.azure.com/']) {
+      expect(() => buildRoleCreateArgv('az', { ...REQUEST, scope })).toThrow(TypeError)
+    }
   })
 })
 

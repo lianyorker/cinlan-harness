@@ -90,6 +90,19 @@
           - cos_enum
           - huawei_iam_enum
           - obs_enum
+        cloudWriteTools:
+          - iam_policy_attach
+          - iam_policy_detach
+          - role_assignment_create
+          - role_assignment_delete
+          - iam_binding_add
+          - iam_binding_remove
+          - ram_policy_attach
+          - ram_policy_detach
+          - cam_policy_attach
+          - cam_policy_detach
+          - iam_group_add_user
+          - iam_group_remove_user
         browserTools:
           - browser_list
           - browser_snapshot

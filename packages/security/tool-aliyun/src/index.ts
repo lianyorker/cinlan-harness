@@ -27,7 +27,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
 import {
-  buildIdentityArgv, buildOssAclArgv, buildOssListArgv, buildRamArgv,
+  buildIdentityArgv, buildOssAclArgv, buildOssListArgv, buildRamArgv, buildRamAttachArgv, buildRamDetachArgv,
   isPublicOssGrants, parseAliyunEnvSecret, parseCallerIdentity, parseOssAclGrants, parseOssRows, parseRamUsers,
 } from './aliyun.ts'
 
@@ -381,5 +381,118 @@ export function apply(ctx: Context, config: Config = {}): void {
       return value
     },
     presentCall: args => ({ card: 'generic', title: 'Enumerate OSS buckets', kind: 'other', rawInput: args }),
+  }))
+
+  const RAM_POLICY_PARAMETERS = {
+    target_id: {
+      type: 'string',
+      required: true,
+      description: 'Alibaba Cloud account id holding the user and policy, as declared in the assessment scope grant.',
+    },
+    policy_type: {
+      type: 'string',
+      required: true,
+      enum: ['Custom', 'System'],
+      description: 'RAM policy type of an existing policy; no policy document is ever composed.',
+    },
+    policy_name: {
+      type: 'string',
+      required: true,
+      description: 'Name of an existing RAM policy to grant or roll back.',
+    },
+    username: {
+      type: 'string',
+      required: true,
+      description: 'RAM user name the policy is granted to or rolled back for.',
+    },
+    credential_ref: {
+      type: 'string',
+      description: CREDENTIAL_REF_DESCRIPTION + ' Optional: without it the local aliyun configuration chain supplies the credentials.',
+    },
+    region: {
+      type: 'string',
+      required: true,
+      description: REGION_DESCRIPTION,
+    },
+  } as const
+
+  ctx.tools.register(defineTool({
+    name: 'ram_policy_attach',
+    description:
+      'Grant one existing Alibaba Cloud RAM policy to one authorized RAM user (aliyun ram AttachUserPolicy). This '
+      + 'is a persistence change on the account: the target_id must match a cloud target declared in the active '
+      + 'assessment-scope grant, the write action must be granted, and deployments typically require approval for '
+      + 'every call. Verify the grant with ram_policy_detach afterwards.',
+    parameters: RAM_POLICY_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          attached: { type: 'boolean', required: true },
+          policyName: { type: 'string', required: true },
+          userName: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { policyName?: string; userName?: string }
+        return [{ type: 'text', text: `attached ${result.policyName ?? '?'} to ${result.userName ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const env = await resolveAliyunEnv(ctx, args)
+      const request = {
+        policyType: String(args.policy_type) as 'Custom' | 'System',
+        policyName: String(args.policy_name),
+        userName: String(args.username),
+        region: String(args.region),
+      }
+      await requireSuccess(await runAliyun(ctx, exec, resolved,
+        buildRamAttachArgv(resolved.command, request), env), 'ram AttachUserPolicy')
+      const value = { attached: true, policyName: request.policyName, userName: request.userName }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Grant a RAM policy', kind: 'other', rawInput: args }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'ram_policy_detach',
+    description:
+      'Roll back one Alibaba Cloud RAM policy grant from one authorized RAM user (aliyun ram DetachUserPolicy). '
+      + 'This is a persistence change on the account: the target_id must match a cloud target declared in the '
+      + 'active assessment-scope grant and the write action must be granted; deployments typically require '
+      + 'approval for every call. Detaching a policy that is not attached fails with a clear CLI error.',
+    parameters: RAM_POLICY_PARAMETERS,
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          detached: { type: 'boolean', required: true },
+          policyName: { type: 'string', required: true },
+          userName: { type: 'string', required: true },
+        },
+      },
+      render: (_args, value) => {
+        const result = value as { policyName?: string; userName?: string }
+        return [{ type: 'text', text: `detached ${result.policyName ?? '?'} from ${result.userName ?? '?'}` }]
+      },
+    },
+    async execute(args, exec) {
+      const env = await resolveAliyunEnv(ctx, args)
+      const request = {
+        policyType: String(args.policy_type) as 'Custom' | 'System',
+        policyName: String(args.policy_name),
+        userName: String(args.username),
+        region: String(args.region),
+      }
+      await requireSuccess(await runAliyun(ctx, exec, resolved,
+        buildRamDetachArgv(resolved.command, request), env), 'ram DetachUserPolicy')
+      const value = { detached: true, policyName: request.policyName, userName: request.userName }
+      enforceResultBytes(value, resolved.maxOutputBytes)
+      return value
+    },
+    presentCall: args => ({ card: 'generic', title: 'Roll back a RAM policy', kind: 'other', rawInput: args }),
   }))
 }
