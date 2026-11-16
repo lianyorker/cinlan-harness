@@ -31,6 +31,9 @@ importers:
       '@cinlan/coordination':
         specifier: workspace:*
         version: link:packages/coordination/coordination
+      '@cinlan/engagement-ledger':
+        specifier: workspace:*
+        version: link:packages/security/engagement-ledger
       '@cinlan/knowledge-base':
         specifier: workspace:*
         version: link:packages/knowledge/knowledge-base

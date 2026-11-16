@@ -21,7 +21,7 @@ import type {} from '@cinlan/vuln-playbook'
 import { CampaignStore } from './store.ts'
 import { assertHostInGrant, normalizeLedgerHost, scopeSnapshot } from './scope.ts'
 import { LEDGER_STAGES } from './types.ts'
-import type { LedgerAsset, LedgerAttempt, LedgerCampaign, LedgerNextStep, LedgerStep } from './types.ts'
+import type { LedgerAsset, LedgerAssetCloud, LedgerAttempt, LedgerCampaign, LedgerNextStep, LedgerStep } from './types.ts'
 
 export type {
   LedgerAsset,
@@ -313,6 +313,10 @@ export function registerLedgerTools(ctx: Context, ledger: EngagementLedger): voi
       status: { type: 'string', description: 'Asset status: new | fingerprinted | verified | exploited | blocked' },
       assetNote: { type: 'string', description: 'Note attached to the asset.' },
       kbHits: { type: 'array', items: { type: 'string' }, description: 'Playbook file ids matched for this asset.' },
+      findingIds: { type: 'array', items: { type: 'string' }, description: 'Finding ids recorded against this asset; repeated calls accumulate (union, no duplicates).' },
+      credentialRefs: { type: 'array', items: { type: 'string' }, description: 'Credential reference names discovered on or used for this asset (names only — never secret values).' },
+      cloudProvider: { type: 'string', enum: ['aws', 'azure', 'gcp', 'aliyun', 'tencent', 'huawei'], description: 'Cloud identity of a cloud-scoped asset; pair with cloudAccountId and use the account id as host.' },
+      cloudAccountId: { type: 'string', description: 'Cloud account id of a cloud-scoped asset (pair with cloudProvider).' },
       command: { type: 'string', description: 'Command or action performed in this step (recorded).' },
       result: { type: 'string', description: 'Outcome of this step (recorded).' },
       attemptAsset: { type: 'string', description: 'Attempt record: asset label (host:port).' },
@@ -344,12 +348,26 @@ export function registerLedgerTools(ctx: Context, ledger: EngagementLedger): voi
     async execute(args) {
       const id = String(args.campaignId)
       if (args.host !== undefined) {
+        const cloud =
+          (args.cloudProvider !== undefined || args.cloudAccountId !== undefined)
+          && args.cloudProvider !== undefined && args.cloudAccountId !== undefined
+            ? {
+              provider: String(args.cloudProvider) as LedgerAssetCloud['provider'],
+              accountId: String(args.cloudAccountId),
+            }
+            : undefined
+        if ((args.cloudProvider !== undefined) !== (args.cloudAccountId !== undefined)) {
+          throw new Error('engagement-ledger: cloudProvider and cloudAccountId must be supplied together.')
+        }
         ledger.upsertAsset(id, String(args.host), {
           ...(args.port !== undefined ? { port: Number(args.port) } : {}),
           ...(args.fingerprint !== undefined ? { fingerprint: String(args.fingerprint) } : {}),
           ...(args.status !== undefined ? { status: String(args.status) } : {}),
           ...(args.assetNote !== undefined ? { note: String(args.assetNote) } : {}),
           ...(Array.isArray(args.kbHits) ? { kbHits: args.kbHits.map(String) } : {}),
+          ...(Array.isArray(args.findingIds) ? { findingIds: args.findingIds.map(String) } : {}),
+          ...(Array.isArray(args.credentialRefs) ? { credentialRefs: args.credentialRefs.map(String) } : {}),
+          ...(cloud !== undefined ? { cloud } : {}),
         })
       }
       const patch: Parameters<EngagementLedger['patch']>[1] = {}

@@ -114,4 +114,28 @@ describe('campaign store', () => {
     const campaign = store.create({ name: 'x', objective: '拿到后台管理员数据', scope: { targets: ['a.b'], excluded: [] }, grantId: 'g1' })
     expect(store.criteriaOf(campaign).join(' ')).toContain('admin')
   })
+
+  it('accumulates finding and credential links by union across upserts', () => {
+    const store = new CampaignStore(file)
+    const campaign = store.create({ name: 'x', objective: 'x', scope: { targets: ['a.b'], excluded: [] }, grantId: 'g1' })
+    store.upsertAsset(campaign.id, 'a.b', { port: 443, findingIds: ['f1', 'f2'], credentialRefs: ['ASSESS_AD_PASS'] })
+    store.upsertAsset(campaign.id, 'a.b', { port: 443, findingIds: ['f2', 'f3'], credentialRefs: ['ASSESS_AWS_KEYS'] })
+    const asset = store.get(campaign.id).assets.find(a => a.host === 'a.b' && a.port === 443)
+    expect(asset?.findings).toEqual(['f1', 'f2', 'f3'])
+    expect(asset?.credentialRefs).toEqual(['ASSESS_AD_PASS', 'ASSESS_AWS_KEYS'])
+    expect(store.get(campaign.id).assets).toHaveLength(1)
+  })
+
+  it('records and replaces the cloud identity of a cloud-scoped asset', () => {
+    const store = new CampaignStore(file)
+    const campaign = store.create({ name: 'x', objective: 'x', scope: { targets: ['a.b'], excluded: [] }, grantId: 'g1' })
+    store.upsertAsset(campaign.id, '123456789012', { cloud: { provider: 'aws', accountId: '123456789012' } })
+    store.upsertAsset(campaign.id, '123456789012', { findingIds: ['f9'] })
+    const asset = store.get(campaign.id).assets.find(a => a.host === '123456789012')
+    expect(asset?.cloud).toEqual({ provider: 'aws', accountId: '123456789012' })
+    expect(asset?.findings).toEqual(['f9'])
+    // A later cloud value replaces the earlier one.
+    store.upsertAsset(campaign.id, '123456789012', { cloud: { provider: 'huawei', accountId: '123456789012' } })
+    expect(store.get(campaign.id).assets.find(a => a.host === '123456789012')?.cloud?.provider).toBe('huawei')
+  })
 })

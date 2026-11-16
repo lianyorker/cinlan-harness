@@ -68,6 +68,7 @@
 | `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-listeners` | `ntlm_relay`, `responder_capture` | `ctx.tools`, `ctx.subprocess`, `ctx.jobs` | `tool/call`, `background job output ring` | - | - |
 | `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/engagement-ledger` | `campaign_create`, `campaign_get`, `campaign_list`, `campaign_next`, `campaign_remove`, `campaign_upsert` | `ctx.tools`, `ctx.assessmentScope (live grant read on every asset write)`, `ctx.vulnPlaybook (campaign_next candidate lookup)` | `tool/call`, `tool/result`, `the engagement ledger store under the clh home` | - | - |
 | `@cinlan/tool-aws` | `iam_enum`, `iam_policy_attach`, `iam_policy_detach`, `s3_enum`, `sts_get_caller_identity` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-azure` | `az_account_show`, `azure_ad_enum`, `azure_storage_enum`, `role_assignment_create`, `role_assignment_delete` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-gcp` | `gcp_iam_enum`, `gcp_identity_get`, `gcs_bucket_iam`, `gcs_enum`, `iam_binding_add`, `iam_binding_remove` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
@@ -5681,6 +5682,246 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 ```
 
 来源：[`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+<a id="cinlanengagement-ledger"></a>
+
+## `@cinlan/engagement-ledger`
+
+### `campaign_create`
+
+按当前授权评估 grant 开启一条评估台账。返回新 campaign id，供其他 campaign_* 调用使用。grant 未声明目标时失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Engagement name."
+    },
+    "objective": {
+      "type": "string",
+      "description": "One-line objective driving done criteria."
+    },
+    "note": {
+      "type": "string",
+      "description": "Free-form engagement note."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Optional session id to bind this campaign to."
+    }
+  },
+  "required": [
+    "name",
+    "objective"
+  ]
+}
+```
+
+来源：[`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_get`
+
+读取一条完整的 campaign 台账，含资产、步骤与尝试记录。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id from campaign_create or campaign_list."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+来源：[`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_list`
+
+列出评估 campaign，含阶段、资产与步骤计数。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_next`
+
+返回一条 campaign 的建议下一步：阶段指令、待处理资产、按指纹匹配的 playbook 候选，以及进度停滞时的提示。每次调用计为一个台账轮次。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+来源：[`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_remove`
+
+按 id 删除一条 campaign 台账。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id to delete."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+来源：[`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_upsert`
+
+向既有 campaign 记账：登记或更新资产（host 会对照授权 grant 校验——范围外主机被拒绝）、追加步骤或尝试记录、推进阶段，或标记目标完成。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id."
+    },
+    "stage": {
+      "type": "string",
+      "description": "Stage: recon | fingerprint | match | verify | exploit | lateral | report"
+    },
+    "host": {
+      "type": "string",
+      "description": "Asset host; must sit inside the authorized grant scope."
+    },
+    "port": {
+      "type": "integer",
+      "description": "Asset port."
+    },
+    "fingerprint": {
+      "type": "string",
+      "description": "Observed fingerprint/banner for the asset."
+    },
+    "status": {
+      "type": "string",
+      "description": "Asset status: new | fingerprinted | verified | exploited | blocked"
+    },
+    "assetNote": {
+      "type": "string",
+      "description": "Note attached to the asset."
+    },
+    "kbHits": {
+      "type": "array",
+      "description": "Playbook file ids matched for this asset.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "findingIds": {
+      "type": "array",
+      "description": "Finding ids recorded against this asset; repeated calls accumulate (union, no duplicates).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "credentialRefs": {
+      "type": "array",
+      "description": "Credential reference names discovered on or used for this asset (names only — never secret values).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cloudProvider": {
+      "type": "string",
+      "description": "Cloud identity of a cloud-scoped asset; pair with cloudAccountId and use the account id as host.",
+      "enum": [
+        "aws",
+        "azure",
+        "gcp",
+        "aliyun",
+        "tencent",
+        "huawei"
+      ]
+    },
+    "cloudAccountId": {
+      "type": "string",
+      "description": "Cloud account id of a cloud-scoped asset (pair with cloudProvider)."
+    },
+    "command": {
+      "type": "string",
+      "description": "Command or action performed in this step (recorded)."
+    },
+    "result": {
+      "type": "string",
+      "description": "Outcome of this step (recorded)."
+    },
+    "attemptAsset": {
+      "type": "string",
+      "description": "Attempt record: asset label (host:port)."
+    },
+    "attemptKb": {
+      "type": "string",
+      "description": "Attempt record: playbook file id used."
+    },
+    "attemptPayload": {
+      "type": "string",
+      "description": "Attempt record: payload summary."
+    },
+    "attemptOutcome": {
+      "type": "string",
+      "description": "Attempt record: outcome (e.g. hit, blocked, error)."
+    },
+    "advance": {
+      "type": "boolean",
+      "description": "Move the stage one step forward (recon → … → report)."
+    },
+    "done": {
+      "type": "boolean",
+      "description": "Mark the engagement objective as achieved."
+    },
+    "doneNote": {
+      "type": "string",
+      "description": "Note recorded with completion."
+    },
+    "objective": {
+      "type": "string",
+      "description": "Replace the one-line objective."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Bind this campaign to a session id (unbinds any other campaign using it)."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+来源：[`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
 
 <a id="deepseek-aidsh-tool-finding"></a>
 

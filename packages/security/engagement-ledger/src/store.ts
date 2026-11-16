@@ -12,6 +12,7 @@ import { dirname } from 'node:path'
 import { LEDGER_STAGES } from './types.ts'
 import type {
   LedgerAsset,
+  LedgerAssetCloud,
   LedgerAttempt,
   LedgerCampaign,
   LedgerNextStep,
@@ -24,6 +25,8 @@ const MAX_CAMPAIGNS = 64
 const MAX_STEPS = 200
 const MAX_ATTEMPTS = 300
 const MAX_KB_HITS = 20
+const MAX_FINDING_LINKS = 32
+const MAX_CREDENTIAL_REFS = 16
 const clamp = (value: string, length: number) => value.slice(0, length)
 
 interface StoreState {
@@ -198,21 +201,47 @@ export class CampaignStore {
 
   /**
    * Upsert one asset. The caller must have already checked `host` against
-   * the live grant; the store only normalizes and persists.
+   * the live grant; the store only normalizes and persists. Finding and
+   * credential-reference links accumulate by union across upserts; the cloud
+   * identity replaces any previous value.
    */
   upsertAsset(
     id: string,
     host: string,
-    body: { port?: number | null; fingerprint?: string; status?: string; note?: string; kbHits?: string[] } = {},
+    body: {
+      port?: number | null
+      fingerprint?: string
+      status?: string
+      note?: string
+      kbHits?: string[]
+      findingIds?: string[]
+      credentialRefs?: string[]
+      cloud?: LedgerAssetCloud
+    } = {},
   ): LedgerAsset {
     const campaign = this.get(id)
     const port = Number.isFinite(Number(body.port)) && body.port !== null ? Number(body.port) : null
     const existing = campaign.assets.find(a => a.host === host && a.port === port)
-    const asset = existing ?? { host, port, fingerprint: '', status: 'new', kbHits: [], note: '', firstSeenAt: now(), lastSeenAt: now() }
+    const asset = existing ?? {
+      host, port, fingerprint: '', status: 'new', kbHits: [], findings: [], credentialRefs: [],
+      ...(body.cloud === undefined ? {} : { cloud: body.cloud }),
+      note: '', firstSeenAt: now(), lastSeenAt: now(),
+    }
     if (body.fingerprint !== undefined) asset.fingerprint = clamp(String(body.fingerprint), 300)
     if (body.status !== undefined) asset.status = clamp(String(body.status), 40)
     if (body.note !== undefined) asset.note = clamp(String(body.note), 500)
     if (Array.isArray(body.kbHits)) asset.kbHits = body.kbHits.map(k => clamp(String(k), 120)).slice(0, MAX_KB_HITS)
+    if (Array.isArray(body.findingIds)) {
+      const merged = new Set(asset.findings)
+      for (const finding of body.findingIds) merged.add(clamp(String(finding), 120))
+      asset.findings = [...merged].slice(0, MAX_FINDING_LINKS)
+    }
+    if (Array.isArray(body.credentialRefs)) {
+      const merged = new Set(asset.credentialRefs)
+      for (const ref of body.credentialRefs) merged.add(clamp(String(ref), 120))
+      asset.credentialRefs = [...merged].slice(0, MAX_CREDENTIAL_REFS)
+    }
+    if (body.cloud !== undefined) asset.cloud = body.cloud
     asset.lastSeenAt = now()
     if (!existing) campaign.assets.push(asset)
     campaign.updatedAt = asset.lastSeenAt

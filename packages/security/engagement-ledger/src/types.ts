@@ -21,6 +21,12 @@ export type LedgerStage = typeof LEDGER_STAGES[number]
 /** Closed asset status vocabulary written by the model. */
 export type LedgerAssetStatus = 'new' | 'fingerprinted' | 'verified' | 'exploited' | 'blocked'
 
+/** Cloud identity of a cloud-scoped asset; `host` carries the cloud account id. */
+export interface LedgerAssetCloud {
+  provider: 'aws' | 'azure' | 'gcp' | 'aliyun' | 'tencent' | 'huawei'
+  accountId: string
+}
+
 /** One observed asset inside an authorized engagement. */
 export interface LedgerAsset {
   host: string
@@ -28,6 +34,12 @@ export interface LedgerAsset {
   fingerprint: string
   status: string
   kbHits: string[]
+  /** Finding ids recorded against this asset; repeated upserts accumulate. */
+  findings: string[]
+  /** Credential reference names discovered on or used for this asset. */
+  credentialRefs: string[]
+  /** Cloud identity present when the asset scopes a cloud account. */
+  cloud?: LedgerAssetCloud
   note: string
   firstSeenAt: string
   lastSeenAt: string

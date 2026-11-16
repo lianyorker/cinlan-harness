@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package mounts `ctx.engagementLedger` plus the `campaign_*` tool set: persistent campaign bookkeeping for authorized security engagements — assets, fingerprints, steps, PoC attempts, and stage progression through `recon → fingerprint → match → verify → exploit → lateral → report`. The ledger lives at `<clh home>/security/engagement-ledger/campaigns.json` (temp-file + rename writes) and is purely passive: no follow-up turns, no agent spawning, no network effects.
+This package mounts `ctx.engagementLedger` plus the `campaign_*` tool set: persistent campaign bookkeeping for authorized security engagements — assets, fingerprints, steps, PoC attempts, and stage progression through `recon → fingerprint → match → verify → exploit → lateral → report`. The ledger lives at `<clh home>/security/engagement-ledger/campaigns.json` (temp-file + rename writes) and is purely passive: no follow-up turns, no agent spawning, no network effects. Assets carry the assessment's correlation surface: finding ids and credential reference names accumulate by union across upserts, and a cloud-scoped asset records its `{ provider, accountId }` identity with the account id as host.
 
 ## Using this package
 

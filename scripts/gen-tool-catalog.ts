@@ -87,6 +87,7 @@ import * as ToolBrowserElementCapture from '@deepseek-ai/dsh-tool-browser-elemen
 import * as ToolComputerUse from '@deepseek-ai/dsh-tool-computer-use'
 import * as ToolCoordination from '@deepseek-ai/dsh-tool-coordination'
 import * as ToolFinding from '@deepseek-ai/dsh-tool-finding'
+import { EngagementLedger } from '@cinlan/engagement-ledger'
 import * as ToolGit from '@deepseek-ai/dsh-tool-git'
 import * as ToolMobileDevice from '@deepseek-ai/dsh-tool-mobile-device'
 import * as ToolRecall from '@deepseek-ai/dsh-tool-recall'
@@ -1065,6 +1066,20 @@ const TOOL_PACKAGES: ToolPackage[] = [
         onEvent: () => () => {},
       } as unknown as CoordinationService)
       await ctx.plugin(ToolCoordination)
+    },
+  },
+  {
+    pkg: '@cinlan/engagement-ledger',
+    dir: 'engagement-ledger',
+    source: 'packages/security/engagement-ledger/src/index.ts',
+    requires: ['ctx.tools', 'ctx.assessmentScope (live grant read on every asset write)', 'ctx.vulnPlaybook (campaign_next candidate lookup)'],
+    writes: ['tool/call', 'tool/result', 'the engagement ledger store under the clh home'],
+    async mount(ctx) {
+      // Schema harvest never resolves a live grant or a playbook entry; the
+      // seams are provided so registration completes with empty answers.
+      ctx.provide('assessmentScope', {} as never)
+      ctx.provide('vulnPlaybook', {} as never)
+      await ctx.plugin(EngagementLedger)
     },
   },
   {

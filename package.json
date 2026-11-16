@@ -261,6 +261,7 @@
     "@cinlan/tool-nxc": "workspace:*",
     "@cinlan/tool-listeners": "workspace:*",
     "@cinlan/tool-certipy": "workspace:*",
+    "@cinlan/engagement-ledger": "workspace:*",
     "@cinlan/tool-aws": "workspace:*",
     "@cinlan/tool-azure": "workspace:*",
     "@cinlan/tool-gcp": "workspace:*",

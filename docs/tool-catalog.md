@@ -75,6 +75,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-browser-element-capture` | `browser_capture_element`, `browser_select_element` | `ctx.tools`, `ctx.browser`, `ctx.coordination`, `ctx.systemPrompt` | `tool/call`, `durable attachment (element captures)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-computer-use` | `computer_accessibility`, `computer_keyboard`, `computer_list_apps`, `computer_list_windows`, `computer_observe`, `computer_pointer` | `ctx.tools`, `ctx.computerUse`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (screenshots)`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-coordination` | `coordination_add_task`, `coordination_cancel`, `coordination_send_message`, `coordination_start`, `coordination_status`, `coordination_wait` | `ctx.tools`, `ctx.coordination`, `ctx.agents` | `tool/call`, `coordination run and task state`, `tool/result` | - | - |
+| `@cinlan/engagement-ledger` | `campaign_create`, `campaign_get`, `campaign_list`, `campaign_next`, `campaign_remove`, `campaign_upsert` | `ctx.tools`, `ctx.assessmentScope (live grant read on every asset write)`, `ctx.vulnPlaybook (campaign_next candidate lookup)` | `tool/call`, `tool/result`, `the engagement ledger store under the clh home` | - | - |
 | `@deepseek-ai/dsh-tool-finding` | `finding_export`, `finding_query`, `finding_record`, `finding_transition` | `ctx.tools`, `ctx.findings`, `ctx.artifacts`, `ctx.executionHost` | `tool/call`, `durable finding records via ctx.findings`, `report artifacts via ctx.artifacts`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-git` | `git_diff`, `git_log`, `git_status` | `ctx.tools`, `ctx.git`, `ctx.agents`, `a calling Agent (execution-world workspace)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-mobile-device` | `mobile_button`, `mobile_list_devices`, `mobile_observe`, `mobile_touch`, `mobile_type` | `ctx.tools`, `ctx.mobileDevice`, `ctx.attachments`, `ctx.systemPrompt` | `tool/call`, `durable attachment (screenshots)`, `tool/result` | - | - |
@@ -5690,6 +5691,246 @@ Wait for one owned run or task to become terminal, up to the configured timeout 
 ```
 
 Source: [`packages/coordination/tool-coordination/src/index.ts`](../packages/coordination/tool-coordination/src/index.ts)
+
+<a id="cinlanengagement-ledger"></a>
+
+## `@cinlan/engagement-ledger`
+
+### `campaign_create`
+
+Open an engagement ledger scoped by the current authorized assessment grant. Returns the new campaign id used by all other campaign_* calls. Fails when the grant declares no targets.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Engagement name."
+    },
+    "objective": {
+      "type": "string",
+      "description": "One-line objective driving done criteria."
+    },
+    "note": {
+      "type": "string",
+      "description": "Free-form engagement note."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Optional session id to bind this campaign to."
+    }
+  },
+  "required": [
+    "name",
+    "objective"
+  ]
+}
+```
+
+Source: [`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_get`
+
+Read one full campaign ledger including assets, steps and attempts.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id from campaign_create or campaign_list."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+Source: [`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_list`
+
+List engagement campaigns with stage, asset and step counts.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_next`
+
+Return the suggested next step for a campaign: stage instructions, pending assets, playbook candidates per fingerprint, and a stall hint when progress flattened. Each call counts as one ledger round.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+Source: [`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_remove`
+
+Delete one campaign ledger by id.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id to delete."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+Source: [`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
+
+### `campaign_upsert`
+
+Bookkeep into an existing campaign: record or update an asset (host is validated against the authorized grant — out-of-scope hosts are rejected), append a step or attempt, advance the stage, or mark the objective done.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "campaignId": {
+      "type": "string",
+      "description": "Campaign id."
+    },
+    "stage": {
+      "type": "string",
+      "description": "Stage: recon | fingerprint | match | verify | exploit | lateral | report"
+    },
+    "host": {
+      "type": "string",
+      "description": "Asset host; must sit inside the authorized grant scope."
+    },
+    "port": {
+      "type": "integer",
+      "description": "Asset port."
+    },
+    "fingerprint": {
+      "type": "string",
+      "description": "Observed fingerprint/banner for the asset."
+    },
+    "status": {
+      "type": "string",
+      "description": "Asset status: new | fingerprinted | verified | exploited | blocked"
+    },
+    "assetNote": {
+      "type": "string",
+      "description": "Note attached to the asset."
+    },
+    "kbHits": {
+      "type": "array",
+      "description": "Playbook file ids matched for this asset.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "findingIds": {
+      "type": "array",
+      "description": "Finding ids recorded against this asset; repeated calls accumulate (union, no duplicates).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "credentialRefs": {
+      "type": "array",
+      "description": "Credential reference names discovered on or used for this asset (names only — never secret values).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cloudProvider": {
+      "type": "string",
+      "description": "Cloud identity of a cloud-scoped asset; pair with cloudAccountId and use the account id as host.",
+      "enum": [
+        "aws",
+        "azure",
+        "gcp",
+        "aliyun",
+        "tencent",
+        "huawei"
+      ]
+    },
+    "cloudAccountId": {
+      "type": "string",
+      "description": "Cloud account id of a cloud-scoped asset (pair with cloudProvider)."
+    },
+    "command": {
+      "type": "string",
+      "description": "Command or action performed in this step (recorded)."
+    },
+    "result": {
+      "type": "string",
+      "description": "Outcome of this step (recorded)."
+    },
+    "attemptAsset": {
+      "type": "string",
+      "description": "Attempt record: asset label (host:port)."
+    },
+    "attemptKb": {
+      "type": "string",
+      "description": "Attempt record: playbook file id used."
+    },
+    "attemptPayload": {
+      "type": "string",
+      "description": "Attempt record: payload summary."
+    },
+    "attemptOutcome": {
+      "type": "string",
+      "description": "Attempt record: outcome (e.g. hit, blocked, error)."
+    },
+    "advance": {
+      "type": "boolean",
+      "description": "Move the stage one step forward (recon → … → report)."
+    },
+    "done": {
+      "type": "boolean",
+      "description": "Mark the engagement objective as achieved."
+    },
+    "doneNote": {
+      "type": "string",
+      "description": "Note recorded with completion."
+    },
+    "objective": {
+      "type": "string",
+      "description": "Replace the one-line objective."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Bind this campaign to a session id (unbinds any other campaign using it)."
+    }
+  },
+  "required": [
+    "campaignId"
+  ]
+}
+```
+
+Source: [`packages/security/engagement-ledger/src/index.ts`](../packages/security/engagement-ledger/src/index.ts)
 
 <a id="deepseek-aidsh-tool-finding"></a>
 

@@ -8,7 +8,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包挂载 `ctx.engagementLedger` 服务和 `campaign_*` 工具集：给已授权的安全评估做持久化台账——资产、指纹、步骤、PoC 尝试记录，以及 `recon → fingerprint → match → verify → exploit → lateral → report` 阶段推进。台账写在 `<clh home>/security/engagement-ledger/campaigns.json`（临时文件 + 改名落盘），完全被动：不触发续跑、不起 agent、不产生网络行为。
+本包挂载 `ctx.engagementLedger` 服务和 `campaign_*` 工具集：给已授权的安全评估做持久化台账——资产、指纹、步骤、PoC 尝试记录，以及 `recon → fingerprint → match → verify → exploit → lateral → report` 阶段推进。台账写在 `<clh home>/security/engagement-ledger/campaigns.json`（临时文件 + 改名落盘），完全被动：不触发续跑、不起 agent、不产生网络行为。资产携带评估的关联面：finding id 与凭据引用名跨多次 upsert 按并集累积；云作用域资产以账户 id 作为 host 记录其 `{ provider, accountId }` 身份。
 
 ## 使用本包
 

@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 0c0db36ac9a32d15
-  zh: b0e97b6f54423231
+  en: b17d451ddb5a9f3b
+  zh: 778444a423d60a89
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -663,8 +663,29 @@
   en: df7c7a1784d305e9
   zh: 5ffe0109f5bd130f
 /tool-schema-catalog/deepseek-ai-dsh-tool-coordination/coordination-wait:
-  en: 299b2efb81bc009e
-  zh: 477b028b0fef5c4f
+  en: cc200b9ea7b5319d
+  zh: 6018a30454308ecf
+/tool-schema-catalog/cinlan-engagement-ledger:
+  en: 81c37c38c9ecb0c3
+  zh: 81c37c38c9ecb0c3
+/tool-schema-catalog/cinlan-engagement-ledger/campaign-create:
+  en: 96f3cd0bbe9c5be9
+  zh: fbaa0cadd0a3fe9b
+/tool-schema-catalog/cinlan-engagement-ledger/campaign-get:
+  en: c3b73f1caad4ac4c
+  zh: 44831548d223aaa6
+/tool-schema-catalog/cinlan-engagement-ledger/campaign-list:
+  en: 18a964766e9361e2
+  zh: df5ec630bb78f76a
+/tool-schema-catalog/cinlan-engagement-ledger/campaign-next:
+  en: 559faed99533f5c4
+  zh: f6a2277b904c2b83
+/tool-schema-catalog/cinlan-engagement-ledger/campaign-remove:
+  en: 32b22bf4757caaff
+  zh: 9fd226ed0071b2a8
+/tool-schema-catalog/cinlan-engagement-ledger/campaign-upsert:
+  en: 26fd2afe08b37133
+  zh: 9d1181c196f95dea
 /tool-schema-catalog/deepseek-ai-dsh-tool-finding:
   en: 0b42b5a2ef488cd5
   zh: 0b42b5a2ef488cd5
