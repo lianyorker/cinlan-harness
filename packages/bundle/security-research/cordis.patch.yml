@@ -277,6 +277,12 @@
             name: '@cinlan/tool-katana'
           - id: tool-gau
             name: '@cinlan/tool-gau'
+          # Role skills load by name (recon, internal, credential, tunnel
+          # runbooks); the skill tools and the filesystem source pair up.
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
@@ -317,6 +323,12 @@
             name: '@cinlan/tool-tencent'
           - id: tool-huawei
             name: '@cinlan/tool-huawei'
+          # Role skills load by name (recon, internal, credential, tunnel
+          # runbooks); the skill tools and the filesystem source pair up.
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
@@ -343,6 +355,12 @@
             name: '@cinlan/tool-ffuf'
           - id: tool-certipy
             name: '@cinlan/tool-certipy'
+          # Role skills load by name (recon, internal, credential, tunnel
+          # runbooks); the skill tools and the filesystem source pair up.
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
@@ -383,6 +401,12 @@
             name: '@cinlan/tool-tencent'
           - id: tool-huawei
             name: '@cinlan/tool-huawei'
+          # Role skills load by name (recon, internal, credential, tunnel
+          # runbooks); the skill tools and the filesystem source pair up.
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
@@ -409,6 +433,12 @@
             name: '@cinlan/tool-nmap'
           - id: tool-naabu
             name: '@cinlan/tool-naabu'
+          # Role skills load by name (recon, internal, credential, tunnel
+          # runbooks); the skill tools and the filesystem source pair up.
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
@@ -457,6 +487,12 @@
             name: '@deepseek-ai/dsh-agent-instructions'
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
+          # Static discovery loads the Java/PHP audit pipeline skills by name;
+          # the skill tools and the filesystem skill source mount together.
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-fs
             name: '@deepseek-ai/dsh-tool-fs'
           - id: tool-fs-search
