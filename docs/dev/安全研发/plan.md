@@ -374,6 +374,16 @@ securityInstallCommand: 'dsh --profile security-research',
 
 **§9.8 收官（2026-11-16）**：五项全部落地——① 红队 preset（`security-redteam` 指挥 + 五角色，classic subagent 派活）② 资产台账（engagement-ledger 扩展 findings/credentialRefs/cloud 关联）③ 技能补齐（chisel/frp/suo5 隧道 + 反弹 shell，387→391）④ 评分纪律（as-finding-severity 双轴标准，391→392；报告重放判定为无差距）⑤ 本地审计（as-local-audit，392→393）。技能库最终 393 个。purge-safe 的破甲层天然不适用（fork 原生可控）；能力层的差距以 preset/包扩展/技能三种形态原生补齐，零第三方代码引入。
 
+### 9.9 Snapshot 录制探索（2026-11-16，进行中）
+
+中转端点（api.cinlan.online/v1，OpenAI 与 Anthropic Messages 协议均验证可用）提供 `deepseek-v4.1-flash` 与 `glm-5.3-flash`。结论与落地状态：
+
+- **已修复（`3e8e312d17`）**：Windows cwd 的 token 化缺陷——runtime-context 文本内嵌 `JSON.stringify(cwd)`，路径反斜杠二次转义后 exact 匹配失配，fallback 正则只吃 basename 段留下 `%TEMP%\` 前缀；`cwdSpellings` 增补 JSON-stringified 形态后全绿（normalize.spec 新用例）。Linux/macOS 路径无反斜杠不受影响（官方 lane 无恙）。
+- **rea-routing 场景**：`recording: authored` 不可重录；其注释声称的 `DSH_REA_FIXTURE_SERVER` stub 在 harness 里从未实现（authored 作者的未兑现假设）——修复它属于该场景原作者的工作面，不在本批处理。
+- **security-enum-turn 新场景（record 成功、replay 待修剪）**：活录一个完整 turn（`subfinder 对 example.invalid 枚举，工具不可用如实报告`）——模型真调 `subfinder_enum` 工具、收到明确的 executable-not-found 错误并转述。产物：session.v4.jsonl + system-prompt.expected.md + tool-schemas.expected.json（83 个工具 schema，批次 1-5 全部安全工具在列）。场景 runtime patch 插入 20 个工具包行并 pin deepseek-v4.1-flash；harness 的 record 超时对该场景放宽（240s 进程 + 300s 用例）。
+- **replay 遗留（场景暂未提交，目录留在工作树）**：record 产物与 llm-replay 形态有四类差异——skill-catalog 事件（本机技能注入时序）、request/header 的 adapterDefaults、request/context 的 contextWindow、replay 侧少数事件差异。fixture 需手工修剪成 replay 兼容形态（rea-routing authored 正是当年手写的）；修剪完成后场景 + record 基础设施一起提交。
+- **架构决策（子代理工厂 vs 角色编排）**：不采用"海量子代理并发 + 无限重试"工厂模式——红队工作按证据链推进（发现→验证→利用），无证据的重试只烧 token 不产出；并发闸门 ≤3 + 角色专精 + 授权闸门（approval 链路）的形态产出密度更高且可审计。GPT-6 Cyber 基准（OpenAI 2026-11：280 万行内核代码、2308 潜在问题、1724 动态复现、948 个本地提权利用、$1.21M API 成本、304 个关键漏洞负责任披露）记录为自动化安全研究的行业标杆——其形态同样是**深度单线流水线**（复现→利用→人工复核）而非子代理农场，印证编排方向。
+
 集成原则：**不引入 purge-safe 任何代码**（Apache-2.0 但我们按能力差距原生重做）；每项独立成包/独立批次，走与批次 1-5 相同的模式（设计草案 → policy 横切 → 包实现 → 双语 README/catalog/pairing → 一次提交）。
 
 实施优先级建议：① 红队模式 preset（把现有 24 工具 + 授权体系编排成多角色，价值最高）→ ② 资产台账（测绘结果的持久层）→ ③ 技能补齐（隧道/webshell）→ ④ 评分与报告重放 → ⑤ 本地环境审计。

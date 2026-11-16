@@ -1327,6 +1327,9 @@ describe('headless recorded-session snapshots', () => {
         result = await runLoaderSmoke({
           label: `${scenario.name} headless snapshot`,
           tempDirPrefix: 'dsh-log-snap-',
+          // A live recording drives a real model turn through the relay
+          // endpoint; reasoning plus tool execution exceeds the smoke default.
+          ...(mode === 'record' && scenario.name === 'security-enum-turn' ? { processTimeoutMs: 240_000 } : {}),
           ...(scenario.name === 'compaction-recovery' ? await compactionWorkspaceOptions() : {}),
           ...(scenario.manifest.workspace?.parent === 'outside-temp' ? { tempDirParent: outsideTempWorkspaceParent() } : {}),
           binScript: dshBin,
@@ -1536,6 +1539,7 @@ describe('headless recorded-session snapshots', () => {
       } else {
         expect(finalWorkspace, `${scenario.name}: a changed workspace requires workspace.final`).toEqual(initialWorkspace)
       }
-    }, scenario.name === 'provider-cwd' ? 3 * LOADER_SMOKE_TEST_TIMEOUT_MS : LOADER_SMOKE_TEST_TIMEOUT_MS)
+    }, scenario.name === 'provider-cwd' ? 3 * LOADER_SMOKE_TEST_TIMEOUT_MS
+      : scenario.name === 'security-enum-turn' ? 300_000 : LOADER_SMOKE_TEST_TIMEOUT_MS)
   }
 })
