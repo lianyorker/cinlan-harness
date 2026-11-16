@@ -275,11 +275,13 @@ securityInstallCommand: 'dsh --profile security-research',
 
 接线点（每包相同清单）：`package.json`（`@cinlan/*`，peer/devDep cordis+dsh-subprocess+dsh-tools）、`tsconfig.json`（引用 vendor/cordis、core/tools、subprocess/subprocess）、`src/<tool>.ts` 纯函数、`src/index.ts` 注册、`tests/*.spec.ts`、README（英/中/`README.i18n.yaml`，哈希已用 pairing 命令重录）、`packages/bundle/security-research/cordis.patch.yml`（insert + `networkTools`）、`packages/bundle/security-research/package.json` 依赖、`tsconfig.host.json` references（九个 tool-* 与 `vuln-playbook`/`engagement-ledger` 均已登记）、`tsconfig.base.json` paths（`@cinlan/tool-*` 源码映射，供脚本源码面解析）。
 
-### 9.2 验证状态
+### 9.2 验证状态（2026-11-16 刷新）
 
-- 批次 1（六包）：`pnpm install`、README pairing 重录、lockfile 同步已完成；`docs/tool-catalog.md`/`tool-catalog.zh.md` 已随目录生成器登记 18 个工具包并重生成（双语配对校验绿）。
-- 批次 2（masscan/katana/gau）：随包提交一并跑 `pnpm run test`（三个新包 spec）与 `pnpm run gen-tool-catalog`/`verify-tool-catalog`。
-- 全量 `pnpm run build`：2026-11-15 实测可在本机跑通（历史会话记录的 EPERM 沙箱限制已不存在）；期间修复了 `@cinlan/vuln-playbook`/`@cinlan/engagement-ledger` 缺失的 tsconfig paths（Host Typert 源码面要求）与 `ui-chat` process-groups spec 丢失的 `GroupKey` 导入，当前 10 门全绿。
+- 每批次固定验证链：新包 `tsc -b` + vitest spec、`gen-tool-catalog` + `verify-tool-catalog`（目录 EN 重生成、ZH 区间同步、块级校验）、README pairing `--write` 重录后全仓检查本批文件零违规、`build:check`（host/client 聚合门）绿后一次提交。
+- 全量 `build:check` 与 `build:artifacts`：批次 5 后多轮实测全绿；期间 `build:check` 抓到过一次测试文件类型错（huawei spec 参数缺失被运行时 throw 掩盖）——聚合检查有效。
+- snapshot：`security-enum-turn` 场景 record 与 replay 单跑双绿（详见 §9.9）；本机全量 `test:snapshot` 有存量失败（`~/.clh` 旧 zstd session 与 compression none 冲突、SDK feedback 环境差异），与本任务链改动无关，权威信号在 CI 的 macOS/Linux lane。
+- `doc-sync`：本任务链引入的唯一违规（9 个 README Summary 超词限）已修复；剩余红项（missing Summary 的 5 包、model-experience 短表单形态等）为存量/无关工作树的连带。
+- `verify-cordis-config`：security 域清零（含补齐 `@cinlan/api-security-research-controller`、`@cinlan/security-skills`、`@cinlan/security-rea` 的 tsconfig paths 存量缺口）。
 
 ### 9.3 P0 后续批次
 
