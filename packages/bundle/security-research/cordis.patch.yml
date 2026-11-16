@@ -74,6 +74,8 @@
         exploitTools:
           - responder_capture
           - ntlm_relay
+          - adcs_req
+          - adcs_auth
         persistenceTools:
           - rbcd
         cloudTools:

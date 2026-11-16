@@ -63,7 +63,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `rbcd`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-listeners` | `ntlm_relay`, `responder_capture` | `ctx.tools`, `ctx.subprocess`, `ctx.jobs` | `tool/call`, `background job output ring` | - | - |
-| `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-certipy` | `adcs_auth`, `adcs_find`, `adcs_req` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-aws` | `iam_enum`, `iam_policy_attach`, `iam_policy_detach`, `s3_enum`, `sts_get_caller_identity` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-azure` | `az_account_show`, `azure_ad_enum`, `azure_storage_enum`, `role_assignment_create`, `role_assignment_delete` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-gcp` | `gcp_iam_enum`, `gcp_identity_get`, `gcs_bucket_iam`, `gcs_enum`, `iam_binding_add`, `iam_binding_remove` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
@@ -3522,6 +3522,36 @@ Source: [`packages/security/tool-listeners/src/index.ts`](../packages/security/t
 
 ## `@cinlan/tool-certipy`
 
+### `adcs_auth`
+
+Authenticate with one PFX artifact from adcs_req (certipy auth) on one authorized assessment domain and return the resulting TGT or NT-hash summary lines. This is exploit execution: the domain must match a target declared in the active assessment-scope grant and deployments typically require approval for every call. The artifact path stays within this session's private temporary directory.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain the certificate authenticates against, as declared in the assessment scope grant."
+    },
+    "pfx_path": {
+      "type": "string",
+      "description": "Absolute PFX artifact path as adcs_req reported it."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    }
+  },
+  "required": [
+    "target_id",
+    "pfx_path"
+  ]
+}
+```
+
+Source: [`packages/security/tool-certipy/src/index.ts`](../packages/security/tool-certipy/src/index.ts)
+
 ### `adcs_find`
 
 Collect Active Directory Certificate Services configuration from one authorized assessment domain with an authenticated account (certipy find -stdout) and return certificate-authority and template rows. `-vulnerable` restricts the report to entries with known escalation paths (ESC classes). The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted; this is read-only directory collection, not exploitation.
@@ -3555,6 +3585,55 @@ Collect Active Directory Certificate Services configuration from one authorized 
     "target_id",
     "username",
     "credential_ref"
+  ]
+}
+```
+
+Source: [`packages/security/tool-certipy/src/index.ts`](../packages/security/tool-certipy/src/index.ts)
+
+### `adcs_req`
+
+Request one certificate through an ESC path found by adcs_find (certipy req) on one authorized assessment domain. The resulting PFX artifact writes into a private temporary directory and the result carries its absolute path plus certipy's summary lines; pair the artifact with adcs_auth to authenticate. This is exploit execution: the domain must match a target declared in the active assessment-scope grant, the credential reference must be granted, and deployments typically require approval for every call.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to request the certificate from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the request."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "ca": {
+      "type": "string",
+      "description": "Certificate authority name to request from, as adcs_find reported it."
+    },
+    "template": {
+      "type": "string",
+      "description": "Certificate template name to request, as adcs_find reported it."
+    },
+    "san": {
+      "type": "string",
+      "description": "Subject Alternative Name to embed (ESC1 SAN specification, e.g. administrator@domain or a UPN)."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref",
+    "ca",
+    "template"
   ]
 }
 ```

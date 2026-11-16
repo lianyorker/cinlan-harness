@@ -285,8 +285,9 @@ securityInstallCommand: 'dsh --profile security-research',
 
 ### 9.3 P0 后续批次
 
-1. ESC 利用链（certipy req/forge）、ntlmrelayx SOCKS 链、Responder 之外的投毒面——待第二批验证反馈后评估。
-2. 云平台批次（AWS/Azure/GCP/阿里云/腾讯云/华为云 CLI + 元数据利用）。
+1. 【已实施 2026-11-17】ESC 利用链：`adcs_req`（certipy req，经 ESC 路径请求证书——PFX 产物写私有临时目录，结果携带路径+摘要行）+ `adcs_auth`（certipy auth，用 PFX 认证取 TGT/NT hash）——`exploitTools` 映射 `exploit-execution`，进 deployment 的审批建议清单。certipy forge/ca/template/shadow 明确不实现（README 已知限制记录）。
+2. 【已实施，见 §9.6/§9.7】云平台批次（AWS/Azure/GCP/阿里云/腾讯云/华为云 CLI）。
+3. 【明确不实现】ntlmrelayx SOCKS 链（交互式 SOCKS 客户端语义不适合无交互模型工具）与 Responder 之外的投毒面（现有两条监听路径覆盖典型面，扩展面留技能层 as-* 系列）。
 
 ### 9.5 域环境第二批（已实施，按最优选项落地）
 

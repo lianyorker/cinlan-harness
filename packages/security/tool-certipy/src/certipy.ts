@@ -93,6 +93,123 @@ export function buildCertipyFindArgv(certipyPath: string, request: CertipyFindRe
   return argv
 }
 
+/** Validated ESC certificate-request exploitation accepted by {@link buildCertipyReqArgv}. */
+export interface CertipyReqRequest {
+  /** Fully-qualified domain of the authenticated account. Never starts with `-`. */
+  readonly domain: string
+  /** Authenticated account name whose resolved password performs the request. */
+  readonly username: string
+  /** Secret resolved from `credential_ref` by the tool wrapper; never a model-visible value. */
+  readonly password: string
+  /** Environment-variable-shaped credential reference the caller presented. */
+  readonly credentialRef: string
+  /** Certificate authority name to request from, as `adcs_find` reported it. */
+  readonly ca: string
+  /** Certificate template name to request, as `adcs_find` reported it. */
+  readonly template: string
+  /** `-dc-ip` domain controller address. */
+  readonly dcIp?: string
+  /** Subject Alternative Name to embed (ESC1 SAN specification). */
+  readonly san?: string
+}
+
+const CA_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._\-]*$/
+
+function validateCaName(ca: string): string {
+  const trimmed = ca.trim()
+  if (trimmed.length === 0 || trimmed.length > 128 || trimmed.startsWith('-') || !CA_NAME_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-certipy: invalid CA name ${JSON.stringify(ca)}`)
+  }
+  return trimmed
+}
+
+function validateTemplate(template: string): string {
+  const trimmed = template.trim()
+  if (trimmed.length === 0 || trimmed.length > 128 || trimmed.startsWith('-') || !CA_NAME_PATTERN.test(trimmed)) {
+    throw new TypeError(`tool-certipy: invalid template name ${JSON.stringify(template)}`)
+  }
+  return trimmed
+}
+
+function validateSan(san: string): string {
+  const trimmed = san.trim()
+  if (trimmed.length === 0 || trimmed.length > 256 || trimmed.startsWith('-') || !/^[A-Za-z0-9._\-@*]+$/.test(trimmed)) {
+    throw new TypeError(`tool-certipy: invalid SAN ${JSON.stringify(san)}`)
+  }
+  return trimmed
+}
+
+/**
+ * Build the certipy req argv for one ESC-path certificate request. The
+ * resulting PFX file is a mechanism artifact (binary certificate), not a
+ * tool-result export: it writes into a wrapper-chosen private directory and
+ * the result carries the path plus the stdout summary. The secret rides on
+ * the `-p` flag as with find, never in model-visible arguments.
+ * @param certipyPath - resolved certipy executable path.
+ * @param request - validated exploitation request.
+ * @param pfxPath - absolute output path for the PFX artifact.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildCertipyReqArgv(certipyPath: string, request: CertipyReqRequest, pfxPath: string): string[] {
+  const domain = validateDomain(request.domain)
+  const username = validateUsername(request.username)
+  validateCredentialRef(request.credentialRef)
+  if (!pfxPath.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(pfxPath)) {
+    throw new TypeError('tool-certipy: pfxPath must be absolute')
+  }
+  const argv: string[] = [
+    certipyPath, 'req', '-u', `${username}@${domain}`, '-p', request.password,
+    '-ca', validateCaName(request.ca), '-template', validateTemplate(request.template),
+    '-out', pfxPath,
+  ]
+  if (request.dcIp !== undefined) argv.push('-dc-ip', validateHost(request.dcIp))
+  if (request.san !== undefined) argv.push('-san', validateSan(request.san))
+  return argv
+}
+
+/** Validated certificate-authentication request accepted by {@link buildCertipyAuthArgv}. */
+export interface CertifyAuthRequest {
+  /** PFX artifact path as `adcs_req` reported it. */
+  readonly pfxPath: string
+  /** `-dc-ip` domain controller address. */
+  readonly dcIp?: string
+}
+
+/**
+ * Build the certipy auth argv: authenticate with one PFX artifact and print
+ * the resulting TGT or hash information to stdout (text output the tool
+ * parses; no output-file arguments).
+ * @param certipyPath - resolved certipy executable path.
+ * @param request - validated authentication request.
+ * @returns argv array for `ctx.subprocess.spawn`.
+ */
+export function buildCertipyAuthArgv(certipyPath: string, request: CertifyAuthRequest): string[] {
+  if (!request.pfxPath.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(request.pfxPath)) {
+    throw new TypeError('tool-certipy: pfxPath must be absolute')
+  }
+  const argv: string[] = [certipyPath, 'auth', '-pfx', request.pfxPath]
+  if (request.dcIp !== undefined) argv.push('-dc-ip', validateHost(request.dcIp))
+  return argv
+}
+
+/** One summary line of certipy req or auth stdout. */
+export interface CertipyLine {
+  /** Non-empty output line as certipy printed it. */
+  readonly text: string
+}
+
+
+/**
+ * Parse certipy req/auth stdout into the non-empty output lines, bounded to
+ * the last forty lines.
+ * @param stdout - complete stdout text.
+ * @returns parsed summary lines in output order.
+ */
+export function parseCertipyLines(stdout: string): readonly CertipyLine[] {
+  const lines = stdout.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0)
+  return lines.slice(-40).map(text => ({ text }))
+}
+
 /** One named ADCS row (certificate authority or template). */
 export interface CertipyRow {
   /** Row name as certipy reported it. */

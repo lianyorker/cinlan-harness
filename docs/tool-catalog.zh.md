@@ -67,7 +67,7 @@
 | `@cinlan/tool-impacket` | `asrep_roast`, `kerberoast`, `rbcd`, `secrets_dump` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-nxc` | `nxc_spray` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-listeners` | `ntlm_relay`, `responder_capture` | `ctx.tools`, `ctx.subprocess`, `ctx.jobs` | `tool/call`, `background job output ring` | - | - |
-| `@cinlan/tool-certipy` | `adcs_find` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
+| `@cinlan/tool-certipy` | `adcs_auth`, `adcs_find`, `adcs_req` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/engagement-ledger` | `campaign_create`, `campaign_get`, `campaign_list`, `campaign_next`, `campaign_remove`, `campaign_upsert` | `ctx.tools`, `ctx.assessmentScope (live grant read on every asset write)`, `ctx.vulnPlaybook (campaign_next candidate lookup)` | `tool/call`, `tool/result`, `the engagement ledger store under the clh home` | - | - |
 | `@cinlan/tool-aws` | `iam_enum`, `iam_policy_attach`, `iam_policy_detach`, `s3_enum`, `sts_get_caller_identity` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
 | `@cinlan/tool-azure` | `az_account_show`, `azure_ad_enum`, `azure_storage_enum`, `role_assignment_create`, `role_assignment_delete` | `ctx.tools`, `ctx.subprocess`, `ctx.credentials (execution-time secret resolution)` | `tool/call`, `tool/result` | - | - |
@@ -3528,6 +3528,36 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 ## `@cinlan/tool-certipy`
 
+### `adcs_auth`
+
+在已授权评估域上，用 adcs_req 的 PFX 产物认证（certipy auth），并返回所得 TGT 或 NT hash 的摘要行。这属于利用执行：域名必须匹配当前评估范围授权中声明的目标，且部署通常要求每次调用审批。产物路径保持在本会话的私有临时目录内。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain the certificate authenticates against, as declared in the assessment scope grant."
+    },
+    "pfx_path": {
+      "type": "string",
+      "description": "Absolute PFX artifact path as adcs_req reported it."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    }
+  },
+  "required": [
+    "target_id",
+    "pfx_path"
+  ]
+}
+```
+
+来源：[`packages/security/tool-certipy/src/index.ts`](../packages/security/tool-certipy/src/index.ts)
+
 ### `adcs_find`
 
 用一个已认证账户从已授权评估域收集 Active Directory 证书服务配置（certipy find -stdout），并返回证书颁发机构与模板行。`-vulnerable` 将报告限定为存在已知提权路径（ESC 类）的条目。域名必须匹配当前评估范围授权中声明的目标，且凭据引用必须授予；这是只读目录收集，不是利用。
@@ -3561,6 +3591,55 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
     "target_id",
     "username",
     "credential_ref"
+  ]
+}
+```
+
+来源：[`packages/security/tool-certipy/src/index.ts`](../packages/security/tool-certipy/src/index.ts)
+
+### `adcs_req`
+
+在已授权评估域上，经 adcs_find 发现的 ESC 路径请求一张证书（certipy req）。产生的 PFX 产物写入私有临时目录，结果携带其绝对路径与 certipy 的摘要行；将该产物交给 adcs_auth 认证。这属于利用执行：域名必须匹配当前评估范围授权中声明的目标，凭据引用必须授予，且部署通常要求每次调用审批。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "Domain to request the certificate from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+    },
+    "username": {
+      "type": "string",
+      "description": "Authenticated account name whose granted credential performs the request."
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+    },
+    "ca": {
+      "type": "string",
+      "description": "Certificate authority name to request from, as adcs_find reported it."
+    },
+    "template": {
+      "type": "string",
+      "description": "Certificate template name to request, as adcs_find reported it."
+    },
+    "san": {
+      "type": "string",
+      "description": "Subject Alternative Name to embed (ESC1 SAN specification, e.g. administrator@domain or a UPN)."
+    },
+    "dc_ip": {
+      "type": "string",
+      "description": "Domain controller address for -dc-ip."
+    }
+  },
+  "required": [
+    "target_id",
+    "username",
+    "credential_ref",
+    "ca",
+    "template"
   ]
 }
 ```

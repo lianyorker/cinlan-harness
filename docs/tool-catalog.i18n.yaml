@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: b17d451ddb5a9f3b
-  zh: 778444a423d60a89
+  en: 1412f854f0906f8d
+  zh: d5d5de8e47fc20a1
 /tool-schema-catalog/deepseek-ai-dsh-plugin-manager:
   en: e0143916bb634762
   zh: e0143916bb634762
@@ -440,9 +440,15 @@
 /tool-schema-catalog/cinlan-tool-certipy:
   en: 3f979726d4bc4bd2
   zh: 3f979726d4bc4bd2
+/tool-schema-catalog/cinlan-tool-certipy/adcs-auth:
+  en: 063e0ee64ae462c5
+  zh: 7c017641555361f9
 /tool-schema-catalog/cinlan-tool-certipy/adcs-find:
-  en: 1e556ba875e761ab
-  zh: 1c87d90e24a4f8fb
+  en: 504b849315fa3f45
+  zh: 63f9beaf204fdd93
+/tool-schema-catalog/cinlan-tool-certipy/adcs-req:
+  en: 49b6f387723bb9cc
+  zh: 836f3fd7947c3a35
 /tool-schema-catalog/cinlan-tool-aws:
   en: 4b7b0e1eab0bc3bf
   zh: 4b7b0e1eab0bc3bf

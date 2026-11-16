@@ -7,7 +7,7 @@ kind: "package-reference"
 [English](README.md) | 中文
 
 ## 摘要
-本包在 `ctx.tools` 上注册 `adcs_find` 工具。它通过 `ctx.subprocess` 以固定的 `-stdout` 收集标志调用本地安装的 `certipy` 二进制，把 ADCS JSON 解析为有界的证书颁发机构与模板行，并且从不发出输出文件参数。账户密码在执行期经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，绝不进入模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 按 `credential-use` 动作强制执行。
+本包在 `ctx.tools` 上注册 `adcs_find`、`adcs_req`、`adcs_auth` 三个工具。`adcs_find` 以固定的 `-stdout` JSON 收集 ADCS 配置；ESC 利用对（`adcs_req` 经 ESC 路径请求证书，`adcs_auth` 用所得 PFX 产物认证）在 `exploit-execution` 动作下闭环。账户密码在执行期经 `ctx.get('credentials')` 从模型提供的 `credential_ref` 解析，绝不进入模型可见参数、工具结果或会话日志。授权由上游 `assessment-scope-tool-policy` 强制执行。
 
 ## 目录
 
@@ -29,9 +29,21 @@ kind: "package-reference"
 
 模型收到生成的 [`adcs_find` 模式](../../../docs/tool-catalog.zh.md#cinlantool-certipy)：`target_id`（必填域名，须匹配授权目标）、`username`（必填）、`credential_ref`（必填，env-var 语法的名字——其值绝不进入对话），另有可选 `dc_ip` 与 `vulnerable_only`（ESC 类提权路径的 `-vulnerable` 过滤）。
 
+### adcs_req 工具模式
+
+#### 模型看到什么
+
+模型收到生成的 [`adcs_req` 模式](../../../docs/tool-catalog.zh.md#cinlantool-certipy)：`target_id`、`username`、`credential_ref`、`ca` 与 `template`（全部必填，名称须与 `adcs_find` 报告一致），另有可选 `san`（ESC1 主题备用名称）与 `dc_ip`。结果携带 PFX 产物路径与 certipy 的有界摘要行。
+
+### adcs_auth 工具模式
+
+#### 模型看到什么
+
+模型收到生成的 [`adcs_auth` 模式](../../../docs/tool-catalog.zh.md#cinlantool-certipy)：`target_id` 与 `pfx_path`（必填，来自 `adcs_req` 的产物路径），另有可选 `dc_ip`。结果携带 certipy 的认证摘要行（TGT 或 NT hash）。
+
 #### Token 影响
 
-该工具向模型工具上下文追加一条描述与 JSON 模式；结果按 `maxOutputBytes`（默认 256 KiB）做字节上限。
+三个工具向模型工具上下文各追加一条描述与 JSON 模式；结果按 `maxOutputBytes`（默认 256 KiB）做字节上限。
 
 #### KV Cache 影响
 
@@ -42,8 +54,9 @@ kind: "package-reference"
 
 - 需要本地安装 `certipy`（certipy-adt）；可执行文件缺失时工具会给出明确错误。
 - 解析器从 `CAs`/`Templates` JSON 列表提取行名；名字之外的 ESC 类细节留在调用方可重跑查看的原始 stdout 里，模板属性随 certipy 版本漂移只会让行变短而不是失败。
-- 密码随 `-p` 标志传递，执行期间在本机进程列表可见——但绝不进入模型可见参数、结果或会话日志。
-- 对发现的 ESC 路径的利用（certipy req/forge）延后：本包只做收集。
+- 密码随 `adcs_find` 与 `adcs_req` 的 `-p` 标志传递，执行期间在本机进程列表可见——但绝不进入模型可见参数、结果或会话日志。
+- `adcs_req` 的 PFX 产物是二进制机制产物而非工具结果导出：写入私有临时目录，生命周期随宿主进程；调用方在同一会话内将其接入 `adcs_auth`。
+- 黄金证书伪造（certipy forge）与 CA 管理操作（certipy ca/template/shadow）延后：本包覆盖收集加上请求-认证的利用链。
 
 <a id="dev-note"></a>
 ### 开发注记

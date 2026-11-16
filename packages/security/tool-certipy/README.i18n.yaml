@@ -9,8 +9,8 @@
   en: 93ecdf92d429ae8b
   zh: b11085cbb9f2bb0c
 /cinlan-tool-certipy/summary:
-  en: 5e7e4827c25e0cc2
-  zh: c7bbc627a8239d7f
+  en: 26a55f3124dd9e3f
+  zh: d3a9e752a967ef83
 /cinlan-tool-certipy/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: c31f6cc006584bc8
@@ -26,15 +26,27 @@
 /cinlan-tool-certipy/model-experience/adcs-find-tool-schema/what-the-model-sees:
   en: 66e2f93e197f9e1b
   zh: 9f27fe9679ef98a0
-/cinlan-tool-certipy/model-experience/adcs-find-tool-schema/token-effect:
-  en: dc82d6e409f6be6b
-  zh: c89f820ecd4100e1
-/cinlan-tool-certipy/model-experience/adcs-find-tool-schema/kv-cache-effect:
-  en: 0460f98bf90e522a
+/cinlan-tool-certipy/model-experience/adcs-req-tool-schema:
+  en: 372bcb0a8e4b270e
+  zh: de5d947773ed0443
+/cinlan-tool-certipy/model-experience/adcs-req-tool-schema/what-the-model-sees:
+  en: fc09bdc2c372b60c
+  zh: 4b23cdf731d872cc
+/cinlan-tool-certipy/model-experience/adcs-auth-tool-schema:
+  en: 6a684e6a72c01ee1
+  zh: 4b55330b3940b1f3
+/cinlan-tool-certipy/model-experience/adcs-auth-tool-schema/what-the-model-sees:
+  en: 006672f1b9d38e67
+  zh: 7b9a8374a66e6af8
+/cinlan-tool-certipy/model-experience/adcs-auth-tool-schema/token-effect:
+  en: 045653aa8337ce86
+  zh: dc6a651340834f26
+/cinlan-tool-certipy/model-experience/adcs-auth-tool-schema/kv-cache-effect:
+  en: 8a1a2e0cd13cd80a
   zh: 66143d86da335745
 /cinlan-tool-certipy/known-limitations-and-deferred-work:
-  en: d3c5d19218c11f1a
-  zh: 754d6d2ba7679c0a
+  en: ecc53892c846386a
+  zh: fb0dd279f88a6dde
 /cinlan-tool-certipy/known-limitations-and-deferred-work/dev-note:
   en: d4966f744017e86d
   zh: 96cad4a1d2c7d1ea
