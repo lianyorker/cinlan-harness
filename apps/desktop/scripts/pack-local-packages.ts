@@ -21,7 +21,10 @@ async function main(): Promise<void> {
   const environment = resolveClientBuildEnvironment(repositoryClientBuildEnvironment(root), 'local')
   readClientBuildRecord(root, environment)
   const destination = resolve(root, values.out)
-  const packed = await packFamilyMembers(root, releaseFamily('dsh'), destination, concurrency)
+  // Local desktop staging packs the fork's two version tiers (upstream pins and
+  // the fork version) without a publication record; the family's single-version
+  // invariant is a publication contract, not a staging contract.
+  const packed = await packFamilyMembers(root, releaseFamily('dsh'), destination, concurrency, { skipPublicationExactness: true })
   console.log(`desktop local pack: ${String(packed.length)} tarball(s) in ${destination}`)
 }
 
