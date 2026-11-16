@@ -251,6 +251,11 @@
             name: '@deepseek-ai/dsh-time-context'
           - id: tool-jobs
             name: '@deepseek-ai/dsh-tool-jobs'
+          # The campaign ledger owns assessment bookkeeping: stage progression
+          # (recon → … → report), asset correlation (findings, credential
+          # references, cloud identities), and per-asset execution records.
+          - id: engagement-ledger
+            name: '@cinlan/engagement-ledger'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
@@ -468,6 +473,11 @@
             name: '@deepseek-ai/dsh-time-context'
           - id: tool-jobs
             name: '@deepseek-ai/dsh-tool-jobs'
+          # The campaign ledger tracks the audit pipeline: static discovery
+          # maps to the match stage, verification to verify, and the report
+          # stage drives the final deliverable.
+          - id: engagement-ledger
+            name: '@cinlan/engagement-ledger'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
