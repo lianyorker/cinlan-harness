@@ -530,6 +530,10 @@
             name: '@deepseek-ai/dsh-tool-fs'
           - id: tool-fs-search
             name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
 
@@ -551,5 +555,9 @@
             name: '@deepseek-ai/dsh-agent-instructions'
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
