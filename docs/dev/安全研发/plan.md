@@ -249,7 +249,9 @@ securityInstallCommand: 'dsh --profile security-research',
 
 **建议迁移顺序：最高优先级，在编排之后立即处理。**
 
-## 9. P0 信息收集工具链集成（进行中）
+## 9. 安全研发工具链批次（已全部实施并验证）
+
+批次 1-10 已于 2026-11-15 至 2026-11-17 分批落地并逐批验证（tsc/vitest/catalog/pairing/build:check）；以下各节为实施记录，仅保留设计与差异说明，不维护后续任务列表——新工作开新章节。
 
 按 `官方功能差距对比.md` 的 P0 项推进，目标模式：每个外部工具一个 `@cinlan/tool-<name>` 包（`ctx.tools.register` + `ctx.subprocess`），argv 构造与结果解析为纯函数（无二进制也可单测），授权统一由 `assessment-scope-tool-policy` 上游强制（`target_id` 匹配授权目标 + 工具名进 `networkTools`），包内不做 scope 检查。
 
@@ -289,6 +291,16 @@ securityInstallCommand: 'dsh --profile security-research',
 2. 【已实施，见 §9.6/§9.7】云平台批次（AWS/Azure/GCP/阿里云/腾讯云/华为云 CLI）。
 3. 【明确不实现】ntlmrelayx SOCKS 链（交互式 SOCKS 客户端语义不适合无交互模型工具）与 Responder 之外的投毒面（现有两条监听路径覆盖典型面，扩展面留技能层 as-* 系列）。
 
+
+
+
+### 9.4 域环境批次（已实施，按最优选项落地）
+
+按 2026-11-15 设计草案实施：5 工具（`bloodhound_enum`、`kerberoast`、`asrep_roast`、`secrets_dump`、`nxc_spray`），impacket 一包三工具，`secrets_dump` 默认 `full` 回显（Config `redactionLevel` 可收紧），egress 不构造（target + `credential-use` 动作 + 凭据引用三重把关），用户名模型可见、密码走 `credential_ref`。
+
+授权侧：`assessment-scope-tool-policy` 新增第 4 类 `credentialTools`（空列表=不启用）——调用映射 `credential-use` 动作并构造 `operation.credential = {ref, purpose:'target-authentication'}`，与 grant 的 `credentials` 条目精确匹配；grant 把 `credential-use` 列入 `approvalRequiredActions` 时每次调用走人工审批（现有 `kind:'ask'` 链路，零新增机制）。凭据解析在工具 execute 内经 `ctx.get('credentials')`，密码绝不进入模型参数、工具结果或会话日志（nxc 命中行解析时额外抹除回显密码）。
+
+已知限制（README 已记录）：密码随外部工具的原生参数（impacket 目标串、`-p` 标志）进入本机 argv，进程列表可见；`secrets_dump` 的 hash 按默认 `full` 返回供离线破解，留存期限由 grant evidence policy 约束。
 ### 9.5 域环境第二批（已实施，按最优选项落地）
 
 三项设计决策均按建议落地：监听器用 ctx.jobs 后台作业（`@cinlan/tool-listeners` 一包两工具，`responder_capture` + `ntlm_relay`）；`exploit-execution` 与 `persistence-change` 建议部署列入 grant 的 `approvalRequiredActions`（bundle `exploitTools`/`persistenceTools` 列表已接线）；responder 捕获 hash 沿用 `full`（作业环形缓冲原样流式）。同批增量：`rbcd`（impacket 包第 4 工具，`persistenceTools` → `persistence-change`）、`adcs_find`（`@cinlan/tool-certipy`，`credentialTools` → `credential-use`）。授权侧 `assessment-scope-tool-policy` 泛化出 `optionalSelected` 并新增 `exploitTools`/`persistenceTools` 两类映射。
@@ -319,15 +331,6 @@ securityInstallCommand: 'dsh --profile security-research',
 1. 监听器走 ctx.jobs 后台作业（长窗口、流式观察、不阻塞回合）；
 2. `exploit-execution` 与 `persistence-change` 进部署 grant 示例的 `approvalRequiredActions`；
 3. responder 捕获 hash 回显 `full`（与 secrets_dump 一致）。
-
-### 9.4 域环境批次（已实施，按最优选项落地）
-
-按 2026-11-15 设计草案实施：5 工具（`bloodhound_enum`、`kerberoast`、`asrep_roast`、`secrets_dump`、`nxc_spray`），impacket 一包三工具，`secrets_dump` 默认 `full` 回显（Config `redactionLevel` 可收紧），egress 不构造（target + `credential-use` 动作 + 凭据引用三重把关），用户名模型可见、密码走 `credential_ref`。
-
-授权侧：`assessment-scope-tool-policy` 新增第 4 类 `credentialTools`（空列表=不启用）——调用映射 `credential-use` 动作并构造 `operation.credential = {ref, purpose:'target-authentication'}`，与 grant 的 `credentials` 条目精确匹配；grant 把 `credential-use` 列入 `approvalRequiredActions` 时每次调用走人工审批（现有 `kind:'ask'` 链路，零新增机制）。凭据解析在工具 execute 内经 `ctx.get('credentials')`，密码绝不进入模型参数、工具结果或会话日志（nxc 命中行解析时额外抹除回显密码）。
-
-已知限制（README 已记录）：密码随外部工具的原生参数（impacket 目标串、`-p` 标志）进入本机 argv，进程列表可见；`secrets_dump` 的 hash 按默认 `full` 返回供离线破解，留存期限由 grant evidence policy 约束。
-
 ### 9.6 云平台批次（已实施，六云一次全做）
 
 按 2026-11-15 设计草案实施：六个 `@cinlan/tool-<name>` 包 × 3 个只读工具 = 18 工具，CLI 分别为 aws v2、az、gcloud、aliyun cli、tccli、KooCLI（`hcloud`，`obs_enum` 用独立 obsutil）。全部只读，不引入任何写/删/改资源动作。
@@ -360,7 +363,7 @@ securityInstallCommand: 'dsh --profile security-research',
 
 实施结果与草案差异：全部遵循"只引用已存在策略/角色/组"的安全线（参数格式白名单校验拒绝注入与任意文档），attach/detach 严格配对，未做"操作前绑定状态回读"（描述里引导先跑对应 enum 工具，避免每次写前翻倍 CLI 调用）。policy.spec 补 `cloudWriteTools` 正反用例（映射 persistence-change + 带 credential 构造 operation.credential + 配置校验）。实施插曲：ZH 目录插入时 `iam_group_*` 锚点选错导致 huawei 段块序错位，pairing 块级校验抓到后已按 EN 字母序归位。
 
-### 9.8 dsh-purge-safe 差距分析与原生集成草案（待实施）
+### 9.8 dsh-purge-safe 差距分析与原生集成（已实施，五项收官）
 
 对比 [CallMeGuLab/dsh-purge-safe](https://github.com/CallMeGuLab/dsh-purge-safe)（DSH 破甲插件，229 star）：它分两层。**破甲层**（patch 官方 `@deepseek-ai` 包的提示词/审批门/沙箱策略、加密提示词注入、规则库切换 prompt-inject.md、Apply/Restore/Uninstall dock）在 cinlan-harness 天然不需要——fork 原生可控，security-research profile 已经直接配置工具白名单与授权流，不需要"破"任何东西。**能力层**是需要原生集成的差距：
 
@@ -377,7 +380,7 @@ securityInstallCommand: 'dsh --profile security-research',
 
 **§9.8 收官（2026-11-16）**：五项全部落地——① 红队 preset（`security-redteam` 指挥 + 五角色，classic subagent 派活）② 资产台账（engagement-ledger 扩展 findings/credentialRefs/cloud 关联）③ 技能补齐（chisel/frp/suo5 隧道 + 反弹 shell，387→391）④ 评分纪律（as-finding-severity 双轴标准，391→392；报告重放判定为无差距）⑤ 本地审计（as-local-audit，392→393）。技能库最终 393 个。purge-safe 的破甲层天然不适用（fork 原生可控）；能力层的差距以 preset/包扩展/技能三种形态原生补齐，零第三方代码引入。
 
-### 9.9 Snapshot 录制探索（2026-11-16，进行中）
+### 9.9 Snapshot 录制（已落地，场景双绿）
 
 中转端点（api.cinlan.online/v1，OpenAI 与 Anthropic Messages 协议均验证可用）提供 `deepseek-v4.1-flash` 与 `glm-5.3-flash`。结论与落地状态：
 
