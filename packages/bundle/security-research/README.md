@@ -13,6 +13,8 @@ This bundle adds the Security Research surface to a base-backed dsh profile. It 
 
 The bundle also ships the red-team mode: a `security-redteam` commanding preset plus five execution-role presets (`redteam-recon`, `redteam-asset`, `redteam-vuln`, `redteam-exploit`, `redteam-intranet`), declared in the bundle patch and delegated through the classic subagent tool. The commander plans, routes work to role presets, and records findings; it never runs tools itself. Every child Agent passes the same profile-level assessment-scope admission unchanged, and the red-team composition does not adopt the research preset's never-approval policy — approval-gated actions keep their prompts.
 
+The code-audit mode follows the same seam: a `security-code-audit` commanding preset plus three pipeline roles (`audit-static`, `audit-verify`, `audit-report`) that mirror the industry-standard wide-discovery → strict-reproduction → reviewed-reporting shape. The pipeline discipline is enforced through the finding status vocabulary: static hypotheses stay capped at `medium` until `audit-verify` reproduces them with a minimal local PoC, and only reproduced findings reach the report as confirmed.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

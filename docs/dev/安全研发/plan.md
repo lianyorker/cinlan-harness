@@ -384,7 +384,7 @@ securityInstallCommand: 'dsh --profile security-research',
 - **replay 已收敛（场景已提交）**：record 产物与 llm-replay 的形态差异为四类 record-only 内容——skill-catalog 事件（本机技能注入）、request/header 的 adapterDefaults 与 config maxTokens/reasoningEffort、request/context 的 contextWindow、真 provider 无法完成的 session-log delivery-accepted（replay 侧在 runtime patch 禁用上传对齐）。修剪后 fixture 的 sourceEventSeqs 引用与 message id 编号随之重编；单场景 record 与 replay 双绿（先 record、再按 diff 修剪、再 replay 验证的完整流程）。
 - **架构决策（子代理工厂 vs 角色编排）**：不采用"海量子代理并发 + 无限重试"工厂模式——红队工作按证据链推进（发现→验证→利用），无证据的重试只烧 token 不产出；并发闸门 ≤3 + 角色专精 + 授权闸门（approval 链路）的形态产出密度更高且可审计。GPT-6 Cyber 基准（OpenAI 2026-11：280 万行内核代码、2308 潜在问题、1724 动态复现、948 个本地提权利用、$1.21M API 成本、304 个关键漏洞负责任披露）记录为自动化安全研究的行业标杆——其形态同样是**深度单线流水线**（复现→利用→人工复核）而非子代理农场，印证编排方向。
 
-### 9.10 代码审计流水线批次设计草案（对标 GPT-6 Cyber，待实施）
+### 9.10 代码审计流水线批次（已实施，按草案落地）
 
 行业基准形态：静态发现（宽进）→ 动态复现（严格过滤，GPT-6 Cyber 2308→1724 保留 74%）→ 利用生成（复现通过者）→ 人工复核收口（304/948 负责任披露）。我们的对应基础已齐：as-java/php-audit-pipeline 技能（静态方法论）、finding 的 status×severity 纪律（as-finding-severity：hypothesis 封顶 medium、reproduced 才可 high/critical）、红队 preset 的多角色编排模式。缺的是把三者串成流水线的**编排层**。
 
@@ -399,7 +399,7 @@ securityInstallCommand: 'dsh --profile security-research',
 
 纪律（写进各角色 persona）：静态发现不经复现不得标 high 以上；复现 PoC 必须最小化（不引入新攻击面）；报告只含 reproduced + 明确标注 unresolved 的项；全程在授权仓库范围内（read-only 优先）。
 
-实施：security-research bundle 追加 4 个 preset 声明（纯 YAML + persona，零新代码）→ bundle 测试 → README 双语 → 一次提交。
+实施完成：bundle 追加 4 个 preset 声明（security-code-audit 指挥 + audit-static/audit-verify/audit-report 三角色，并发 ≤2；tool-subagent 的 allowedAgentPresets 扩至 8 角色；纯 YAML + persona 零新代码），verify-cordis-config 与 bundle 测试全绿。
 
 集成原则：**不引入 purge-safe 任何代码**（Apache-2.0 但我们按能力差距原生重做）；每项独立成包/独立批次，走与批次 1-5 相同的模式（设计草案 → policy 横切 → 包实现 → 双语 README/catalog/pairing → 一次提交）。
 

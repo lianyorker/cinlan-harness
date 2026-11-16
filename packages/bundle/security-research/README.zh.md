@@ -13,6 +13,8 @@ kind: "package-bundle"
 
 本组合包同时内置红队模式：`security-redteam` 指挥 preset 加五个执行角色 preset（`redteam-recon`、`redteam-asset`、`redteam-vuln`、`redteam-exploit`、`redteam-intranet`），在组合包 patch 中声明并经 classic subagent 工具派活。指挥负责规划、按角色派活并记录 Finding，从不亲自执行工具；每个子 Agent 同样经过 profile 层的 assessment-scope 准入，且红队组合不沿用 research preset 的 never-approval 策略——审批动作保留其提示。
 
+代码审计模式沿用同一派活通道：`security-code-audit` 指挥 preset 加三个流水线角色（`audit-static`、`audit-verify`、`audit-report`），形态对标行业标准的"宽静态发现 → 严格动态复现 → 复核报告"。流水线纪律通过 finding 状态词表强制：静态 hypothesis 封顶 `medium`，直到 `audit-verify` 用最小本地 PoC 复现；只有复现过的 finding 才作为确认项进入报告。
+
 ## 目录
 
 - [使用本包](#use-this-package)

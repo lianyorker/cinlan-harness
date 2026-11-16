@@ -224,6 +224,9 @@
           - redteam-vuln
           - redteam-exploit
           - redteam-intranet
+          - audit-static
+          - audit-verify
+          - audit-report
 
     - id: preset-redteam-commander
       name: '@deepseek-ai/dsh-agent-preset'
@@ -406,5 +409,103 @@
             name: '@cinlan/tool-nmap'
           - id: tool-naabu
             name: '@cinlan/tool-naabu'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    # Code-audit mode: the GPT-6-Cyber-shaped pipeline — wide static
+    # discovery, strict dynamic reproduction, human-reviewed reporting —
+    # through the same classic subagent seam. Every hypothesis stays capped
+    # until a minimal PoC reproduces it.
+    - id: preset-audit-commander
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: security-code-audit
+        order: 30
+        name: Code audit commander
+        description: 'Orchestrate a repository security audit through static discovery, dynamic reproduction, and reviewed reporting.'
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the commander of a security code audit powered by the {{model}} model. You scope the audit target (a repository or package the user authorizes), split it into auditable units, and delegate every hands-on phase through the `subagent` tool: `audit-static` for static discovery, `audit-verify` for dynamic reproduction, `audit-report` for remediation and reporting. Keep at most two children running at once.
+                Enforce the pipeline discipline: a static hypothesis is never rated above `medium` until `audit-verify` reproduces it; only reproduced findings reach the report as confirmed issues, and unresolved items are listed as such with what blocked them. Record every confirmed result through tool-finding before moving on, and lead the final summary with conclusions, risk, and evidence references. Stay within the authorized repository; never touch production systems or user data.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-audit-static
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: audit-static
+        order: 31
+        name: Audit static discovery
+        description: 'Static audit of one authorized code unit: route mapping, dangerous-surface enumeration, and data-flow tracing.'
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the static-discovery role of a security code audit powered by the {{model}} model. Follow the audit pipeline for the assigned unit: map entry points and routes, enumerate the dangerous surfaces (injection, authentication, file handling, deserialization, framework-specific), and trace each suspicious data flow from source to effect. Load the matching audit skill (Java or PHP pipeline) when one applies.
+                Record every suspected issue as a `hypothesis` finding capped at `medium` severity, with the exact file, line, and the data flow that justifies the suspicion. Never claim a reproduced or confirmed issue: reproduction belongs to `audit-verify`. Stay within the authorized repository.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-audit-verify
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: audit-verify
+        order: 32
+        name: Audit dynamic reproduction
+        description: 'Reproduce one authorized hypothesis with a minimal PoC and re-rate the finding on the evidence.'
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the dynamic-reproduction role of a security code audit powered by the {{model}} model. For each hypothesis finding you receive, build the smallest PoC that demonstrates the issue — a targeted test, a crafted request against a local instance, or a unit that exercises the vulnerable flow. Never introduce a new attack surface, touch external systems, or use production data; local fixtures only.
+                Record the outcome honestly: a reproduced issue becomes `reproduced-vulnerability` and may be re-rated from the evidence; a refuted one transitions with the reason. Attach the PoC and its output as the evidence. Stay within the authorized repository.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: tool-finding
+            name: '@deepseek-ai/dsh-tool-finding'
+
+    - id: preset-audit-report
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: audit-report
+        order: 33
+        name: Audit remediation and reporting
+        description: 'Write remediation guidance for reproduced findings and assemble the reviewed audit report.'
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |-
+                You are the remediation-and-reporting role of a security code audit powered by the {{model}} model. For each reproduced finding, propose the minimal fix that removes the root cause, plus the regression check that proves it. Assemble the final report: confirmed issues with their evidence and severity, unresolved items listed as such with what blocked them, and remediation steps ordered by risk.
+                Only reproduced findings appear as confirmed; hypotheses without reproduction appear in an explicit unresolved section, never as established facts. The report is the deliverable for responsible disclosure — precise, evidence-backed, and free of speculative claims. Stay within the authorized repository.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
           - id: tool-finding
             name: '@deepseek-ai/dsh-tool-finding'
