@@ -102,9 +102,9 @@ it('publishes all managed skills and persists complete official skill results fr
   await vi.waitFor(async () => {
     const status = await ctx.securitySkillResources.status()
     expect(status.operation).toBeUndefined()
-    expect(status.installed?.skillCount).toBe(387)
+    expect(status.installed?.skillCount).toBe(391)
     expect(status.lastError).toBeUndefined()
-    expect(await ctx.skills.list()).toHaveLength(387)
+    expect(await ctx.skills.list()).toHaveLength(391)
   }, { timeout: 30_000 })
   const id = SessionId('managed-security-skills')
   const agent = await ctx.agentLoop.create(id, { provider: 'fixture', model: 'fixture' }, { cwd: root })
@@ -124,7 +124,7 @@ it('publishes all managed skills and persists complete official skill results fr
   const catalog = first.messages.find(message => (message.source as { kind?: string } | undefined)?.kind === 'skill-catalog')
   if (!catalog || (catalog.source as { kind?: string } | undefined)?.kind !== 'skill-catalog') throw new Error('First model request lacks the official skill catalog')
   const catalogNames = ((catalog?.source as { entries?: { name: string }[] } | undefined)?.entries ?? []).map(entry => entry.name)
-  expect(catalogNames).toHaveLength(387)
+  expect(catalogNames).toHaveLength(391)
   expect(catalogNames).toContain('cinlan-cyber-security')
   expect(catalogNames).toContain('js-reverse')
   expect(catalogNames).not.toContain('orca-cli')
@@ -147,7 +147,7 @@ it('publishes all managed skills and persists complete official skill results fr
     expect(bodies[index]).toBe(skill.content)
     portableResults.push(rendered[index]!.replace(escapeText(skill.resourceBase.path), '<SKILL_BASE:' + name + '>'))
   }
-  expect(bodies[0]).toContain('387 个 skill 入口')
+  expect(bodies[0]).toContain('391 个 skill 入口')
   for (const name of ['coldbrew-identity', 'eni-blackbox-reverse-boost', 'eni-unpack-reverse-lab']) {
     const skill = await ctx.skills.get(name)
     expect(skill?.content).toContain('安全研究启动')
