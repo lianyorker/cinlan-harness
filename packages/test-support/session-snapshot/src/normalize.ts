@@ -116,7 +116,15 @@ export interface SessionSnapshotComparisonOptions extends Omit<NormalizeOptions,
 
 /** Return every known spelling of the generated cwd, most specific first. */
 function cwdSpellings(ctx: NormalizeContext): string[] {
-  const spellings = [...new Set([ctx.cwd, ...ctx.cwdAliases ?? []])]
+  // Runtime-context text embeds `JSON.stringify(cwd)`, so a Windows path's
+  // backslashes double inside that text; the bare header spelling would never
+  // match there. Treat the JSON-stringified form as an alias spelling.
+  const spellings = [...new Set([
+    ...[ctx.cwd, ...ctx.cwdAliases ?? []].flatMap(spelling => [
+      spelling,
+      JSON.stringify(spelling).slice(1, -1),
+    ]),
+  ])]
     .filter(spelling => spelling.length > 0)
   const macAliases = spellings
     .filter(spelling => spelling.startsWith('/') && !spelling.startsWith('/private/'))

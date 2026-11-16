@@ -133,6 +133,26 @@ describe('normalizeStdout', () => {
     expect(frame).toEqual({ cwd: '{{cwd}}', path: '{{cwd}}/nested/proof.txt' })
   })
 
+  it('tokenizes a JSON.stringify-embedded Windows cwd in session logs', () => {
+    // Runtime-context text embeds `JSON.stringify(cwd)`, so every path
+    // backslash doubles inside that text; the exact match must still win.
+    const cwd = String.raw`C:\Users\runner\AppData\Local\Temp\dsh-log-snap-AbC123`
+    const ctx: NormalizeContext = { sessionIds: [], cwd }
+    const raw = JSON.stringify({
+      type: 'user/message',
+      data: {
+        role: 'user',
+        content: [{ type: 'text', text: `Current working directory: ${JSON.stringify(cwd)}.` }],
+      },
+    }) + '\n'
+    const normalized = normalizeSessionLog(raw, ctx, { identityMode: 'preserve' })
+    const record = JSON.parse(normalized.split('\n')[0] as string) as {
+      data: { content: Array<{ text: string }> }
+    }
+    // The JSON.stringify quotes around the path stay; only the path is a token.
+    expect(record.data.content[0]?.text).toBe('Current working directory: "{{cwd}}".')
+  })
+
   it('canonicalizes only cwd-rooted path separators', () => {
     const windowsCtx: NormalizeContext = {
       sessionIds: [],
