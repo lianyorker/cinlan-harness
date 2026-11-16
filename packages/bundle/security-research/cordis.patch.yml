@@ -482,6 +482,14 @@
             name: '@deepseek-ai/dsh-agent-instructions'
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
+          # Reproduction executes targeted tests and fixtures; both shells are
+          # mounted with the platform disjunction the standard preset uses.
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
           - id: tool-fs
             name: '@deepseek-ai/dsh-tool-fs'
           - id: tool-fs-search
