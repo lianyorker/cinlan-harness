@@ -367,8 +367,8 @@ securityInstallCommand: 'dsh --profile security-research',
 | SQLite 资产库（测绘结果入库、资产关联 asset-table/asset-correlation） | engagement-ledger 有 campaign/scope snapshot，无"测绘资产台账" | 新包 `@cinlan/asset-ledger`：发现的主机/端口/服务/凭据登记 + 关联（host→service→finding 已有链路的入口层）【已实施：按 one-home-per-fact 扩展现有 engagement-ledger 而非新包——LedgerAsset 增 `findings`（finding id 并集累积）与 `credentialRefs`（凭据引用名并集）关联字段、`cloud: {provider, accountId}` 云资产身份（host 携账户 id）；campaign_upsert 增 findingIds/credentialRefs/cloudProvider/cloudAccountId 参数，配对校验，JSON 持久化沿用既有原子写】 |
 | 内嵌红队工具集（lib/redteam/tools.js，136KB web 工具） | 24 个 CLI 工具（nmap/httpx/nuclei/六云等），覆盖面按 CLI 有无 | 按 use case 排查缺口；CLI 工具链已覆盖大部分，缺的是"评估报告驱动的工具选择"（技能层职责） |
 | 24 个红队技能（隧道 chisel/frp/suo5、内网 fscan/gogo、空间测绘 fofa、webshell、shell 处置等） | `@cinlan/security-skills` 资产包（eni-* 系列） | 技能内容差距已收敛并实施：对照盘点后 24 个主题里 20+ 已有对应技能（as-fscan-scan / as-gogo-scan / as-uncover-search / as-webshell-deploy / as-webshell-management / as-lateral-movement 等），补齐 4 个新技能——`as-chisel-tunnel`（HTTP 隧道/SOCKS5）、`as-frp-tunnel`（多协议长稳隧道）、`as-suo5-tunnel`（HTTP 全双工隧道，webshell 入口）、`as-reverse-shell`（监听器选型/载荷生成/TTY 升级/加密与痕迹）；技能计数 387→391，主路由 SKILL.md、期望 JSON 与测试断言同步 |
-| 评分规则（score-rules.js） | finding 有 severity，无系统化评分 | finding 体系加评分规则（CVSS 简化版或项目自定义矩阵） |
-| 证据账本（evidence-ledger）+ 报告重放（report-replay） | evidence policy + finding 体系 + exportReport | 报告重放（从持久化 finding/session 重放出报告）可加在 security-research-controller |
+| 评分规则（score-rules.js） | finding 有 severity，无系统化评分 | finding 体系加评分规则（CVSS 简化版或项目自定义矩阵）【已实施：新技能 `as-finding-severity`——severity×confidence 双轴定级标准（status 对 severity 的硬上限矩阵、critical 三条件、confidence 与工具输出解耦、finding_transition 改口规则），技能计数 391→392；不加代码层评分引擎：finding 的 severity/confidence 本就是结构化双轴，纪律属于模型遵循的评估标准】 |
+| 证据账本（evidence-ledger）+ 报告重放（report-replay） | evidence policy + finding 体系 + exportReport | 报告重放（从持久化 finding/session 重放出报告）可加在 security-research-controller【已评估：无差距——exportReport 已从持久化 finding + evidence 重建完整报告（report-download 授权后），as-report-generate 技能覆盖报告流程，keyless snapshot replay 覆盖 session 重放语义；不需要新的重放代码】 |
 | 技能可用性自检/自愈（skill-availability/skill-fixes） | 无 | 工具二进制存在性检查（各 tool 包的 `resolveExecutable` 已有，缺汇总面） |
 | Drill 本地环境评估 | 无 | 本机暴露面审计工具集（新批次评估） |
 

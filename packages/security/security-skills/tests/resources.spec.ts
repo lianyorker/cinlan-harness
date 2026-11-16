@@ -460,9 +460,11 @@ describe('security skill resources through YAML Loader', () => {
       const status = await manager.status()
       if (status.lastError !== undefined) throw new Error('install failed: ' + JSON.stringify(status.lastError))
       expect(status.installed?.source).toEqual({ kind: 'bundled' })
-      expect(status.installed?.skillCount).toBe(391)
+      expect(status.installed?.skillCount).toBe(392)
+      // Publication completes with installation: the registry lists the
+      // installed generation as soon as the bundled install settles.
+      expect(await host.skills.list()).toHaveLength(392)
     }, { timeout: 60_000 })
-    expect(await host.skills.list()).toHaveLength(391)
   })
 
   it('keeps resources uninstalled when autoInstallBundled is disabled', async () => {
