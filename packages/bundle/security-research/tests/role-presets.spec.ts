@@ -15,8 +15,8 @@ interface PresetConfig {
 }
 
 async function patchRows(): Promise<EntryOptions[]> {
-  const loaded = load(await readFile(patchUrl, 'utf8'), { schema: entryListSchema })
-  const patch = Array.isArray(loaded) ? loaded : loaded.insert
+  const loaded: unknown = load(await readFile(patchUrl, 'utf8'), { schema: entryListSchema })
+  const patch: readonly EntryOptions[] = Array.isArray(loaded) ? loaded : (loaded as { insert: EntryOptions[] }).insert
   return patch.flatMap((row: { insert?: EntryOptions[] } & EntryOptions) => row.insert ?? [row])
 }
 
