@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `sts_get_caller_identity`, `iam_enum`, `s3_enum`, `iam_policy_attach`, and `iam_policy_detach` tools on `ctx.tools`. It shells out to a locally installed AWS CLI v2 (`aws`) through `ctx.subprocess` with fixed `--output json --no-cli-paginate` flags, parses the JSON into bounded rows, and never emits output-file arguments. The AWS key material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `sts_get_caller_identity` under the `credential-use` action, `iam_enum` and `s3_enum` under the `reconnaissance` action through `cloudTools`, and the policy attach/detach pair under the `persistence-change` action through `cloudWriteTools`.
+This package registers the `sts_get_caller_identity`, `iam_enum`, `s3_enum`, `iam_policy_attach`, and `iam_policy_detach` tools on `ctx.tools`, shelling out to a locally installed AWS CLI v2 through `ctx.subprocess` with fixed JSON flags and no output-file arguments. Credentials resolve from `credential_ref` at execution time into the subprocess environment, never argv or the Session log. `assessment-scope-tool-policy` enforces the mapping upstream: identity confirmation under `credential-use`, enumeration under `reconnaissance`, and the policy pair under `persistence-change`.
 
 ## Table of Contents
 

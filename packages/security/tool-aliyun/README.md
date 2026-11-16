@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `aliyun_identity_get`, `ram_enum`, `oss_enum`, `ram_policy_attach`, and `ram_policy_detach` tools on `ctx.tools`. It shells out to a locally installed Alibaba Cloud CLI (`aliyun`) through `ctx.subprocess` with explicit `--region` arguments, parses stdout into bounded rows, and never emits output-file arguments. The AccessKey material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`ALIBABA_CLOUD_ACCESS_KEY_ID` / `ALIBABA_CLOUD_ACCESS_KEY_SECRET` / `ALIBABA_CLOUD_SECURITY_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `aliyun_identity_get` under the `credential-use` action, `ram_enum` and `oss_enum` under the `reconnaissance` action through `cloudTools`, and the policy attach/detach pair under the `persistence-change` action through `cloudWriteTools`.
+This package registers the `aliyun_identity_get`, `ram_enum`, `oss_enum`, `ram_policy_attach`, and `ram_policy_detach` tools on `ctx.tools`, shelling out to a locally installed Alibaba Cloud CLI through `ctx.subprocess` with explicit region arguments. Credentials resolve from `credential_ref` at execution time into the subprocess environment, never argv or the Session log. `assessment-scope-tool-policy` enforces the mapping upstream: identity confirmation under `credential-use`, enumeration under `reconnaissance`, and the policy pair under `persistence-change`.
 
 ## Table of Contents
 

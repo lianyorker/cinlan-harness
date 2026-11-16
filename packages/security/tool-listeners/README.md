@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `responder_capture` and `ntlm_relay` tools on `ctx.tools`. Each runs the external listener as a generic background job through `ctx.jobs`: the call returns a job id at once, captured output streams into the job ring (read with `job_output`, stop with `job_kill`), and the listen window, a kill, or the owner's disposal terminates the session. Local binds are the listener surface; the relay target is the only outbound destination. Authorization is enforced upstream by `assessment-scope-tool-policy`: the tool name must be listed in that policy's `exploitTools`, `target_id` must match a grant target, and the mapped `exploit-execution` action requires the grant — an `approvalRequiredActions` entry turns every call into an approval prompt.
+This package registers the `responder_capture` and `ntlm_relay` tools on `ctx.tools`, running each external listener as a background job through `ctx.jobs`: the call returns a job id at once, captured output streams into the job ring (`job_output`, `job_kill`), and the listen window or a kill terminates the session. Local binds are the listener surface; the relay target is the only outbound destination. `assessment-scope-tool-policy` enforces the `exploit-execution` mapping upstream with `target_id` matched against a grant target and approval prompts preserved where configured.
 
 ## Table of Contents
 

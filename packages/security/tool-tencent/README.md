@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `tencent_identity_get`, `cam_enum`, `cos_enum`, `cam_policy_attach`, and `cam_policy_detach` tools on `ctx.tools`. It shells out to a locally installed Tencent Cloud tccli through `ctx.subprocess` with fixed `--output json` flags and explicit `--region` arguments, parses the JSON into bounded rows, and never emits output-file arguments. The CAM secret key material is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and injected through the subprocess environment (`TENCENTCLOUD_SECRETID` / `TENCENTCLOUD_SECRETKEY` / `TENCENTCLOUD_SESSION_TOKEN`), never argv, model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `tencent_identity_get` under the `credential-use` action, `cam_enum` and `cos_enum` under the `reconnaissance` action through `cloudTools`, and the policy attach/detach pair under the `persistence-change` action through `cloudWriteTools`.
+This package registers the `tencent_identity_get`, `cam_enum`, `cos_enum`, `cam_policy_attach`, and `cam_policy_detach` tools on `ctx.tools`, shelling out to a locally installed Tencent Cloud tccli through `ctx.subprocess` with fixed JSON flags and explicit region arguments. Credentials resolve from `credential_ref` at execution time into the subprocess environment, never argv or the Session log. `assessment-scope-tool-policy` enforces the mapping upstream: identity confirmation under `credential-use`, enumeration under `reconnaissance`, and the policy pair under `persistence-change`.
 
 ## Table of Contents
 

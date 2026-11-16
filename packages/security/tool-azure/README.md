@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `az_account_show`, `azure_ad_enum`, `azure_storage_enum`, `role_assignment_create`, and `role_assignment_delete` tools on `ctx.tools`. It shells out to a locally installed Azure CLI (`az`) through `ctx.subprocess`; every call first logs the service principal in with a fixed `--output json` argv and then runs its read-only listing, parsing the JSON into bounded rows. The client secret is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and never appears in model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: `az_account_show` under the `credential-use` action, `azure_ad_enum` and `azure_storage_enum` under the `reconnaissance` action through `cloudTools`, and the role-assignment pair under the `persistence-change` action through `cloudWriteTools`.
+This package registers the `az_account_show`, `azure_ad_enum`, `azure_storage_enum`, `role_assignment_create`, and `role_assignment_delete` tools on `ctx.tools`, shelling out to a locally installed Azure CLI through `ctx.subprocess`; every call first logs the service principal in, then runs its listing or role-assignment change with fixed JSON flags. The client secret resolves from `credential_ref` at execution time and never appears in model-visible arguments, tool results, or the Session log. `assessment-scope-tool-policy` enforces the mapping upstream: subscription confirmation under `credential-use`, enumeration under `reconnaissance`, and the role pair under `persistence-change`.
 
 ## Table of Contents
 

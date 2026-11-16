@@ -7,7 +7,7 @@ kind: "package-reference"
 English | [中文](README.zh.md)
 
 ## Summary
-This package registers the `kerberoast`, `asrep_roast`, `secrets_dump`, and `rbcd` tools on `ctx.tools`. The first three shell out to locally installed impacket binaries through `ctx.subprocess` and parse hash or credential rows into bounded structured output; `rbcd` performs a constrained-delegation write on one granted target. The account secret is resolved from the model-provided `credential_ref` at execution time through `ctx.get('credentials')` and never appears in model-visible arguments, tool results, or the Session log. Authorization is enforced upstream by `assessment-scope-tool-policy`: the credential tools must be listed in `credentialTools` and `rbcd` in `persistenceTools`, calls must carry a well-formed `credential_ref`, `target_id` must match a grant target, and the mapped actions (`credential-use` and `persistence-change`) must be granted with the presented reference for that target.
+This package registers the `kerberoast`, `asrep_roast`, `secrets_dump`, and `rbcd` tools on `ctx.tools`: impacket-backed hash and credential collection plus a constrained-delegation write on one granted target. The account secret resolves from `credential_ref` at execution time and never appears in model-visible arguments, tool results, or the Session log. `assessment-scope-tool-policy` enforces the upstream mapping — `credential-use` for the collection tools and `persistence-change` for `rbcd` — with `target_id` matched against a grant target and approval prompts preserved where the deployment configures them.
 
 ## Table of Contents
 
