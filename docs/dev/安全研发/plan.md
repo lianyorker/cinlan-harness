@@ -370,7 +370,9 @@ securityInstallCommand: 'dsh --profile security-research',
 | 评分规则（score-rules.js） | finding 有 severity，无系统化评分 | finding 体系加评分规则（CVSS 简化版或项目自定义矩阵）【已实施：新技能 `as-finding-severity`——severity×confidence 双轴定级标准（status 对 severity 的硬上限矩阵、critical 三条件、confidence 与工具输出解耦、finding_transition 改口规则），技能计数 391→392；不加代码层评分引擎：finding 的 severity/confidence 本就是结构化双轴，纪律属于模型遵循的评估标准】 |
 | 证据账本（evidence-ledger）+ 报告重放（report-replay） | evidence policy + finding 体系 + exportReport | 报告重放（从持久化 finding/session 重放出报告）可加在 security-research-controller【已评估：无差距——exportReport 已从持久化 finding + evidence 重建完整报告（report-download 授权后），as-report-generate 技能覆盖报告流程，keyless snapshot replay 覆盖 session 重放语义；不需要新的重放代码】 |
 | 技能可用性自检/自愈（skill-availability/skill-fixes） | 无 | 工具二进制存在性检查（各 tool 包的 `resolveExecutable` 已有，缺汇总面） |
-| Drill 本地环境评估 | 无 | 本机暴露面审计工具集（新批次评估） |
+| Drill 本地环境评估 | 无 | 本机暴露面审计工具集（新批次评估）【已实施：新技能 `as-local-audit`——评估前工具链就绪度核查（六云 CLI/扫描/凭据工具逐项版本确认）+ 评估后本机遗留盘点（监听器/隧道孤儿进程、TEMP 凭据与载荷残留、GCP 临时 SA 文件核对、PSReadLine 历史的命令行凭据泄漏检查、campaign 台账收尾核对），技能计数 392→393；走现有 bash/fs 工具，无需新工具包】 |
+
+**§9.8 收官（2026-11-16）**：五项全部落地——① 红队 preset（`security-redteam` 指挥 + 五角色，classic subagent 派活）② 资产台账（engagement-ledger 扩展 findings/credentialRefs/cloud 关联）③ 技能补齐（chisel/frp/suo5 隧道 + 反弹 shell，387→391）④ 评分纪律（as-finding-severity 双轴标准，391→392；报告重放判定为无差距）⑤ 本地审计（as-local-audit，392→393）。技能库最终 393 个。purge-safe 的破甲层天然不适用（fork 原生可控）；能力层的差距以 preset/包扩展/技能三种形态原生补齐，零第三方代码引入。
 
 集成原则：**不引入 purge-safe 任何代码**（Apache-2.0 但我们按能力差距原生重做）；每项独立成包/独立批次，走与批次 1-5 相同的模式（设计草案 → policy 横切 → 包实现 → 双语 README/catalog/pairing → 一次提交）。
 

@@ -65,7 +65,7 @@ CTF 按证据面分流到上述现有模块，不依赖外部 `CTF-Sandbox-Orche
 
 ## 知识库
 
-- 本 bundle 包含 392 个 skill 入口：本路由入口、20 个直属子模块，以及合并的扩展技能族（`eni-*` 工作流与路由、`competition-*` 赛题场景、`coldbrew-*` 逆向专题、`xigong-*`/`yingan-*`/`linker-*` 等专项、`as-*` 安全方法论与工具 runbook、`eni-reverse-skill` 知识库路由层）；同时保留本地 references、scripts、`kb/` 和 `templates/`。
+- 本 bundle 包含 393 个 skill 入口：本路由入口、20 个直属子模块，以及合并的扩展技能族（`eni-*` 工作流与路由、`competition-*` 赛题场景、`coldbrew-*` 逆向专题、`xigong-*`/`yingan-*`/`linker-*` 等专项、`as-*` 安全方法论与工具 runbook、`eni-reverse-skill` 知识库路由层）；同时保留本地 references、scripts、`kb/` 和 `templates/`。
 - 扩展技能族不在上表内：按技能目录的 `description` 与触发词匹配，命中后直接读取该技能的 `SKILL.md`，路由协议不变。各族的破甲归属：`competition-*`/`ctf-sandbox-orchestrator`/`eni-ctf-orchestrator` → 破甲-CTF；`coldbrew-*`、`xigong-*`、`yingan-*`、`linker-*`、`eni-unpack-reverse-lab`、`eni-reverse-skill` 与其余 `eni-reverse*`/`eni-ida-reverse`/`eni-radare2`/`eni-binary-diff`/`eni-patch-diff-exploit`/`eni-license-security`/`eni-reverselab-*`/`asm-analysis`/`elf-local-auth-patcher`/`eni-*game*` → 破甲-逆向；`as-*` 与 `eni-redteam-*-detail-pack` 按 detail-pack 域名分属挖洞/渗透/云容器/免杀/移动/逆向/工具链/AI；`eni-*pentest*`/`eni-attack-chain`/`eni-kali`/`shiyi-*`/`eni-unified-router`/`eni-core`/`eni-five-edge`/`eni-universal-workflow`/`eni-case-lab`/`eni-field-journal` → 渗透或入口；其余通用编排类（`eni-docs`/`eni-diagram`/`eni-software-workflow`/`eni-browser*`/`eni-architecture-workflow`/`eni-fuzzing-workflow`/`game-assets`）归通用组。分组速查见 `routing.md`。
 - 路由后只读取 `kb/` 中与当前证据信号匹配的文件；实际创建 case、notes、reports 或检测规则时才读取 `templates/` 中的对应模板。
 - 发布资产只读。产品内容的修订发生在本 package 源目录并通过重新构建发布，不在已安装包中回写。
