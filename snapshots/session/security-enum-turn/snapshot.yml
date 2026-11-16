@@ -1,0 +1,16 @@
+version: 1
+scenario: security-enum-turn
+profile: headless
+composition: security-research
+recording: live
+input:
+  task: 用 subfinder 对 example.invalid 做被动子域名枚举，把工具输出原样报告给我；工具不可用时如实报告错误。
+permission: read-only
+header:
+  # This scenario carries the batch 1-5 security tool surface through its
+  # runtime patch, which differs from the security-research pin's tool set,
+  # so it owns its own header class and writes its own prompt/schema sidecars.
+  class: security-enum-turn
+  pin: true
+  systemPromptSource: security-enum-turn
+  toolSchemasSource: security-enum-turn

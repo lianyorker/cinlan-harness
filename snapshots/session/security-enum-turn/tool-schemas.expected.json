@@ -1,0 +1,2509 @@
+{
+  "initial": [
+    {
+      "name": "adcs_find",
+      "description": "Collect Active Directory Certificate Services configuration from one authorized assessment domain with an authenticated account (certipy find -stdout) and return certificate-authority and template rows. `-vulnerable` restricts the report to entries with known escalation paths (ESC classes). The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted; this is read-only directory collection, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Domain to collect ADCS configuration from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+          },
+          "username": {
+            "type": "string",
+            "description": "Authenticated account name whose granted credential performs the collection."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+          },
+          "dc_ip": {
+            "type": "string",
+            "description": "Domain controller address for -dc-ip."
+          },
+          "vulnerable_only": {
+            "type": "boolean",
+            "description": "Report only certificate authorities and templates with known escalation paths (-vulnerable)."
+          }
+        },
+        "required": [
+          "target_id",
+          "username",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "aliyun_identity_get",
+      "description": "Confirm which Alibaba Cloud identity the granted credentials resolve to (aliyun sts GetCallerIdentity) and return the identity type, account id, and ARN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Alibaba Cloud account id to confirm access to, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "asrep_roast",
+      "description": "Request pre-authentication data for accounts without Kerberos pre-authentication in one authorized assessment domain (impacket GetNPUsers) and return hashcat-format AS-REP Roasting hash rows with account names for offline cracking. The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Domain to enumerate no-pre-auth accounts for, as declared in the assessment scope grant."
+          },
+          "username": {
+            "type": "string",
+            "description": "Authenticated account name whose granted credential performs the enumeration."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+          },
+          "dc_ip": {
+            "type": "string",
+            "description": "Domain controller address for -dc-ip when the domain needs explicit routing."
+          }
+        },
+        "required": [
+          "target_id",
+          "username",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "az_account_show",
+      "description": "Confirm which Azure subscriptions the granted service principal can reach (az login --service-principal) and return the subscription rows with tenant ids. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Azure tenant or account id to confirm access to, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "azure_ad_enum",
+      "description": "Enumerate one authorized Azure tenant through the granted service principal (az ad user list or az role assignment list) and return bounded rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only Entra reconnaissance, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Azure tenant or account id to enumerate, as declared in the assessment scope grant."
+          },
+          "resource": {
+            "type": "string",
+            "description": "Entra collection to list: directory users or role assignments.",
+            "enum": [
+              "users",
+              "role-assignments"
+            ]
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+          },
+          "subscription": {
+            "type": "string",
+            "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "resource",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "azure_storage_enum",
+      "description": "List the storage accounts of the granted Azure service principal (az storage account list) and return rows with each account's blob-public-access and HTTPS-only settings. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Azure tenant or account id to enumerate, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+          },
+          "subscription": {
+            "type": "string",
+            "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "bloodhound_enum",
+      "description": "Collect directory data from one authorized assessment domain with an authenticated account (bloodhound-python -c All) and return a triage summary: per-collector row counts plus the Kerberoastable and AS-REP Roastable account lists extracted from users.json. The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target; collection is read-only directory enumeration, not exploitation. Raw collector JSON stays in a temporary directory that is removed after aggregation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Domain to collect from, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+          },
+          "username": {
+            "type": "string",
+            "description": "Authenticated account name whose granted credential performs the collection."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+          },
+          "nameserver": {
+            "type": "string",
+            "description": "Domain controller address used as the -ns nameserver to resolve the domain."
+          }
+        },
+        "required": [
+          "target_id",
+          "username",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "cam_enum",
+      "description": "Enumerate one authorized Tencent Cloud account through the granted credentials (tccli cam ListUsers or ListRoles) and return bounded resource rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only CAM reconnaissance, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Tencent Cloud account id to enumerate, as declared in the assessment scope grant."
+          },
+          "resource": {
+            "type": "string",
+            "description": "CAM collection to list: users or roles.",
+            "enum": [
+              "users",
+              "roles"
+            ]
+          },
+          "limit": {
+            "type": "number",
+            "description": "Row bound for the listing page (1 through 1000). Default 100."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "resource",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "cam_policy_attach",
+      "description": "Grant one existing Tencent Cloud CAM policy to one authorized user (tccli cam AttachUserPolicy). This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant, the write action must be granted, and deployments typically require approval for every call. Verify the grant with cam_policy_detach afterwards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Tencent Cloud account id holding the user and policy, as declared in the assessment scope grant."
+          },
+          "policy_id": {
+            "type": "number",
+            "description": "Numeric id of an existing CAM policy; no policy document is ever composed."
+          },
+          "uin": {
+            "type": "number",
+            "description": "Numeric UIN of the CAM user the policy is granted to or rolled back for."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "policy_id",
+          "uin",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "cam_policy_detach",
+      "description": "Roll back one Tencent Cloud CAM policy grant from one authorized user (tccli cam DetachUserPolicy). This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant and the write action must be granted; deployments typically require approval for every call. Detaching a policy that is not attached fails with a clear CLI error.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Tencent Cloud account id holding the user and policy, as declared in the assessment scope grant."
+          },
+          "policy_id": {
+            "type": "number",
+            "description": "Numeric id of an existing CAM policy; no policy document is ever composed."
+          },
+          "uin": {
+            "type": "number",
+            "description": "Numeric UIN of the CAM user the policy is granted to or rolled back for."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "policy_id",
+          "uin",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "cos_enum",
+      "description": "List the COS buckets of one authorized Tencent Cloud account through the granted credentials (tccli cos GetService) and optionally check each bucket's ACL for anonymous-read grants with GetBucketAcl. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Tencent Cloud account id to enumerate, as declared in the assessment scope grant."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation. Optional: without it the local tccli configuration chain supplies the credentials."
+          },
+          "public_status": {
+            "type": "boolean",
+            "description": "Also run GetBucketAcl per bucket and report whether anonymous-read grants exist."
+          }
+        },
+        "required": [
+          "target_id",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "create_goal",
+      "description": "Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say \"goal\"; not for single-turn work.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "objective": {
+            "type": "string",
+            "description": "The concrete completion objective inferred from the direct human request."
+          },
+          "max_goal_rounds": {
+            "type": "number",
+            "description": "Optional positive safe-integer limit on automatic continuation rounds."
+          }
+        },
+        "required": [
+          "objective"
+        ]
+      }
+    },
+    {
+      "name": "edit",
+      "description": "Edit an existing UTF-8 text file by replacing literal text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to edit, resolved by the filesystem backend. Provide `file_path` before `old_string` and `new_string` in the arguments."
+          },
+          "old_string": {
+            "type": "string",
+            "description": "Literal text to replace."
+          },
+          "new_string": {
+            "type": "string",
+            "description": "Literal replacement text. Use an empty string to delete the match."
+          },
+          "replace_all": {
+            "type": "boolean",
+            "description": "Replace all matches. Defaults to false; when false, old_string must appear exactly once."
+          },
+          "sandbox_permissions": {
+            "type": "string",
+            "description": "The narrowest wider sandbox mode for a one-shot retry of the exact operation the sandbox just denied; the retry asks the user for approval.",
+            "enum": [
+              "workspace-write",
+              "danger-full-access"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request."
+          }
+        },
+        "required": [
+          "file_path",
+          "old_string",
+          "new_string"
+        ]
+      }
+    },
+    {
+      "name": "ffuf_fuzz",
+      "description": "Fuzz one authorized assessment target URL with ffuf and a local wordlist: directory/file discovery, parameter names, or header values depending on where the FUZZ keyword sits. Returns structured match rows (keyword, URL, status, length). The URL host must match a target declared in the active assessment-scope grant; out-of-scope URLs are denied before execution. Rate is left at ffuf defaults — no aggressive fuzzing flags are emitted.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Target URL containing the literal FUZZ keyword where wordlist entries are substituted, e.g. https://target.example.com/FUZZ or https://target.example.com/search?q=FUZZ."
+          },
+          "wordlist": {
+            "type": "string",
+            "description": "Absolute or relative wordlist file path on the execution host (-w)."
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method (-X), e.g. POST. Defaults to GET."
+          },
+          "matchCodes": {
+            "type": "string",
+            "description": "Whitespace/comma-separated status codes to keep (-mc), e.g. 200,301,403."
+          },
+          "autoCalibrate": {
+            "type": "boolean",
+            "description": "Auto-filter noise responses (-ac). Defaults to true."
+          },
+          "followRedirects": {
+            "type": "boolean",
+            "description": "Follow redirects (-r). Defaults to false."
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "description": "Per-request timeout in seconds (-timeout). Defaults to ffuf's 10."
+          }
+        },
+        "required": [
+          "url",
+          "wordlist"
+        ]
+      }
+    },
+    {
+      "name": "gau_urls",
+      "description": "Fetch known URLs for one authorized assessment target domain from passive historical data sources (wayback, commoncrawl, otx, urlscan) and return deduplicated URL rows. This tool never contacts the target domain itself — all queries go to third-party archives. The domain must match a target declared in the active assessment-scope grant; out-of-scope domains are denied before execution.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Root domain as declared in the assessment scope grant (e.g. example.invalid)."
+          },
+          "providers": {
+            "type": "array",
+            "description": "Restrict the passive sources (--providers) to a subset of wayback, commoncrawl, otx, urlscan. Omit to use the tool default of all sources."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "gcp_iam_enum",
+      "description": "Enumerate the IAM policy of one authorized GCP project through the granted service-account credentials (gcloud projects get-iam-policy) and return role-binding rows. The target_id must match a cloud target declared in the active assessment-scope grant and the project must fall inside the target allowlist; this is read-only IAM reconnaissance, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "GCP account to enumerate, as declared in the assessment scope grant."
+          },
+          "project": {
+            "type": "string",
+            "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+          }
+        },
+        "required": [
+          "target_id",
+          "project",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "gcp_identity_get",
+      "description": "Confirm which GCP identity the granted service-account credentials resolve to (gcloud projects get-ancestors) and return the ancestor chain of one authorized project. The target_id must match a cloud target declared in the active assessment-scope grant, the project must fall inside the target allowlist, and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "GCP account to confirm access to, as declared in the assessment scope grant."
+          },
+          "project": {
+            "type": "string",
+            "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted service-account JSON (e.g. ASSESS_GCP_SA). The value never enters the conversation."
+          }
+        },
+        "required": [
+          "target_id",
+          "project",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "gcs_bucket_iam",
+      "description": "Read the IAM policy of one authorized GCS bucket through the granted service-account credentials (gcloud storage buckets get-iam-policy) and return role-binding rows, flagging anonymous principals (allUsers or allAuthenticatedUsers). The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "GCP account to enumerate, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+          },
+          "bucket": {
+            "type": "string",
+            "description": "Bucket name as reported by gcs_enum, without the gs:// scheme."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref",
+          "bucket"
+        ]
+      }
+    },
+    {
+      "name": "gcs_enum",
+      "description": "List the Cloud Storage buckets of one authorized GCP project through the granted service-account credentials (gcloud storage buckets list) and return bucket rows with their public-access-prevention setting (enforced means public exposure is blocked). The target_id must match a cloud target declared in the active assessment-scope grant and the project must fall inside the target allowlist; this is read-only storage reconnaissance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "GCP account to enumerate, as declared in the assessment scope grant."
+          },
+          "project": {
+            "type": "string",
+            "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+          }
+        },
+        "required": [
+          "target_id",
+          "project",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "get_goal",
+      "description": "Read the current session goal, including the id and revision that update_goal requires.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "glob",
+      "description": "Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result keeps the first paths and reports where the complete list was saved.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Glob pattern to match file paths against (e.g. \"**/*.ts\", \"src/**/*.test.js\"). A pattern with no \"/\" matches the basename at any depth, so \"*\" and \"*.ts\" both search the whole tree; include a separator to anchor the depth."
+          },
+          "path": {
+            "type": "string",
+            "description": "Directory to search in. Defaults to the session workspace; a relative path resolves against it."
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      }
+    },
+    {
+      "name": "grep",
+      "description": "Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns up to 250 matches; a larger result reports where the complete match list was saved.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Regular expression to search for (ripgrep syntax)."
+          },
+          "path": {
+            "type": "string",
+            "description": "File or directory to search. Defaults to the session workspace; a relative path resolves against it."
+          },
+          "include": {
+            "type": "string",
+            "description": "One glob filter for which files to search (e.g. \"*.ts\", \"*.{js,jsx}\"). Not a list; negation is not supported."
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      }
+    },
+    {
+      "name": "httpx_probe",
+      "description": "Probe authorized assessment targets for live HTTP/HTTPS services and return structured rows: URL, status code, title, technologies, web server, and CDN. Each target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. This is reconnaissance only — no injection, fuzzing, or exploitation payloads are sent.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Whitespace/comma-separated probe targets as declared in the assessment scope grant: hostnames, IPv4/IPv6 addresses, URLs, or CIDR ranges (at most 1000)."
+          },
+          "statusCode": {
+            "type": "boolean",
+            "description": "Include the HTTP status code (-status-code). Defaults to false."
+          },
+          "title": {
+            "type": "boolean",
+            "description": "Extract the page title (-title). Defaults to false."
+          },
+          "techDetect": {
+            "type": "boolean",
+            "description": "Report detected technologies (-tech-detect). Defaults to false."
+          },
+          "followRedirects": {
+            "type": "boolean",
+            "description": "Follow 3xx responses (-follow-redirects). Defaults to false."
+          },
+          "https": {
+            "type": "boolean",
+            "description": "Probe https:// scheme (-no-https when false). Defaults to true."
+          },
+          "http": {
+            "type": "boolean",
+            "description": "Probe http:// scheme (-no-http when false). Defaults to true."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "huawei_iam_enum",
+      "description": "Enumerate the IAM users or permanent access keys of one authorized Huawei Cloud account through the granted credentials (Huawei Cloud KooCLI: hcloud IAM ListUsers or ListPermanentAccessKeys) and return bounded rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only IAM reconnaissance, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Huawei Cloud account id to enumerate, as declared in the assessment scope grant."
+          },
+          "resource": {
+            "type": "string",
+            "description": "IAM collection to list: users, or the account's permanent access keys.",
+            "enum": [
+              "users",
+              "keys"
+            ]
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Huawei Cloud project id the IAM API is scoped to (the IAM v3 listings are project-scoped)."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "resource",
+          "project_id",
+          "credential_ref",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "huawei_identity_get",
+      "description": "Confirm which Huawei Cloud identity the granted credentials resolve to (Huawei Cloud KooCLI: hcloud IAM5 GetCallerIdentity) and return the caller user id, account id, and URN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Huawei Cloud account id to confirm access to, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "iam_binding_add",
+      "description": "Grant one existing GCP role to one member on one authorized project (gcloud projects add-iam-policy-binding). This is a persistence change on the project: the target_id must match a cloud target declared in the active assessment-scope grant, the write action must be granted, and deployments typically require approval for every call. Verify the grant with iam_binding_remove afterwards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "GCP account to modify, as declared in the assessment scope grant."
+          },
+          "project": {
+            "type": "string",
+            "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+          },
+          "member": {
+            "type": "string",
+            "description": "Member to bind or unbind, as user:<email>, serviceAccount:<email>, group:<email>, or domain:<domain>."
+          },
+          "role": {
+            "type": "string",
+            "description": "Existing role name, as roles/<name>; no policy document is ever composed."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+          }
+        },
+        "required": [
+          "target_id",
+          "project",
+          "member",
+          "role",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "iam_binding_remove",
+      "description": "Roll back one GCP role binding from one member on one authorized project (gcloud projects remove-iam-policy-binding). This is a persistence change on the project: the target_id must match a cloud target declared in the active assessment-scope grant and the write action must be granted; deployments typically require approval for every call. Removing a binding that does not exist fails with a clear CLI error.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "GCP account to modify, as declared in the assessment scope grant."
+          },
+          "project": {
+            "type": "string",
+            "description": "GCP project id; must fall inside the project allowlist of the matched cloud target."
+          },
+          "member": {
+            "type": "string",
+            "description": "Member to bind or unbind, as user:<email>, serviceAccount:<email>, group:<email>, or domain:<domain>."
+          },
+          "role": {
+            "type": "string",
+            "description": "Existing role name, as roles/<name>; no policy document is ever composed."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted service-account JSON. The value never enters the conversation."
+          }
+        },
+        "required": [
+          "target_id",
+          "project",
+          "member",
+          "role",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "iam_enum",
+      "description": "Enumerate one authorized AWS account through the granted credentials (aws iam list-users, list-roles, or account-local list-policies) and return bounded resource rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only IAM reconnaissance, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "AWS account id to enumerate, as declared in the assessment scope grant."
+          },
+          "resource": {
+            "type": "string",
+            "description": "IAM collection to list: users, roles, or account-local policies.",
+            "enum": [
+              "users",
+              "roles",
+              "policies"
+            ]
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum rows returned via --max-items (1 through 1000). Default 100."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "resource"
+        ]
+      }
+    },
+    {
+      "name": "iam_group_add_user",
+      "description": "Add one authorized Huawei Cloud user to one IAM user group (Huawei Cloud KooCLI: hcloud IAM KeystoneAddUserToGroup) — group membership inherits the group's policies, which verifies the write path. This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant, the write action must be granted, and deployments typically require approval for every call. Verify with iam_group_remove_user afterwards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Huawei Cloud account id holding the user and group, as declared in the assessment scope grant."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "IAM user id to add to or remove from the authorization group."
+          },
+          "group_id": {
+            "type": "string",
+            "description": "IAM user-group id — the group's own policies govern what the membership grants; no group or policy document is ever composed."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "user_id",
+          "group_id",
+          "credential_ref",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "iam_group_remove_user",
+      "description": "Remove one authorized Huawei Cloud user from one IAM user group (Huawei Cloud KooCLI: hcloud IAM KeystoneRemoveUserFromGroup). This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant and the write action must be granted; deployments typically require approval for every call. Removing a membership that does not exist fails with a clear CLI error.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Huawei Cloud account id holding the user and group, as declared in the assessment scope grant."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "IAM user id to add to or remove from the authorization group."
+          },
+          "group_id": {
+            "type": "string",
+            "description": "IAM user-group id — the group's own policies govern what the membership grants; no group or policy document is ever composed."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Huawei Cloud region for --cli-region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "user_id",
+          "group_id",
+          "credential_ref",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "iam_policy_attach",
+      "description": "Grant one existing AWS managed policy to one authorized IAM user (aws iam attach-user-policy). This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant, the write action must be granted, and deployments typically require approval for every call. Verify the grant with iam_policy_detach afterwards; no policy document is ever composed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "AWS account id holding the user and policy, as declared in the assessment scope grant."
+          },
+          "policy_arn": {
+            "type": "string",
+            "description": "ARN of an existing managed policy to grant; no policy document is ever composed."
+          },
+          "username": {
+            "type": "string",
+            "description": "IAM user name the policy is granted to or rolled back for."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "policy_arn",
+          "username"
+        ]
+      }
+    },
+    {
+      "name": "iam_policy_detach",
+      "description": "Roll back one AWS managed-policy grant from one authorized IAM user (aws iam detach-user-policy). This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant and the write action must be granted; deployments typically require approval for every call. Detaching a policy that is not attached fails with a clear CLI error.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "AWS account id holding the user and policy, as declared in the assessment scope grant."
+          },
+          "policy_arn": {
+            "type": "string",
+            "description": "ARN of an existing managed policy to grant; no policy document is ever composed."
+          },
+          "username": {
+            "type": "string",
+            "description": "IAM user name the policy is granted to or rolled back for."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "policy_arn",
+          "username"
+        ]
+      }
+    },
+    {
+      "name": "interrupt_agent",
+      "description": "Ask a subagent to stop its current work. This call returns without waiting for it to stop. You can continue a local direct child's conversation later with send_message. External executions stop permanently and cannot receive follow-ups. Subagents it started will keep running.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The id of an agent created under you: your direct child or a deeper descendant."
+          }
+        },
+        "required": [
+          "agent_id"
+        ]
+      }
+    },
+    {
+      "name": "job_kill",
+      "description": "Request cancellation of a running background job.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Job id returned by the tool that started the background work."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional short reason, recorded in the log and forwarded to the job."
+          }
+        },
+        "required": [
+          "job_id"
+        ]
+      }
+    },
+    {
+      "name": "job_list",
+      "description": "List your background jobs (running and finished) with their ids, kinds, and statuses.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "job_output",
+      "description": "Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Job id returned by the tool that started the background work."
+          },
+          "wait": {
+            "type": "boolean",
+            "description": "Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false."
+          },
+          "timeout_ms": {
+            "type": "number",
+            "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
+          }
+        },
+        "required": [
+          "job_id"
+        ]
+      }
+    },
+    {
+      "name": "katana_crawl",
+      "description": "Crawl one authorized assessment target URL with katana and return structured discovery rows (url, method, status, source, tag). The URL host must match a target declared in the active assessment-scope grant; out-of-scope URLs are denied before execution. Crawling follows links and forms on the granted host only — no exploitation payloads are delivered.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Absolute http(s) crawl start URL whose host is declared in the assessment scope grant (e.g. https://example.invalid/)."
+          },
+          "depth": {
+            "type": "integer",
+            "description": "Maximum crawl depth (-d), 1 through 5. Defaults to 3."
+          },
+          "concurrency": {
+            "type": "integer",
+            "description": "Concurrent workers (-c). The deployment-configured cap (maxConcurrency) limits the accepted value."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "kerberoast",
+      "description": "Request service tickets for all SPN-bearing accounts in one authorized assessment domain (impacket GetUserSPNs) and return hashcat-format Kerberoasting hash rows with account names for offline cracking. The domain must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target; this is credential use, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Domain to enumerate SPN accounts for, as declared in the assessment scope grant (e.g. lab.example.invalid)."
+          },
+          "username": {
+            "type": "string",
+            "description": "Authenticated account name whose granted credential performs the request."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+          },
+          "dc_ip": {
+            "type": "string",
+            "description": "Domain controller address for -dc-ip when the domain needs explicit routing."
+          }
+        },
+        "required": [
+          "target_id",
+          "username",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "list_agents",
+      "description": "List subagents you started, with their ids, labels, and status. running means it is working; inactive means it is not currently working. You will be notified when a subagent finishes; there is no need to keep checking its status. Use send_message to continue the conversation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "description": "children (default) lists direct children, which accept send_message in any status. descendants lists the whole tree below you with each entry's parent session id and depth; entries deeper than 1 accept only interrupt_agent.",
+            "enum": [
+              "children",
+              "descendants"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "list_mcp_resource_templates",
+      "description": "List parameterized resource URI templates from an MCP server.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "server": {
+            "type": "string",
+            "description": "Configured MCP server name."
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Continuation cursor returned by this server."
+          }
+        },
+        "required": [
+          "server"
+        ]
+      }
+    },
+    {
+      "name": "list_mcp_resources",
+      "description": "List resources available from an MCP server.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "server": {
+            "type": "string",
+            "description": "Configured MCP server name."
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Continuation cursor returned by this server."
+          }
+        },
+        "required": [
+          "server"
+        ]
+      }
+    },
+    {
+      "name": "masscan_scan",
+      "description": "Run a masscan SYN rate-scan against one authorized assessment target and return structured open-port rows (ip, port). The target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. The scan rate is capped by deployment config and no service probing, vulnerability checking, or payload delivery is performed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Scan target as declared in the assessment scope grant: IPv4/IPv6 address, CIDR range, or start-end IP range (e.g. 192.0.2.10, 10.0.0.0/24, 10.0.0.1-10.0.0.9)."
+          },
+          "ports": {
+            "type": "string",
+            "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1024)."
+          },
+          "rate": {
+            "type": "integer",
+            "description": "Packets per second (--rate). Defaults to 100; the deployment-configured cap (maxRate) limits the accepted value."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "mcp__ck__knowledge_open",
+      "description": "读取一条资产的当前版本全文。skill 会另带附属文件列表；要取单个附属文件，传 path。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "资产 id"
+          },
+          "path": {
+            "description": "skill 附属文件路径；留空取主文件",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      }
+    },
+    {
+      "name": "mcp__ck__knowledge_save",
+      "description": "保存一条记忆（默认仅自己可见）。新建时只需 title 与 content；修改自己已有的资产必须带 id 与 base_version，冲突时返回当前版本号。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "一句话说清这条记忆是什么"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "正文"
+          },
+          "tags": {
+            "description": "标签，最多 16 个",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "layer": {
+            "description": "记忆分层，默认 atom",
+            "type": "string",
+            "enum": [
+              "core",
+              "profile",
+              "atom"
+            ]
+          },
+          "id": {
+            "description": "修改自己已有资产时给 id",
+            "type": "string"
+          },
+          "base_version": {
+            "description": "与 id 同用：我修改时基于的版本号",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "title",
+          "content"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      }
+    },
+    {
+      "name": "mcp__ck__knowledge_search",
+      "description": "检索团队记忆资产（记忆、技能、流程）。返回标题、摘要与命中片段；需要全文再用 knowledge_open。范围限定为当前身份可读的资产。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "description": "检索词；中文两字也有效"
+          },
+          "types": {
+            "description": "限定资产类型",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "memory",
+                "skill",
+                "wiki",
+                "codegraph"
+              ]
+            }
+          },
+          "tags": {
+            "description": "按标签收窄",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "description": "返回条数，默认 8",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      }
+    },
+    {
+      "name": "mcp__ck__knowledge_session_report",
+      "description": "把本轮对话里有沉淀价值的内容报给知识库（自动沉淀）。候选须独立成句、脱离对话也能看懂；落为仅自己可见的草稿，在面板收件箱采纳后才进入检索。单次最多 5 条。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "candidates": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120,
+                  "description": "一句话说清这条记忆是什么"
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "正文；独立成句，不带对话上下文指代"
+                },
+                "layer": {
+                  "description": "记忆分层，默认 atom",
+                  "type": "string",
+                  "enum": [
+                    "core",
+                    "profile",
+                    "atom"
+                  ]
+                },
+                "tags": {
+                  "description": "标签，最多 16 个",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "title",
+                "content"
+              ]
+            },
+            "description": "候选记忆；一条只说一件事"
+          },
+          "session_id": {
+            "description": "会话标识（证据溯源用，可省略）",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "candidates"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      }
+    },
+    {
+      "name": "mcp__ck__knowledge_share",
+      "description": "把自己的一条资产共享给团队（team）或指定对象（restricted）。可能需要管理员审批，返回 applied 或 pending_review。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "资产 id"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "team",
+              "restricted"
+            ],
+            "description": "共享范围"
+          },
+          "note": {
+            "description": "为什么需要共享；给审批人看",
+            "type": "string"
+          },
+          "acl": {
+            "description": "visibility=restricted 时必填（已在 restricted 上的可省略）",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "subject_type": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "role",
+                    "agent"
+                  ]
+                },
+                "subject_id": {
+                  "type": "string"
+                },
+                "permission": {
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "manage"
+                  ]
+                }
+              },
+              "required": [
+                "subject_type",
+                "subject_id",
+                "permission"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "visibility"
+        ],
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      }
+    },
+    {
+      "name": "mcp__ck__knowledge_status",
+      "description": "自检：hub 连通性、当前用户 / 团队 / Agent / 宿主、配装摘要、待我处理的审批。hub 不可达或 key 失效时也照常返回原因。reload=true 时另带完整配装文本。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reload": {
+            "description": "true 时返回完整配装文本",
+            "type": "boolean"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+      }
+    },
+    {
+      "name": "naabu_scan",
+      "description": "Run a naabu fast TCP port scan against authorized assessment targets and return structured open-port rows (host, IP, port). Discovers open ports only — no service fingerprinting, vulnerability probing, or payload delivery. Each target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. SYN scanning requires elevated privileges on most platforms.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Whitespace/comma-separated scan targets as declared in the assessment scope grant: hostnames, IPv4/IPv6 addresses, or CIDR ranges (at most 1000)."
+          },
+          "ports": {
+            "type": "string",
+            "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1000). Required unless topPorts is given."
+          },
+          "topPorts": {
+            "type": "integer",
+            "description": "Scan the N most common ports (-top-ports). Mutually exclusive with ports."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "nmap_scan",
+      "description": "Run an nmap port scan against one authorized assessment target and return structured host/port/service results parsed from XML output. The target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution. No vulnerability scripts are run — this is reconnaissance only.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Scan target as declared in the assessment scope grant: hostname, IPv4/IPv6 address, or CIDR range (e.g. 192.0.2.10, scanme.nmap.org, 10.0.0.0/24)."
+          },
+          "ports": {
+            "type": "string",
+            "description": "Port specification for -p: digits, commas, hyphens (e.g. 22,80,443 or 1-1024). Mutually exclusive with topPorts."
+          },
+          "topPorts": {
+            "type": "integer",
+            "description": "Scan the N most common ports (--top-ports). Mutually exclusive with ports."
+          },
+          "serviceDetection": {
+            "type": "boolean",
+            "description": "Enable -sV service/version detection (slower, more accurate service names)."
+          },
+          "osDetection": {
+            "type": "boolean",
+            "description": "Enable -O OS fingerprinting. Requires elevated privileges on most platforms."
+          },
+          "openOnly": {
+            "type": "boolean",
+            "description": "Report only open ports (--open). Defaults to true."
+          },
+          "timing": {
+            "type": "integer",
+            "description": "nmap timing template -T0 (paranoid) through -T5 (insane). Defaults to nmap's -T3."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "ntlm_relay",
+      "description": "Bind local SMB/HTTP listeners and relay captured authentication to one authorized assessment target with ntlmrelayx as a background job. The call returns a job id at once; read relayed-authentication events with job_output and stop the session with job_kill. The relay target is the run's only outbound destination and must match a target declared in the active assessment-scope grant; this is exploit execution, so each call typically requires approval.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Relay target host, as declared in the assessment scope grant (the destination for captured authentication)."
+          },
+          "scheme": {
+            "type": "string",
+            "description": "Relay target scheme (-t): smb (default), http, or ldaps."
+          },
+          "listen_window_ms": {
+            "type": "integer",
+            "description": "Listen window in milliseconds; the deployment maxListenMs caps the accepted value."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "nuclei_scan",
+      "description": "Run nuclei template-based vulnerability checks against authorized assessment targets and return structured finding rows (template, severity, matched URL). Template selection and severity filtering are exposed; DAST/exploit-grade flags and out-of-band callbacks are disabled by default. Each target must match a target declared in the active assessment-scope grant; out-of-scope targets are denied before execution.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Whitespace/comma-separated scan targets as declared in the assessment scope grant: URLs or bare hosts (at most 100)."
+          },
+          "templates": {
+            "type": "string",
+            "description": "Whitespace/comma-separated template IDs or local template paths (-t). Omit to run the default template set."
+          },
+          "severities": {
+            "type": "string",
+            "description": "Whitespace/comma-separated severity filter (-severity): info, low, medium, high, critical."
+          },
+          "followRedirects": {
+            "type": "boolean",
+            "description": "Follow 3xx responses (-follow-redirects). Defaults to false."
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "description": "Per-request timeout in seconds (-timeout). Defaults to nuclei's 10."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "nxc_spray",
+      "description": "Try one granted credential against candidate accounts on one authorized assessment host with nxc (NetExec) and return structured hit rows with the secret scrubbed. The host must match a target declared in the active assessment-scope grant and the credential reference must be granted for that target; the thread count is bounded by deployment config. This is credential validation, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Host to validate credentials against, as declared in the assessment scope grant (hostname or IP)."
+          },
+          "usernames": {
+            "type": "array",
+            "description": "Candidate account names to try with the granted secret (1-100 entries)."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AD_PASS). The value never enters the conversation."
+          },
+          "protocol": {
+            "type": "string",
+            "description": "Protocol subcommand: smb (default), ldap, mssql, winrm, or ssh."
+          },
+          "domain": {
+            "type": "string",
+            "description": "Fully-qualified domain for domain-qualified authentication attempts (-d)."
+          },
+          "threads": {
+            "type": "integer",
+            "description": "Parallel workers (--threads). The deployment-configured cap (maxThreads) limits the accepted value."
+          }
+        },
+        "required": [
+          "target_id",
+          "usernames",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "obs_enum",
+      "description": "List the OBS buckets of one authorized Huawei Cloud account through the granted credentials (obsutil ls) and return bucket rows with their listing details. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Huawei Cloud account id to enumerate, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_HW_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Huawei Cloud region for the obsutil -region flag; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "oss_enum",
+      "description": "List the OSS buckets of one authorized Alibaba Cloud account through the granted credentials (aliyun oss ls) and optionally check each bucket's ACL for anonymous-read grants with ossutil api get-bucket-acl. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only storage reconnaissance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Alibaba Cloud account id to enumerate, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+          },
+          "public_status": {
+            "type": "boolean",
+            "description": "Also run get-bucket-acl per bucket and report whether anonymous-read grants exist (requires an aliyun CLI with embedded ossutil 2.0)."
+          }
+        },
+        "required": [
+          "target_id",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "pwsh",
+      "description": "Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Each call runs in a fresh pwsh process; pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment variables with `$env:NAME`. Managed `$env:DSH_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way. Under the Windows sandbox, read-only pwsh runs in PowerShell ConstrainedLanguage mode, while workspace-write stays in FullLanguage unless host policy says otherwise. In read-only, prefer cmdlets and core types (`[string]`, `[datetime]`, `[regex]`, `[guid]`); .NET static calls (`[System.IO.*]::`, `[math]::`), `Add-Type`, COM objects, and reflection fail with \"only core types\" errors. `-f` formatting, property access, and core cmdlets work. In both confined modes, programs cannot open named pipes, so a command that captures another program's output through piped stdio (Node.js `child_process.spawn`/`exec` with the default `stdio: 'pipe'`) fails with EPERM, while `stdio: 'inherit'` and `stdio: 'ignore'` spawns work and PowerShell's own pipelines are unaffected. That EPERM is the documented boundary: do not retry the command another way — escalate the exact command once or restructure it to avoid capturing output.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"Get-Process\" → \"List running processes\"."
+          },
+          "command": {
+            "type": "string",
+            "description": "The PowerShell command to execute."
+          },
+          "timeoutMs": {
+            "type": "number",
+            "description": "Timeout in milliseconds. The executor applies its configured default and cap; on expiry the command moves to the background as a job instead of being killed."
+          },
+          "workdir": {
+            "type": "string",
+            "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+          },
+          "run_in_background": {
+            "type": "boolean",
+            "description": "Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies."
+          },
+          "sandbox_permissions": {
+            "type": "string",
+            "description": "The narrowest wider sandbox mode for a one-shot retry of the exact command the sandbox just denied; the retry asks the user for approval.",
+            "enum": [
+              "workspace-write",
+              "danger-full-access"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access. Use the language of the user’s current request."
+          }
+        },
+        "required": [
+          "description",
+          "command"
+        ]
+      }
+    },
+    {
+      "name": "ralph",
+      "description": "Run a foreground fresh-agent Ralph loop toward one immutable objective. Use only when the direct human explicitly asks for Ralph or fresh-agent iteration. Each round opens a new child with no parent conversation or prior child session; the shared workspace is long-term memory, and only a bounded structured report crosses rounds. The call returns when a worker reports completion or a concrete blocker, or at the round limit. Ordinary long-running same-session work belongs to goal tools.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "objective": {
+            "type": "string",
+            "description": "The immutable completion objective for every fresh Ralph round."
+          },
+          "maxRounds": {
+            "type": "number",
+            "description": "Optional positive safe-integer round cap, bounded by the deployment ceiling."
+          }
+        },
+        "required": [
+          "objective"
+        ]
+      }
+    },
+    {
+      "name": "ram_enum",
+      "description": "Enumerate the RAM users of one authorized Alibaba Cloud account through the granted credentials (aliyun ram ListUsers) and return bounded user rows. The target_id must match a cloud target declared in the active assessment-scope grant; this is read-only RAM reconnaissance, not exploitation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Alibaba Cloud account id to enumerate, as declared in the assessment scope grant."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Row count for the listing page via --PageSize (1 through 1000). Default 100."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+          }
+        },
+        "required": [
+          "target_id",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "ram_policy_attach",
+      "description": "Grant one existing Alibaba Cloud RAM policy to one authorized RAM user (aliyun ram AttachUserPolicy). This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant, the write action must be granted, and deployments typically require approval for every call. Verify the grant with ram_policy_detach afterwards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Alibaba Cloud account id holding the user and policy, as declared in the assessment scope grant."
+          },
+          "policy_type": {
+            "type": "string",
+            "description": "RAM policy type of an existing policy; no policy document is ever composed.",
+            "enum": [
+              "Custom",
+              "System"
+            ]
+          },
+          "policy_name": {
+            "type": "string",
+            "description": "Name of an existing RAM policy to grant or roll back."
+          },
+          "username": {
+            "type": "string",
+            "description": "RAM user name the policy is granted to or rolled back for."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+          }
+        },
+        "required": [
+          "target_id",
+          "policy_type",
+          "policy_name",
+          "username",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "ram_policy_detach",
+      "description": "Roll back one Alibaba Cloud RAM policy grant from one authorized RAM user (aliyun ram DetachUserPolicy). This is a persistence change on the account: the target_id must match a cloud target declared in the active assessment-scope grant and the write action must be granted; deployments typically require approval for every call. Detaching a policy that is not attached fails with a clear CLI error.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Alibaba Cloud account id holding the user and policy, as declared in the assessment scope grant."
+          },
+          "policy_type": {
+            "type": "string",
+            "description": "RAM policy type of an existing policy; no policy document is ever composed.",
+            "enum": [
+              "Custom",
+              "System"
+            ]
+          },
+          "policy_name": {
+            "type": "string",
+            "description": "Name of an existing RAM policy to grant or roll back."
+          },
+          "username": {
+            "type": "string",
+            "description": "RAM user name the policy is granted to or rolled back for."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_ALIYUN_KEYS). The value never enters the conversation. Optional: without it the local aliyun configuration chain supplies the credentials."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Alibaba Cloud region for --region; must fall inside the region allowlist of the matched cloud target. RAM is a global product: use the account's center region."
+          }
+        },
+        "required": [
+          "target_id",
+          "policy_type",
+          "policy_name",
+          "username",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "rbcd",
+      "description": "Grant one controlled account resource-based constrained delegation on one authorized assessment host (impacket rbcd -action write) by writing msDS-AllowedToActOnBehalfOfOtherIdentity on the target. This is a persistence change on the target: the host must match a target declared in the active assessment-scope grant, the credential reference must be granted, and the action typically requires approval.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Host receiving the delegation write, as declared in the assessment scope grant (hostname or IP)."
+          },
+          "domain": {
+            "type": "string",
+            "description": "Fully-qualified domain of the target and the authenticated account."
+          },
+          "username": {
+            "type": "string",
+            "description": "Authenticated account name whose granted credential performs the write."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+          },
+          "delegate_from": {
+            "type": "string",
+            "description": "Account granted delegation on the target (-delegate-from), typically a controlled machine account."
+          },
+          "dc_ip": {
+            "type": "string",
+            "description": "Domain controller address for -dc-ip."
+          }
+        },
+        "required": [
+          "target_id",
+          "domain",
+          "username",
+          "credential_ref",
+          "delegate_from"
+        ]
+      }
+    },
+    {
+      "name": "read",
+      "description": "Read a UTF-8 text file and return line-numbered content.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to read, resolved by the filesystem backend."
+          },
+          "offset": {
+            "type": "number",
+            "description": "1-based first line to return. Defaults to 1."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of lines to return. Defaults to 2000."
+          }
+        },
+        "required": [
+          "file_path"
+        ]
+      }
+    },
+    {
+      "name": "read_image",
+      "description": "Read a PNG/JPEG/WebP/GIF file and return the image itself. Large images are downscaled automatically; do not install image libraries or create thumbnails to inspect an image.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to the image file, resolved by the filesystem backend."
+          }
+        },
+        "required": [
+          "file_path"
+        ]
+      }
+    },
+    {
+      "name": "read_mcp_resource",
+      "description": "Read an MCP resource by URI from the named server. Use a listed URI or an expanded resource template.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "server": {
+            "type": "string",
+            "description": "Configured MCP server name."
+          },
+          "uri": {
+            "type": "string",
+            "description": "Resource URI to read."
+          }
+        },
+        "required": [
+          "server",
+          "uri"
+        ]
+      }
+    },
+    {
+      "name": "responder_capture",
+      "description": "Poison LLMNR/NBT-NS/MDNS name resolution on one assessment network interface with Responder and capture authentication hashes as a background job. The call returns a job id at once; read captured hash lines with job_output and stop the session with job_kill. The listen window is capped by deployment config. The network must be declared in the active assessment-scope grant and this is exploit execution — hashes are returned for offline cracking under the grant evidence policy.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Assessment network the poisoning session runs on, as declared in the assessment scope grant (e.g. the domain or segment)."
+          },
+          "interface": {
+            "type": "string",
+            "description": "Local network interface to poison on (-I), e.g. eth0."
+          },
+          "listen_window_ms": {
+            "type": "integer",
+            "description": "Listen window in milliseconds; the deployment maxListenMs caps the accepted value."
+          }
+        },
+        "required": [
+          "target_id",
+          "interface"
+        ]
+      }
+    },
+    {
+      "name": "role_assignment_create",
+      "description": "Grant one existing Azure role to one assignee at one authorized scope (az role assignment create). This is a persistence change on the tenant: the target_id must match a cloud target declared in the active assessment-scope grant, the write action must be granted, and deployments typically require approval for every call. Verify the grant with role_assignment_delete afterwards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Azure tenant or account id holding the assignee and role, as declared in the assessment scope grant."
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Assignee object id (GUID) or user principal name the role is granted to or rolled back for."
+          },
+          "role": {
+            "type": "string",
+            "description": "Existing role display name or role-definition GUID; no role definition is ever composed."
+          },
+          "scope": {
+            "type": "string",
+            "description": "Assignment scope, as /subscriptions/<guid>/... paths."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+          },
+          "subscription": {
+            "type": "string",
+            "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "assignee",
+          "role",
+          "scope",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "role_assignment_delete",
+      "description": "Roll back one Azure role assignment from one assignee at one authorized scope (az role assignment delete). This is a persistence change on the tenant: the target_id must match a cloud target declared in the active assessment-scope grant and the write action must be granted; deployments typically require approval for every call. Deleting an assignment that does not exist completes with no change.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Azure tenant or account id holding the assignee and role, as declared in the assessment scope grant."
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Assignee object id (GUID) or user principal name the role is granted to or rolled back for."
+          },
+          "role": {
+            "type": "string",
+            "description": "Existing role display name or role-definition GUID; no role definition is ever composed."
+          },
+          "scope": {
+            "type": "string",
+            "description": "Assignment scope, as /subscriptions/<guid>/... paths."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AZURE_SP). The value never enters the conversation."
+          },
+          "subscription": {
+            "type": "string",
+            "description": "Azure subscription GUID to scope the call via --subscription; must fall inside the subscription allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "assignee",
+          "role",
+          "scope",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "s3_enum",
+      "description": "List the S3 buckets of one authorized AWS account through the granted credentials (aws s3api list-buckets) and optionally check each bucket's public-policy status with get-bucket-policy-status. The target_id must match a cloud target declared in the active assessment-scope grant; the public-policy check is region-scoped, so a region that does not match a bucket reports that bucket as unknown. This is read-only storage reconnaissance.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "AWS account id to enumerate, as declared in the assessment scope grant."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation. Optional: without it the local AWS configuration chain supplies the credentials."
+          },
+          "public_status": {
+            "type": "boolean",
+            "description": "Also run get-bucket-policy-status per bucket (requires region); buckets without a policy report as unknown."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "secrets_dump",
+      "description": "Dump local SAM or directory credentials from one authorized assessment host with an authenticated account (impacket secretsdump) and return structured credential rows (account, rid, LM/NT hash). `-just-dc` switches to the directory DRSUAPI (DCSync) dump against a domain controller. The host and domain must match targets declared in the active assessment-scope grant and the credential reference must be granted; hashes are returned for offline analysis under the grant evidence policy.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Host to dump, as declared in the assessment scope grant (hostname or IP)."
+          },
+          "domain": {
+            "type": "string",
+            "description": "Fully-qualified domain of the authenticated account."
+          },
+          "username": {
+            "type": "string",
+            "description": "Authenticated account name whose granted credential performs the dump."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret. The value never enters the conversation."
+          },
+          "dc_ip": {
+            "type": "string",
+            "description": "Domain controller address for -dc-ip, required for directory (DCSync) dumps."
+          },
+          "just_dc": {
+            "type": "boolean",
+            "description": "Dump directory credentials through DRSUAPI (-just-dc) instead of the local registry."
+          }
+        },
+        "required": [
+          "target_id",
+          "domain",
+          "username",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "send_message",
+      "description": "Send a message to an agent. A working agent receives it at its next step; an idle agent starts a new turn with it. Returns delivery confirmation, not the agent's answer.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The agent id of your direct continuable child, or your direct parent when you are a resident continuable child."
+          },
+          "message": {
+            "type": "string",
+            "description": "The message to deliver to the agent."
+          }
+        },
+        "required": [
+          "agent_id",
+          "message"
+        ]
+      }
+    },
+    {
+      "name": "skill",
+      "description": "Load the full instructions for a skill. Call it before acting on a task that names or clearly matches a skill in the session skill catalog.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The exact skill name from the available skills list."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "sts_get_caller_identity",
+      "description": "Confirm which AWS identity the granted credentials resolve to (aws sts get-caller-identity) and return the caller user id, account id, and ARN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "AWS account id to confirm access to, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_AWS_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit AWS region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref"
+        ]
+      }
+    },
+    {
+      "name": "subagent",
+      "description": "Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. This tool starts an independently managed subagent and immediately returns its id. The runtime notifies you when it finishes. The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
+          },
+          "description": {
+            "type": "string",
+            "description": "A short (3-5 word) description of the delegated task, for display."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The complete, self-contained task for the subagent. It does not share this conversation's context, so include everything it needs."
+          }
+        },
+        "required": [
+          "description",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "name": "subagent_fork",
+      "description": "Delegate a task to a subagent that inherits this conversation: a child agent seeded with all completed turns so far (it does not see the current in-flight turn). Use this when the subtask builds on this conversation's context — a follow-up analysis, a review, a continuation — without consuming this conversation's context for the work itself. You receive its result, not its intermediate steps. This tool starts an independently managed subagent and immediately returns its id. The runtime notifies you when it finishes. The child reports results with `send_message`; use `send_message` to steer it while running or continue its conversation after it finishes.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
+          },
+          "description": {
+            "type": "string",
+            "description": "A short (3-5 word) description of the delegated task, for display."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The task for the subagent. It already sees this conversation's completed turns, so build on them freely and state only what is new."
+          }
+        },
+        "required": [
+          "description",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "name": "subfinder_enum",
+      "description": "Passively enumerate subdomains of one authorized assessment target domain and return structured rows: hostname, data source, and resolved addresses. Queries third-party passive data sources and DNS; never sends requests to the target itself. The domain must match a target declared in the active assessment-scope grant; out-of-scope domains are denied before execution.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Root domain to enumerate as declared in the assessment scope grant (e.g. example.com). Do not include a scheme, path, or port."
+          },
+          "resolve": {
+            "type": "boolean",
+            "description": "Resolve each discovered subdomain to IP addresses (-resolve). Defaults to false."
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Report only resolved and active hosts (-active). Defaults to false."
+          }
+        },
+        "required": [
+          "target_id"
+        ]
+      }
+    },
+    {
+      "name": "tencent_identity_get",
+      "description": "Confirm which Tencent Cloud CAM identity the granted credentials resolve to (tccli sts GetCallerIdentity) and return the caller user id, account id, and ARN. The target_id must match a cloud target declared in the active assessment-scope grant and the credential reference must be granted; this is a read-only identity confirmation, not enumeration.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "description": "Tencent Cloud account id to confirm access to, as declared in the assessment scope grant."
+          },
+          "credential_ref": {
+            "type": "string",
+            "description": "Environment-variable-shaped name of the granted credential secret (e.g. ASSESS_TENCENT_KEYS). The value never enters the conversation."
+          },
+          "region": {
+            "type": "string",
+            "description": "Explicit Tencent Cloud region for --region; must fall inside the region allowlist of the matched cloud target."
+          }
+        },
+        "required": [
+          "target_id",
+          "credential_ref",
+          "region"
+        ]
+      }
+    },
+    {
+      "name": "todo_write",
+      "description": "Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "todos": {
+            "type": "array",
+            "description": "The COMPLETE task list, replacing any previous list.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "type": "string",
+                  "description": "What the task is — a short imperative line."
+                },
+                "status": {
+                  "type": "string",
+                  "description": "pending (not started) | in_progress (now) | completed (done).",
+                  "enum": [
+                    "pending",
+                    "in_progress",
+                    "completed"
+                  ]
+                }
+              },
+              "required": [
+                "content",
+                "status"
+              ]
+            }
+          }
+        },
+        "required": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "name": "update_goal",
+      "description": "Update the current goal.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "goal_id": {
+            "type": "string",
+            "description": "Exact id returned by get_goal."
+          },
+          "revision": {
+            "type": "number",
+            "description": "Exact positive revision returned by get_goal."
+          },
+          "action": {
+            "type": "string",
+            "description": "edit, pause, and resume require a direct top-level human request. complete and blocked are also allowed during an automatic continuation of this goal; blocked is rejected before the configured minimum round count.",
+            "enum": [
+              "edit",
+              "pause",
+              "resume",
+              "complete",
+              "blocked"
+            ]
+          },
+          "objective": {
+            "type": "string",
+            "description": "Replacement objective; valid only with action edit."
+          },
+          "max_goal_rounds": {
+            "type": "number",
+            "description": "Replacement cap; valid only with action edit."
+          },
+          "blocked_reason": {
+            "type": "string",
+            "description": "Required only with action blocked: the concrete condition that persisted across rounds and blocks progress."
+          }
+        },
+        "required": [
+          "goal_id",
+          "revision",
+          "action"
+        ]
+      }
+    },
+    {
+      "name": "web_fetch",
+      "description": "Fetch the content of a specific HTTP(S) URL and return it decoded to text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The HTTP(S) URL to fetch."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
+    {
+      "name": "web_search",
+      "description": "Search the web for current information. Returns an optional summary answer and a list of source URLs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "queries": {
+            "type": "array",
+            "description": "1–4 search queries; their results are merged.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "queries"
+        ]
+      }
+    },
+    {
+      "name": "workflow",
+      "description": "Run a JavaScript workflow script that orchestrates subagents at scale. Use this for work that fans out across many independent pieces — an audit over many files, a migration, multi-angle research, adversarial verification of findings — where you write the orchestration as a script instead of delegating turn by turn.\n\nScript-body hooks:\n- `agent(prompt, opts?): Promise<any>` — run one subagent to completion. Without `opts.schema` it resolves to the child's final text; with `opts.schema` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf) it resolves to the validated object. Resolves `null` when the child fails (filter with `.filter(Boolean)`). Other opts: `label` (display), `phase` (progress group), and independent `provider`/`model` LLM target overrides.\n- `pipeline(items, ...stages): Promise<any[]>` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives `(prev, item, index)`. A stage throw drops that ITEM to `null` and skips its remaining stages.\n- `parallel(thunks): Promise<any[]>` — run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to `null`.\n- `phase(title)` — start a progress phase; `log(message)` — narrate progress; `args` — the tool call's `args` input, verbatim.\n\nMisused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) end the whole script instead of producing `null`. The script has no filesystem, network, timer, or Node.js APIs; the agents do the work.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "script": {
+            "type": "string",
+            "description": "The plain JavaScript body, not TypeScript and without an `export const meta` statement; top-level await is allowed. End with `return <value>`; the JSON-serializable value is this tool's result."
+          },
+          "meta": {
+            "type": "object",
+            "description": "The workflow identity as plain JSON, not code.",
+            "additionalProperties": true,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Short kebab-case workflow name."
+              },
+              "description": {
+                "type": "string",
+                "description": "One-line description of what the workflow does."
+              },
+              "whenToUse": {
+                "type": "string",
+                "description": "Optional guidance on when this workflow applies."
+              },
+              "phases": {
+                "type": "array",
+                "description": "Optional phase declarations matched by phase() calls.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "The phase title phase() calls match by exact string."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Optional one-line description of the phase."
+                    },
+                    "provider": {
+                      "type": "string",
+                      "description": "Optional provider override this phase is expected to use."
+                    },
+                    "model": {
+                      "type": "string",
+                      "description": "Optional model override this phase is expected to use."
+                    }
+                  },
+                  "required": [
+                    "title"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "name",
+              "description"
+            ]
+          },
+          "args": {
+            "type": "object",
+            "description": "Optional JSON input exposed to the script as the `args` global (wrap a bare list as a field, e.g. {\"files\": [...]}).",
+            "additionalProperties": true
+          },
+          "run_in_background": {
+            "type": "boolean",
+            "description": "Run as a background job: return a job id immediately instead of waiting; the return value arrives with the completion notice."
+          }
+        },
+        "required": [
+          "script",
+          "meta"
+        ]
+      }
+    },
+    {
+      "name": "working_directory",
+      "description": "Read the current working directory, or change it with cd. Relative paths use the current directory. Existing shells and running processes keep their own directories.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "cd": {
+            "type": "string",
+            "description": "Existing directory to enter. Omit to read the current directory."
+          }
+        }
+      }
+    },
+    {
+      "name": "write",
+      "description": "Create or fully replace a UTF-8 text file.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to write, resolved by the filesystem backend. Provide `file_path` before `content` in the arguments."
+          },
+          "content": {
+            "type": "string",
+            "description": "Full UTF-8 text content to write."
+          },
+          "sandbox_permissions": {
+            "type": "string",
+            "description": "The narrowest wider sandbox mode for a one-shot retry of the exact operation the sandbox just denied; the retry asks the user for approval.",
+            "enum": [
+              "workspace-write",
+              "danger-full-access"
+            ]
+          },
+          "justification": {
+            "type": "string",
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request."
+          }
+        },
+        "required": [
+          "file_path",
+          "content"
+        ]
+      }
+    }
+  ],
+  "changes": []
+}

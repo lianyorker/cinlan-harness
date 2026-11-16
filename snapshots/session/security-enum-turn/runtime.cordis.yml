@@ -1,0 +1,60 @@
+# Runtime route and tool surface for this scenario. The base headless profile
+# does not carry the security-research bundle; inserting the batch 1-5
+# security tool packages here puts every model-visible tool schema into the
+# recorded session fixture, and the single tool call exercises the
+# tool-not-installed error path. The model pin routes recording and replay at
+# the relay-served model, overriding the older session's model.cordis.yml pin.
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4.1-flash
+
+# The live record run cannot complete a session-log upload (no account
+# credentials), so no delivery-accepted event enters the fixture; disable the
+# upload on replay too so both runs stay event-identical.
+- id: session-log-deepseek
+  config:
+    enabled: false
+
+- insert:
+    - id: tool-nmap
+      name: '@cinlan/tool-nmap'
+    - id: tool-httpx
+      name: '@cinlan/tool-httpx'
+    - id: tool-subfinder
+      name: '@cinlan/tool-subfinder'
+    - id: tool-naabu
+      name: '@cinlan/tool-naabu'
+    - id: tool-nuclei
+      name: '@cinlan/tool-nuclei'
+    - id: tool-ffuf
+      name: '@cinlan/tool-ffuf'
+    - id: tool-masscan
+      name: '@cinlan/tool-masscan'
+    - id: tool-katana
+      name: '@cinlan/tool-katana'
+    - id: tool-gau
+      name: '@cinlan/tool-gau'
+    - id: tool-bloodhound
+      name: '@cinlan/tool-bloodhound'
+    - id: tool-impacket
+      name: '@cinlan/tool-impacket'
+    - id: tool-nxc
+      name: '@cinlan/tool-nxc'
+    - id: tool-listeners
+      name: '@cinlan/tool-listeners'
+    - id: tool-certipy
+      name: '@cinlan/tool-certipy'
+    - id: tool-aws
+      name: '@cinlan/tool-aws'
+    - id: tool-azure
+      name: '@cinlan/tool-azure'
+    - id: tool-gcp
+      name: '@cinlan/tool-gcp'
+    - id: tool-aliyun
+      name: '@cinlan/tool-aliyun'
+    - id: tool-tencent
+      name: '@cinlan/tool-tencent'
+    - id: tool-huawei
+      name: '@cinlan/tool-huawei'
