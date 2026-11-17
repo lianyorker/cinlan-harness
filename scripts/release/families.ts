@@ -133,7 +133,9 @@ export abstract class ReleaseFamily {
       const name = requireString(manifest, 'name', normalized)
       const version = requireString(manifest, 'version', normalized)
       if (name === WORKSPACE_ROOT_PACKAGE) throw new Error(`${normalized} selected the workspace root`)
-      if (!name.startsWith('@deepseek-ai/')) throw new Error(`${normalized} must name an @deepseek-ai package`)
+      // The fork packs both its upstream-origin packages and the renamed
+      // @cinlan/* fork packages from the same workspace globs.
+      if (!name.startsWith('@deepseek-ai/') && !name.startsWith('@cinlan/')) throw new Error(`${normalized} must name an @deepseek-ai or @cinlan package`)
       if (seen.has(name)) throw new Error(`${name} appears twice in release family ${this.id}`)
       seen.add(name)
       members.push({
@@ -363,10 +365,20 @@ class DshFamily extends ReleaseFamily {
    * @param members - this family's members.
    */
   verifyVersions(members: readonly ReleaseMember[]): void {
-    const versions = new Set(members.map(member => member.version))
-    if (versions.size !== 1) {
-      const detail = members.map(member => `${member.directory}: ${member.version}`).join('\n')
-      throw new Error(`dsh release members must share one version:\n${detail}`)
+    // The fork carries two version tiers from the coordinate migration: the
+    // upstream-origin packages keep the pinned dsh release version while the
+    // renamed @cinlan/* packages follow the fork's own version. Require one
+    // version per name-prefix group so each tier stays internally consistent.
+    const groupOf = (name: string): string => name.startsWith('@cinlan/') ? '@cinlan/' : '@deepseek-ai/'
+    const groups = new Map<string, { version: string; detail: string[] }>()
+    for (const member of members) {
+      const key = groupOf(member.name)
+      const group = groups.get(key)
+      if (group === undefined) { groups.set(key, { version: member.version, detail: [`${member.directory}: ${member.version}`] }); continue }
+      group.detail.push(`${member.directory}: ${member.version}`)
+      if (group.version !== member.version) {
+        throw new Error(`dsh release members in ${key} must share one version:\n${group.detail.join('\n')}`)
+      }
     }
   }
 
