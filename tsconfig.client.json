@@ -543,6 +543,7 @@
     { "path": "./packages/client/ui-orchestration" },
     { "path": "./packages/client/ui-integrations" },
     { "path": "./packages/client/ui-git-settings" },
+    { "path": "./packages/client/ui-sidebar-git" },
     { "path": "./packages/client/ui-better-sidebar/tsconfig.client.json" },
     { "path": "./packages/client/ui-voice-dictation" },
     { "path": "./packages/api/integration-preflight-controller/tsconfig.json" },

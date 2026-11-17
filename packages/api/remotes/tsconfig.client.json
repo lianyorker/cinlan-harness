@@ -142,6 +142,9 @@
       "path": "../sidebar-git-controller"
     },
     {
+      "path": "../git-ai-controller"
+    },
+    {
       "path": "../../boot/plugin-manager"
     },
     {

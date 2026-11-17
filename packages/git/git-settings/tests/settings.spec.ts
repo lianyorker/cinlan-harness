@@ -10,10 +10,18 @@ const defaults = {
   branchPrefix: 'none', branchPrefixCustom: '', refreshLocalBaseRefOnWorktreeCreate: false,
   sourceControlGroupOrder: 'changes-first', compareAgainstUpstream: false, enableGitHubAttribution: false,
   autoRenameTaskBranch: false,
+  sourceControlAi: {
+    enabled: true, maxDiffBytes: 32 * 1024, filterSensitiveFiles: true,
+    recipes: {
+      'commit-message': { enabled: true, template: expect.any(String), modelOverride: '', agentArgs: '' },
+      'diff-review': { enabled: true, template: expect.any(String), modelOverride: '', agentArgs: '' },
+      'pr-description': { enabled: true, template: expect.any(String), modelOverride: '', agentArgs: '' },
+    },
+  },
 }
 
 describe('git-settings', () => {
-  it('keeps the durable namespace and all seven defaults', () => {
+  it('keeps the durable namespace and all durable defaults', () => {
     expect(GIT_SETTINGS_NAMESPACE).toBe('git-source-control')
     expect(GitSourceControlSettingsSchema()).toEqual(defaults)
     expect(Object.keys(types)).toEqual([])

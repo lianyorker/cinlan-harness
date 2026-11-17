@@ -170,7 +170,7 @@ describe('Git native settings rows', () => {
     expect(aiSwitch.getAttribute('aria-checked')).toBe('true')
 
     f.mutate.mockImplementationOnce(async (ops) => {
-      const val = (ops[0] as { value: SourceControlAiSettings }).value
+      const val = (ops[0] as { op: 'set'; path: string[]; value: SourceControlAiSettings }).value
       f.publish({
         value: { ...f.store.getSnapshot().value!, sourceControlAi: val },
         user: { sourceControlAi: val },

@@ -114,6 +114,7 @@
     "@deepseek-ai/dsh-api-sidebar-terminal-controller": "workspace:*",
     "@cinlan/api-execution-host-controller": "workspace:*",
     "@cinlan/api-sidebar-git-controller": "workspace:*",
+    "@cinlan/api-git-ai-controller": "workspace:*",
     "@deepseek-ai/dsh-client-ui-trajectory": "workspace:*"
   }
 }

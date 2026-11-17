@@ -1,0 +1,39 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../subagent/subagent"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../git-settings"
+    },
+    {
+      "path": "../sidebar-git"
+    },
+    {
+      "path": "../../execution-host/execution-binding"
+    }
+  ]
+}

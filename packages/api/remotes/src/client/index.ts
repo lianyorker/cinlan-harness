@@ -43,6 +43,7 @@ import automationRemote from '@deepseek-ai/dsh-api-automation-controller/remote'
 import sidebarTerminalsRemote from '@deepseek-ai/dsh-api-sidebar-terminal-controller/remote'
 import executionHostsRemote from '@cinlan/api-execution-host-controller/remote'
 import sidebarGitRemote from '@cinlan/api-sidebar-git-controller/remote'
+import gitAiRemote from '@cinlan/api-git-ai-controller/remote'
 import terminalQuickCommandsRemote from '@cinlan/api-terminal-quick-commands-controller/remote'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
 
@@ -242,7 +243,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       workItemsRemote, browserRemote, integrationPreflightRemote, usageRemote, voiceRemote, mcpRemote, automationRemote,
       sidebarTerminalsRemote, executionHostsRemote, sidebarGitRemote,
       terminalQuickCommandsRemote,
-      officeToPdfRemote, userQuestionsRemote,
+      officeToPdfRemote, userQuestionsRemote, gitAiRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

@@ -1830,6 +1830,49 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/api/git-ai-controller:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@cinlan/git-ai-author':
+        specifier: workspace:^
+        version: link:../../git/git-ai-author
+      '@cinlan/git-settings':
+        specifier: workspace:^
+        version: link:../../git/git-settings
+      '@cinlan/sidebar-git':
+        specifier: workspace:^
+        version: link:../../git/sidebar-git
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-subprocess-local':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess-local
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/dsh-typert-registry':
+        specifier: workspace:^
+        version: link:../../typert/registry
+
   packages/api/integration-preflight-controller:
     dependencies:
       zod:
@@ -1981,6 +2024,9 @@ importers:
       '@cinlan/api-execution-host-controller':
         specifier: workspace:*
         version: link:../execution-host-controller
+      '@cinlan/api-git-ai-controller':
+        specifier: workspace:*
+        version: link:../git-ai-controller
       '@cinlan/api-integration-preflight-controller':
         specifier: workspace:*
         version: link:../integration-preflight-controller
@@ -4121,6 +4167,9 @@ importers:
       '@cinlan/api-execution-host-controller':
         specifier: workspace:*
         version: link:../../api/execution-host-controller
+      '@cinlan/api-git-ai-controller':
+        specifier: workspace:*
+        version: link:../../api/git-ai-controller
       '@cinlan/api-integration-preflight-controller':
         specifier: workspace:*
         version: link:../../api/integration-preflight-controller
@@ -4193,6 +4242,9 @@ importers:
       '@cinlan/client-ui-settings-usage':
         specifier: workspace:*
         version: link:../../client/ui-settings-usage
+      '@cinlan/client-ui-sidebar-git':
+        specifier: workspace:*
+        version: link:../../client/ui-sidebar-git
       '@cinlan/client-ui-voice-dictation':
         specifier: workspace:*
         version: link:../../client/ui-voice-dictation
@@ -4211,6 +4263,9 @@ importers:
       '@cinlan/execution-runtime':
         specifier: workspace:*
         version: link:../../execution-host/execution-runtime
+      '@cinlan/git-ai-author':
+        specifier: workspace:*
+        version: link:../../git/git-ai-author
       '@cinlan/git-settings':
         specifier: workspace:*
         version: link:../../git/git-settings
@@ -4272,6 +4327,9 @@ importers:
       '@cinlan/work-items':
         specifier: workspace:^
         version: link:../../work-items/work-items
+      '@cinlan/work-items-gitee':
+        specifier: workspace:^
+        version: link:../../work-items/work-items-gitee
       '@deepseek-ai/dsh-api-work-items-controller':
         specifier: workspace:^
         version: link:../../api/work-items-controller
@@ -9462,6 +9520,48 @@ importers:
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
+  packages/client/ui-sidebar-git:
+    devDependencies:
+      '@cinlan/api-git-ai-controller':
+        specifier: workspace:^
+        version: link:../../api/git-ai-controller
+      '@cinlan/api-sidebar-git-controller':
+        specifier: workspace:^
+        version: link:../../api/sidebar-git-controller
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@deepseek-ai/dsh-client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@deepseek-ai/dsh-client-ui-session':
+        specifier: workspace:^
+        version: link:../ui-session
+      '@deepseek-ai/dsh-client-ui-sidebar-right':
+        specifier: workspace:^
+        version: link:../ui-sidebar-right
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -16307,6 +16407,61 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:^
         version: link:../../util/brand
+
+  packages/git/git-ai-author:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@cinlan/execution-binding':
+        specifier: workspace:^
+        version: link:../../execution-host/execution-binding
+      '@cinlan/git-settings':
+        specifier: workspace:^
+        version: link:../git-settings
+      '@cinlan/sidebar-git':
+        specifier: workspace:^
+        version: link:../sidebar-git
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
+      '@deepseek-ai/dsh-session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
+      '@deepseek-ai/dsh-session-query-sqlite':
+        specifier: workspace:^
+        version: link:../../session-query/session-query-sqlite
+      '@deepseek-ai/dsh-settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
+      '@deepseek-ai/dsh-subagent':
+        specifier: workspace:^
+        version: link:../../subagent/subagent
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-subprocess-local':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess-local
 
   packages/git/git-local:
     dependencies:

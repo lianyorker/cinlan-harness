@@ -1,0 +1,18 @@
+# Agent preset git-ai-draft: the minimal child the Git AI draft owner spawns.
+# No tools: the owner interpolates the full prompt and consumes the final text,
+# so a tool catalog would only invite the child to wander off the task. Persona
+# and time-context stay because the model request keeps them for stable
+# request-cache keys.
+- insert:
+    - id: preset-git-ai-draft
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: git-ai-draft
+        order: 900
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: You draft Git review and pull-request text from a provided diff.
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'

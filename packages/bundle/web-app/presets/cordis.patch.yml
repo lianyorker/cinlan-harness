@@ -97,12 +97,6 @@
                   toolName: subagent
                   modelSelectionSettings: true
                   backgroundMode: continuable
-                  toolFilter:
-                    deny:
-                      - schedule_create
-                      - schedule_delete
-                      - schedule_list
-                      - schedule_update
                   modelSelection: true
                   modelDiscovery: true
               - id: tool-subagent-fork
@@ -111,12 +105,6 @@
                   provider: fork
                   toolName: subagent_fork
                   backgroundMode: continuable
-                  toolFilter:
-                    deny:
-                      - schedule_create
-                      - schedule_delete
-                      - schedule_list
-                      - schedule_update
               - id: tool-subagent-codex
                 name: '@deepseek-ai/dsh-tool-subagent'
                 disabled: true

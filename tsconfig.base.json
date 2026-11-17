@@ -566,6 +566,12 @@
       "@deepseek-ai/dsh-api-sidebar-git-controller/remote": [
         "./packages/api/sidebar-git-controller/lib/typert.remote-client.d.ts"
       ],
+      "@cinlan/api-git-ai-controller/types": [
+        "./packages/api/git-ai-controller/src/types.ts"
+      ],
+      "@cinlan/api-git-ai-controller/remote": [
+        "./packages/api/git-ai-controller/lib/typert.remote-client.d.ts"
+      ],
       "@deepseek-ai/dsh-experimental-api-speech-to-text/remote": [
         "./packages/experimental/api-speech-to-text/lib/typert.remote-client.d.ts"
       ],
@@ -661,8 +667,11 @@
       "@cinlan/execution-runtime/types": ["./packages/execution-host/execution-runtime/src/types.ts"],
       "@cinlan/git-settings/settings-schema": ["./packages/git/git-settings/src/settings-schema.ts"],
       "@cinlan/git-settings/types": ["./packages/git/git-settings/src/types.ts"],
+      "@cinlan/git-settings/ai-author": ["./packages/git/git-settings/src/ai-author.ts"],
       "@cinlan/sidebar-git": ["./packages/git/sidebar-git/src/index.ts"],
       "@cinlan/sidebar-git/types": ["./packages/git/sidebar-git/src/types.ts"],
+      "@cinlan/git-ai-author": ["./packages/git/git-ai-author/src/index.ts"],
+      "@cinlan/git-ai-author/types": ["./packages/git/git-ai-author/src/types.ts"],
       "@cinlan/mcp-management": ["./packages/mcp/mcp-management/src/index.ts"],
       "@cinlan/mcp-management/types": ["./packages/mcp/mcp-management/src/types.ts"],
       "@deepseek-ai/dsh-permission-presets/types": ["./packages/interaction/permission-presets/src/types.ts"],

@@ -1272,6 +1272,12 @@
       "path": "./packages/api/sidebar-git-controller"
     },
     {
+      "path": "./packages/git/git-ai-author"
+    },
+    {
+      "path": "./packages/api/git-ai-controller"
+    },
+    {
       "path": "./packages/automation/automation"
     },
     {

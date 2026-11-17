@@ -38,6 +38,16 @@
     - id: sidebar-git-controller
       name: '@cinlan/api-sidebar-git-controller'
 
+    # AI draft owner (Host service) plus its Remote carrier; the ui page is the consumer.
+    - id: git-ai-author
+      name: '@cinlan/git-ai-author'
+
+    - id: git-ai-controller
+      name: '@cinlan/api-git-ai-controller'
+
+    - id: ui-sidebar-git
+      name: '@cinlan/client-ui-sidebar-git'
+
     # Settings entry point for that same Schedule manager. The local automation
     # subsystem is retired: this page owns the navigation and opens the Schedule
     # panel, so no second task store is mounted.

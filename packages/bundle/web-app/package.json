@@ -37,6 +37,7 @@
     "cordis.patch.yml",
     "presets/standard.patch.yml",
     "presets/ptc.patch.yml",
+    "presets/git-ai-draft.patch.yml",
     "presets/minimal.patch.yml",
     "presets/cordis.patch.yml",
     "lib/public-url-*.js",
@@ -48,6 +49,7 @@
       "patch": [
         "./cordis.patch.yml",
         "./presets/standard.patch.yml",
+        "./presets/git-ai-draft.patch.yml",
         "./presets/ptc.patch.yml",
         "./presets/minimal.patch.yml",
         "./presets/cordis.patch.yml"
