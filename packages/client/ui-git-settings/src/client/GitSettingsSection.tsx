@@ -25,11 +25,12 @@ export type GitSettingsSectionProps = PropsRuntime<'settings.section'>
   & PropsLocale<'settings.gitSourceControl'> & InjectFace<GitSettingsSectionInjected>
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
-type ToggleField = 'compareAgainstUpstream' | 'enableGitHubAttribution' | 'autoRenameTaskBranch'
+type ToggleField = 'compareAgainstUpstream' | 'enableGitHubAttribution' | 'autoRenameTaskBranch' | 'refreshLocalBaseRefOnWorktreeCreate'
 const TOGGLES: readonly { field: ToggleField; titleKey: GitSettingsKey; descriptionKey: GitSettingsKey; anchor: string }[] = [
   { field: 'compareAgainstUpstream', titleKey: 'compareUpstreamTitle', descriptionKey: 'compareUpstreamDescription', anchor: 'git-upstream' },
   { field: 'enableGitHubAttribution', titleKey: 'attributionTitle', descriptionKey: 'attributionDescription', anchor: 'git-attribution' },
   { field: 'autoRenameTaskBranch', titleKey: 'renameBranchTitle', descriptionKey: 'renameBranchDescription', anchor: 'git-rename-branch' },
+  { field: 'refreshLocalBaseRefOnWorktreeCreate', titleKey: 'keepLocalMainTitle', descriptionKey: 'keepLocalMainDescription', anchor: 'git-update-base' },
 ]
 
 /** Render durable Git preferences, preserving custom-prefix drafts after a rejected save. */
@@ -151,17 +152,6 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
                 </>}
               </form>
               {resetButton('branchPrefixCustom', 'branchPrefixCustomLabel')}
-            </div>
-          </div>
-          <div className={css.row} data-settings-anchor="git-update-base">
-            <div className={css.copy}>
-              <h2 className={css.label}>{t('keepLocalMainTitle')}</h2>
-              <p className={css.help}>{t('keepLocalMainDescription')}</p>
-            </div>
-            <div className={css.controls}>
-              <Switch checked={value.refreshLocalBaseRefOnWorktreeCreate} label={t('keepLocalMainTitle')}
-                title={t('keepLocalMainDescription')} disabled onChange={() => {}} />
-              {resetButton('refreshLocalBaseRefOnWorktreeCreate', 'keepLocalMainTitle')}
             </div>
           </div>
           <div className={css.row} data-settings-anchor="git-group-order">

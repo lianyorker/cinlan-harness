@@ -4,11 +4,18 @@ import { createGitSettingsOperations, hasOverride } from '../src/client/settings
 import { settingsFixture } from './settings-fixture.client.ts'
 
 describe('Git settings operations', () => {
-  it('refuses edits to the unavailable base-refresh preference', async () => {
+  it('saves the base-refresh preference through the fenced write path', async () => {
     const f = settingsFixture()
     const operations = createGitSettingsOperations(f.scope)
-    await expect(operations.save('refreshLocalBaseRefOnWorktreeCreate', true)).resolves.toBe(false)
-    expect(f.mutate).not.toHaveBeenCalled()
+    f.mutate.mockImplementationOnce(async () => {
+      f.publish({
+        value: { ...f.store.getSnapshot().value!, refreshLocalBaseRefOnWorktreeCreate: true },
+        user: { refreshLocalBaseRefOnWorktreeCreate: true }, revision: 2,
+      })
+      return true
+    })
+    await expect(operations.save('refreshLocalBaseRefOnWorktreeCreate', true)).resolves.toBe(true)
+    expect(f.mutate).toHaveBeenCalledWith([{ op: 'set', path: ['refreshLocalBaseRefOnWorktreeCreate'], value: true }], 1)
   })
 
   it('fences the current revision and confirms the user override before reporting success', async () => {

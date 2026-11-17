@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Configure new Worktree Task branch prefixes, Source Control group order, upstream comparison, commit attribution, and Source Control AI Author action recipes from the Workspace settings group. The page edits the durable `git-source-control` namespace owned by [Git settings](../../git/git-settings/README.md). Local base refresh is unavailable; its saved value remains visible and resettable.
+Configure new Worktree Task branch prefixes, Source Control group order, upstream comparison, commit attribution, and Source Control AI Author action recipes from the Workspace settings group. The page edits the durable `git-source-control` namespace owned by [Git settings](../../git/git-settings/README.md). When enabled, Worktree Task creation fetches and fast-forwards the checked-out `main` or `master` best-effort only when it is also the requested base ref; local-only commits, a missing upstream, or a failed fetch leave it unchanged.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ The page describes each preference's runtime scope:
 | Preference | Runtime behavior |
 | --- | --- |
 | `branchPrefix`, `branchPrefixCustom` | [Worktree Task Create](../../workspace/worktree-task-git/README.md) prepends the selected prefix to `dsh/task/<uuid>`. Username mode has no fabricated preview; Create reads local repository configuration. |
-| `refreshLocalBaseRefOnWorktreeCreate` | Unavailable. Create neither fetches nor fast-forwards a local base ref. |
+| `refreshLocalBaseRefOnWorktreeCreate` | When enabled, Create fetches and fast-forwards the checked-out `main` or `master` best-effort when it is also the requested base ref; other branches and pinned refs are untouched. |
 | `sourceControlGroupOrder` | Orders Source Control change groups. |
 | `compareAgainstUpstream` | Selects upstream comparison in Source Control; an unavailable upstream is reported. |
 | `enableGitHubAttribution` | Adds attribution to explicit Source Control commits, excluding Worktree Task checkpoints, pull requests, and issues. |

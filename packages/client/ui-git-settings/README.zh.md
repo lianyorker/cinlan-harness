@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在工作区设置组中配置新 Worktree Task 的分支前缀、源代码控制的分组顺序、上游比较、提交署名以及源代码控制 AI Author 动作配方。页面编辑由 [Git settings](../../git/git-settings/README.zh.md) 拥有的持久化 `git-source-control` 命名空间。本地基线刷新不可用；已保存值仍可显示和重置。
+在工作区设置组中配置新 Worktree Task 的分支前缀、源代码控制的分组顺序、上游比较、提交署名以及源代码控制 AI Author 动作配方。页面编辑由 [Git settings](../../git/git-settings/README.zh.md) 拥有的持久化 `git-source-control` 命名空间。启用时，Worktree Task 创建仅对同时作为请求基线的已检出 `main`/`master` 尽力抓取并快进；本地独有提交、缺失上游或抓取失败时保持不变。
 
 ## 目录
 

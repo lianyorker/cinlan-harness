@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { GitSettingsSection, type GitSettingsSectionProps } from '../src/client/GitSettingsSection.tsx'
 import { createGitSettingsOperations } from '../src/client/settings-operations.ts'
+import type { SourceControlAiSettings } from '../src/types.ts'
 import { en, zh, type GitSettingsKey } from '../src/client/locales.ts'
 import { settingsFixture } from './settings-fixture.client.ts'
 
@@ -28,39 +29,50 @@ describe('Git native settings rows', () => {
     expect(screen.getByText(zh.runtimeNotice)).toBeTruthy()
     expect(Array.from(view.container.querySelectorAll('[data-settings-anchor]')).map(row => row.getAttribute('data-settings-anchor')))
       .toEqual([
-        'git-branch-prefix', 'git-custom-prefix', 'git-update-base', 'git-group-order',
-        'git-upstream', 'git-attribution', 'git-rename-branch',
+        'git-branch-prefix', 'git-custom-prefix', 'git-group-order',
+        'git-upstream', 'git-attribution', 'git-rename-branch', 'git-update-base',
         'git-ai-author', 'git-ai-sensitive-filter', 'git-ai-max-diff', 'git-ai-recipe-defaults',
       ])
     expect(screen.getAllByRole('combobox').map(control => control.getAttribute('id')))
       .toEqual(['git-branch-prefix', 'git-group-order', 'git-ai-max-diff-select', 'git-ai-action-select'])
     expect(screen.getAllByRole('switch').map(control => control.getAttribute('aria-label')))
       .toEqual([
-        zh.keepLocalMainTitle, zh.compareUpstreamTitle, zh.attributionTitle, zh.renameBranchTitle,
+        zh.compareUpstreamTitle, zh.attributionTitle, zh.renameBranchTitle, zh.keepLocalMainTitle,
         zh.sourceControlAiEnabled, zh.sourceControlAiFilterSensitiveTitle,
       ])
     expect(screen.getByLabelText(zh.branchPrefixCustomLabel)).toHaveProperty('disabled', true)
   })
 
-  it('preserves a saved base-refresh value, disables edits, and permits reset', async () => {
+  it('saves a base-refresh change and resets the override', async () => {
     const f = settingsFixture({ user: { refreshLocalBaseRefOnWorktreeCreate: true } })
     f.publish({ value: { ...f.store.getSnapshot().value!, refreshLocalBaseRefOnWorktreeCreate: true } })
     setup(f)
     const refresh = screen.getByRole('switch', { name: en.keepLocalMainTitle })
-    expect(refresh).toHaveProperty('disabled', true)
+    expect(refresh).toHaveProperty('disabled', false)
     expect(refresh.getAttribute('aria-checked')).toBe('true')
     expect(screen.getByText(en.keepLocalMainDescription)).toBeTruthy()
-    fireEvent.click(refresh)
-    expect(f.mutate).not.toHaveBeenCalled()
     f.mutate.mockImplementationOnce(async () => {
-      f.publish({ user: {}, revision: 2, value: { ...f.store.getSnapshot().value!, refreshLocalBaseRefOnWorktreeCreate: false } })
+      f.publish({
+        user: { refreshLocalBaseRefOnWorktreeCreate: false }, revision: 2,
+        value: { ...f.store.getSnapshot().value!, refreshLocalBaseRefOnWorktreeCreate: false },
+      })
+      return true
+    })
+    fireEvent.click(refresh)
+    await screen.findByText(en.settingsSaved)
+    expect(f.mutate).toHaveBeenCalledWith([{ op: 'set', path: ['refreshLocalBaseRefOnWorktreeCreate'], value: false }], 1)
+    expect(refresh.getAttribute('aria-checked')).toBe('false')
+    f.mutate.mockImplementationOnce(async () => {
+      f.publish({
+        user: {}, revision: 3,
+        value: { ...f.store.getSnapshot().value!, refreshLocalBaseRefOnWorktreeCreate: false },
+      })
       return true
     })
     fireEvent.click(screen.getByRole('button', { name: 'Reset ' + en.keepLocalMainTitle }))
     await screen.findByText(en.settingsSaved)
-    expect(f.mutate).toHaveBeenCalledWith([{ op: 'unset', path: ['refreshLocalBaseRefOnWorktreeCreate'] }], 1)
+    expect(f.mutate).toHaveBeenCalledWith([{ op: 'unset', path: ['refreshLocalBaseRefOnWorktreeCreate'] }], 2)
     expect(refresh.getAttribute('aria-checked')).toBe('false')
-    expect(refresh).toHaveProperty('disabled', true)
   })
 
   it('previews only literal branch names and explains repository username resolution', () => {
@@ -158,7 +170,7 @@ describe('Git native settings rows', () => {
     expect(aiSwitch.getAttribute('aria-checked')).toBe('true')
 
     f.mutate.mockImplementationOnce(async (ops) => {
-      const val = (ops[0] as any).value
+      const val = (ops[0] as { value: SourceControlAiSettings }).value
       f.publish({
         value: { ...f.store.getSnapshot().value!, sourceControlAi: val },
         user: { sourceControlAi: val },
