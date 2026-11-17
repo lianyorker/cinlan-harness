@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-07-mobile-work-items-sharing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-07-mobile-work-items-sharing.md
+/agent-note-mobile-work-items-sharing:
+  en: 3449f9ff5c5c9767
+  zh: 93b2662de2aa9f80
+/agent-note-mobile-work-items-sharing/problem:
+  en: 1236a60a9fd8bdff
+  zh: 6fa2e8bdf1a053d5
+/agent-note-mobile-work-items-sharing/decision:
+  en: f003414935df7b5a
+  zh: 1854b58ff4c47824
+/agent-note-mobile-work-items-sharing/consequences:
+  en: a55555fb7db771c8
+  zh: 073aa3e3de68220d
+/agent-note-mobile-work-items-sharing/verification:
+  en: 55d7a53f479e3481
+  zh: ff774f772f182d45
