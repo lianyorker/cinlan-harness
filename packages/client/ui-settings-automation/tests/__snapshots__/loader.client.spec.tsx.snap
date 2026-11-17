@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`automation settings Loader composition > opens the independent panel from Settings without starting a task 1`] = `"AutomationManage recurring tasks, pause schedules, and inspect recorded runs.Schedules run while this local Host is running. Hourly, daily, and weekly schedules use UTC.Task schedulesNew tasks are disabled. Enable scheduling explicitly, or run once without enabling.Open automationTask draftChoose an existing workspace, agent, model, and permission preset. All schedule times are UTC.Open automationRun journalRecorded execution evidence, not a guarantee that the task achieved its goal.Open automation"`;
