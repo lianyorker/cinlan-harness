@@ -216,16 +216,18 @@ Git 设置页面中的部分功能依赖集成状态：
 - ✅ 实现 CompareUpstreamSetting（开关）
 - ✅ 实现 AttributionSetting（开关 + 关键词提示）
 
-### 阶段 3：AI 相关设置（待实施）
-- ⏳ 实现 AutoRenameBranchSetting
-- ⏳ 实现 CommitMessageAiSetting
-- ⏳ 添加后端 AI 设置存储
-- ⏳ 实现异步设置写入
+### 阶段 3：AI 相关设置 ✅ 已完成（2026-11-18）
+- ✅ 后端 AI 设置存储：`git-settings/src/settings-schema.ts` 的 `sourceControlAi` 嵌套 schema（enabled/maxDiffBytes/filterSensitiveFiles/recipes 三配方，默认值接 `DEFAULT_SOURCE_CONTROL_AI_SETTINGS`）
+- ✅ AutoRenameBranchSetting：TOGGLES 行 `autoRenameTaskBranch`（schema + 设置页 + Worktree Task 分支命名消费）
+- ✅ CommitMessageAiSetting：设置页配方卡含每配方启用开关（`recipe.enabled`）、模板编辑、占位符插入按钮（配方禁用时联动禁用）；23/23 测试通过
+- ✅ AI 生成能力：`@cinlan/git-ai-author`（owner）+ `@cinlan/api-git-ai-controller`（Remote）+ `@cinlan/client-ui-sidebar-git`（右侧栏 Git 审查页签），提交 36a8ff85c1；审查差异与 PR 描述草稿可生成、可编辑、可复制，不自动提交/推送
+- ✅ 实现异步设置写入（settings 命名空间 + 修订号机制，同快捷键链）
 
-### 阶段 4：API 预算显示（待实施）
-- ⏳ 实现 ApiBudgetDisplay
-- ⏳ 连接集成状态
-- ⏳ 显示 GitHub/GitLab API 速率限制
+### 阶段 4：API 预算显示 ✅ 已完成（2026-11-18）
+- ✅ 实现 ApiBudgetDisplay：`ui-git-settings` 设置页 GitHub/GitLab 两行（`git-budget-github`/`git-budget-gitlab` 锚点），挂载时经 `remote.integrationPreflight.budget` 各探一次，reported 态展示「剩余 N/L 次请求 + 重置时间」，unsupported/not-reported/unavailable/探测失败各有本地化文案；探测不参与设置保存状态机
+- ✅ 连接集成状态：复用 `@cinlan/api-integration-preflight-controller` 的 budget Remote（与集成设置页同一探测面，不重复造后端）
+- ✅ 显示 GitHub/GitLab API 速率限制（`IntegrationBudgetSnapshot`：remaining/limit/resetsAt；Gitee 因 Provider 不提供可读配额不在展示面，探测端返回 unsupported）
+- ✅ 测试：section.client.spec 新增预算用例（reported 数字渲染 + probe 失败显错），apply.client.spec 断言 inject/budget 回调/元数据锚点；24/24 通过，tsc host/client 全绿
 
 ### 阶段 5：侧边栏清理和测试 ✅
 - ✅ 侧边栏卡片中无 Git 配置项，无需清理（SideCardSection 只管理 tab/viewer）

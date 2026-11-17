@@ -215,16 +215,16 @@ ctx.slots.inject('settings.section', () => ctx.slots.register({
 - GitHub/GitLab：CLI 安装检测 + 认证命令引导
 - Gitee：Token 配置引导 + API 验证
 
-### 阶段 6：后端 Provider 扩展（3-4 天）⏳ 待实施
-- 新建 `work-items-gitlab` 包
-- 新建 `work-items-gitee` 包
-- 实现各自的 API 客户端
-- 注册到 Work Items 服务
+### 阶段 6：后端 Provider 扩展 ✅ 已完成
+- ✅ 新建 `work-items-gitlab` 包（`packages/work-items/work-items-gitlab`，API 客户端 + Loader 组合测试）
+- ✅ 新建 `work-items-gitee` 包（`packages/work-items/work-items-gitee`，API 客户端 + provider 测试）
+- ✅ 实现各自的 API 客户端
+- ✅ 注册到 Work Items 服务（`cinlan-work-items` bundle 的 `cordis.patch.yml`：work-items-gitlab / work-items-gitee 两行）
 
-### 阶段 7：测试和集成（1-2 天）
-- 编写单元测试
-- 集成到设置页面
-- 端到端验证
+### 阶段 7：测试和集成 ✅ 已完成
+- ✅ 编写单元测试（gitlab provider.spec + loader-composition.spec、gitee provider.spec，共 29 项全部通过）
+- ✅ 集成到设置页面（`ui-work-items` Provider 管理区域已包含 Gitee/GitLab）
+- ✅ 端到端验证（bundle 挂载链完整；`cinlan-work-items` 为可选 bundle，默认 web profile 未包含，接入时在 profile `dsh.profile.bundles` 追加 `@cinlan/cinlan-work-items`）
 
 ## 5. 依赖项
 
