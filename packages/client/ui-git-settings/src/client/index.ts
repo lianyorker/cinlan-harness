@@ -2,6 +2,7 @@
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@cinlan/api-integration-preflight-controller/remote'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { IconBranchOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -23,8 +24,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 const NS = 'settings.gitSourceControl'
 
-/** Required services: the settings scope for git-source-control namespace. */
-export const inject = ['settingsMetadata', 'slots', 'locale', 'settingsScope']
+/** Required services: the settings scope for git-source-control namespace, and the integration preflight Remote for API budgets. */
+export const inject = ['settingsMetadata', 'slots', 'locale', 'settingsScope', 'remote', 'remote.integrationPreflight']
 
 /**
  * Register the Git and source control settings section.
@@ -33,6 +34,11 @@ export const inject = ['settingsMetadata', 'slots', 'locale', 'settingsScope']
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-git-settings: dictionaries')
   const t = ctx.locale.bind(NS)
+  const budget: GitSettingsSectionInjected['budget'] = async (provider, signal) => {
+    const result = await ctx.remote.integrationPreflight.budget({ provider }, signal)
+    if (!result.ok) throw new Error(`integrationPreflight.budget failed: ${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
   const settings = ctx.settingsScope.bind<GitSourceControlSettings>({ namespace: GIT_SETTINGS_NAMESPACE })
 
   ctx.slots.inject('settings.section', function* () {
@@ -55,6 +61,10 @@ export function apply(ctx: ClientContext): void {
         description: () => t('attributionDescription') },
       { id: 'ai-author', anchorId: 'git-ai-author', title: () => t('sourceControlAiTitle'),
         description: () => t('sourceControlAiDescription'), keywords: () => [t('sourceControlAiEnabled'), t('recipeCommitMessageTitle')] },
+      { id: 'budget-github', anchorId: 'git-budget-github', title: () => t('budgetGitHubTitle'),
+        description: () => t('budgetDescription') },
+      { id: 'budget-gitlab', anchorId: 'git-budget-gitlab', title: () => t('budgetGitLabTitle'),
+        description: () => t('budgetDescription') },
     ])
     yield ctx.slots.register({
       name: 'settings.section',
@@ -62,7 +72,7 @@ export function apply(ctx: ClientContext): void {
       order: 36,
       label: () => t('nav'),
       locale: NS,
-      inject: (): GitSettingsSectionInjected => ({ hooks: { settings }, ...createGitSettingsOperations(settings) }),
+      inject: (): GitSettingsSectionInjected => ({ hooks: { settings }, ...createGitSettingsOperations(settings), budget }),
     }, GitSettingsSection)
   })
 

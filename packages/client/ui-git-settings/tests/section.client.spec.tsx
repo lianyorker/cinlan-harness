@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import { GitSettingsSection, type GitSettingsSectionProps } from '../src/client/GitSettingsSection.tsx'
 import { createGitSettingsOperations } from '../src/client/settings-operations.ts'
@@ -16,10 +16,18 @@ const translator = (dictionary: typeof en): GitSettingsSectionProps['t'] => {
 }
 
 function setup(fixture = settingsFixture(), dictionary = en) {
+  const budget = vi.fn(async (provider: 'github' | 'gitlab') => ({
+    provider,
+    state: 'reported' as const,
+    reason: null,
+    remaining: 42,
+    limit: 5000,
+    resetsAt: '2026-11-18T12:00:00Z',
+  }))
   const props = {
-    ...createGitSettingsOperations(fixture.scope), useSettings: bindSnapshotSelector(fixture.store), t: translator(dictionary),
+    ...createGitSettingsOperations(fixture.scope), budget, useSettings: bindSnapshotSelector(fixture.store), t: translator(dictionary),
   } as GitSettingsSectionProps
-  return { ...fixture, ...render(<GitSettingsSection {...props} />), props }
+  return { ...fixture, ...render(<GitSettingsSection {...props} />), props, budget }
 }
 
 describe('Git native settings rows', () => {
@@ -32,13 +40,14 @@ describe('Git native settings rows', () => {
         'git-branch-prefix', 'git-custom-prefix', 'git-group-order',
         'git-upstream', 'git-attribution', 'git-rename-branch', 'git-update-base',
         'git-ai-author', 'git-ai-sensitive-filter', 'git-ai-max-diff', 'git-ai-recipe-defaults',
+        'git-budget-github', 'git-budget-gitlab',
       ])
     expect(screen.getAllByRole('combobox').map(control => control.getAttribute('id')))
       .toEqual(['git-branch-prefix', 'git-group-order', 'git-ai-max-diff-select', 'git-ai-action-select'])
     expect(screen.getAllByRole('switch').map(control => control.getAttribute('aria-label')))
       .toEqual([
         zh.compareUpstreamTitle, zh.attributionTitle, zh.renameBranchTitle, zh.keepLocalMainTitle,
-        zh.sourceControlAiEnabled, zh.sourceControlAiFilterSensitiveTitle,
+        zh.sourceControlAiEnabled, zh.sourceControlAiFilterSensitiveTitle, zh.recipeEnabledLabel,
       ])
     expect(screen.getByLabelText(zh.branchPrefixCustomLabel)).toHaveProperty('disabled', true)
   })
@@ -182,6 +191,10 @@ describe('Git native settings rows', () => {
     const templateArea = screen.getByLabelText<HTMLTextAreaElement>(en.recipeTemplateLabel)
     expect(templateArea.value).toContain('{{diff}}')
 
+    // 每配方启用开关在食谱卡内，关闭后模板不可编辑
+    const recipeSwitch = screen.getByRole('switch', { name: en.recipeEnabledLabel })
+    expect(recipeSwitch.getAttribute('aria-checked')).toBe('true')
+
     // Append variable
     fireEvent.click(screen.getByRole('button', { name: en.recipeInsertBranch }))
     expect(templateArea.value).toContain('{{branch}}')
@@ -190,6 +203,26 @@ describe('Git native settings rows', () => {
     fireEvent.click(screen.getByRole('button', { name: en.save }))
     await screen.findByText(en.settingsSaved)
     expect(view.mutate).toHaveBeenCalled()
+  })
+
+  it('shows API budgets from the integration preflight probe and a failure message', async () => {
+    const view = setup()
+    expect(view.budget).toHaveBeenCalledWith('github', expect.anything())
+    expect(view.budget).toHaveBeenCalledWith('gitlab', expect.anything())
+    // budget mock 的 resolve 发生在 act 之外；等一个宏任务让 React 18 调度把 setBudgets 刷进 DOM
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 50) }) })
+    // reported 与 resets 拼在同一个 <p> 里，用正则匹配而不是全文精确匹配
+    expect(await screen.findAllByText(/42 of 5000 requests left/)).toHaveLength(2)
+    expect(screen.getAllByText(/resets at/)).toHaveLength(2)
+
+    // probe 失败：budget mock 造一次 reject，错误文案渲染出来而不是静默
+    cleanup()
+    const failing = vi.fn(async () => { throw new Error('probe exploded') })
+    const f = settingsFixture()
+    render(<GitSettingsSection {...{
+      ...createGitSettingsOperations(f.scope), budget: failing, useSettings: bindSnapshotSelector(f.store), t: translator(en),
+    } as GitSettingsSectionProps} />)
+    expect(await screen.findAllByText(/probe exploded/)).toHaveLength(2)
   })
 })
 

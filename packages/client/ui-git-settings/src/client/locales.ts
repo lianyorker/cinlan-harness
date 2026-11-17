@@ -55,6 +55,17 @@ export type GitSettingsKey =
   | 'recipeDiffReviewTitle'
   | 'recipePrDescriptionTitle'
   | 'recipeActionLabel'
+  | 'recipeEnabledLabel'
+  | 'budgetGitHubTitle'
+  | 'budgetGitLabTitle'
+  | 'budgetDescription'
+  | 'budgetProbing'
+  | 'budgetReported'
+  | 'budgetResets'
+  | 'budgetNotReported'
+  | 'budgetUnsupported'
+  | 'budgetUnavailable'
+  | 'budgetError'
   | 'recipeTemplateLabel'
   | 'recipeInsertDiff'
   | 'recipeInsertBranch'
@@ -115,6 +126,17 @@ export const en: Record<GitSettingsKey, string> = {
   recipeDiffReviewTitle: 'Diff Review Recipe',
   recipePrDescriptionTitle: 'PR Description Recipe',
   recipeActionLabel: 'Action Recipe',
+  recipeEnabledLabel: 'Action enabled',
+  budgetGitHubTitle: 'GitHub API Budget',
+  budgetGitLabTitle: 'GitLab API Budget',
+  budgetDescription: 'Provider API request quota of the current window, reported by the integration preflight probe. It is not LLM token usage.',
+  budgetProbing: 'Probing…',
+  budgetReported: '{remaining} of {limit} requests left',
+  budgetResets: 'resets at {time}',
+  budgetNotReported: 'The provider reported no quota data.',
+  budgetUnsupported: 'This provider exposes no readable API budget.',
+  budgetUnavailable: 'Probe failed: {message}',
+  budgetError: 'Probe failed: {message}',
   recipeTemplateLabel: 'Prompt Template',
   recipeInsertDiff: 'Insert {{diff}}',
   recipeInsertBranch: 'Insert {{branch}}',
@@ -176,6 +198,17 @@ export const zh: Record<GitSettingsKey, string> = {
   recipeDiffReviewTitle: 'Diff 审查配方',
   recipePrDescriptionTitle: 'PR 描述配方',
   recipeActionLabel: '动作配方',
+  recipeEnabledLabel: '启用该动作',
+  budgetGitHubTitle: 'GitHub API 预算',
+  budgetGitLabTitle: 'GitLab API 预算',
+  budgetDescription: '当前窗口内 Provider 自身的 API 请求配额，由集成预检探测上报；不是 LLM token 用量。',
+  budgetProbing: '正在探测…',
+  budgetReported: '剩余 {remaining}/{limit} 次请求',
+  budgetResets: '重置于 {time}',
+  budgetNotReported: 'Provider 未上报配额数据。',
+  budgetUnsupported: '该 Provider 不提供可读的 API 预算。',
+  budgetUnavailable: '探测失败：{message}',
+  budgetError: '探测失败：{message}',
   recipeTemplateLabel: '提示词模版',
   recipeInsertDiff: '插入 {{diff}}',
   recipeInsertBranch: '插入 {{branch}}',

@@ -4,6 +4,7 @@ import { Button, Input, Switch, fileSizeText } from '@deepseek-ai/dsh-client-ui-
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { DEFAULT_SOURCE_CONTROL_AI_SETTINGS } from '@cinlan/git-settings/ai-author'
+import type { IntegrationBudgetSnapshot } from '@cinlan/api-integration-preflight-controller/budget'
 import type {
   GitSourceControlSettings,
   BranchPrefixMode,
@@ -18,6 +19,8 @@ import css from './GitSettingsSection.module.css'
 /** Registration-owned data and mutations; the renderer binds useSettings. */
 export interface GitSettingsSectionInjected extends GitSettingsOperations {
   hooks: { settings: HostObservable<SettingsScopeSnapshot<GitSourceControlSettings>> }
+  /** Read one provider's API rate-limit budget through the integration preflight Remote. */
+  budget: (provider: 'github' | 'gitlab', signal: AbortSignal) => Promise<IntegrationBudgetSnapshot>
 }
 
 /** Git preferences receive the standard settings owner and locale shares. */
@@ -25,6 +28,11 @@ export type GitSettingsSectionProps = PropsRuntime<'settings.section'>
   & PropsLocale<'settings.gitSourceControl'> & InjectFace<GitSettingsSectionInjected>
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+/** One provider's budget probe outcome; probing runs once per mount. */
+type BudgetState =
+  | { phase: 'probing' }
+  | { phase: 'ready'; snapshot: IntegrationBudgetSnapshot }
+  | { phase: 'error'; message: string }
 type ToggleField = 'compareAgainstUpstream' | 'enableGitHubAttribution' | 'autoRenameTaskBranch' | 'refreshLocalBaseRefOnWorktreeCreate'
 const TOGGLES: readonly { field: ToggleField; titleKey: GitSettingsKey; descriptionKey: GitSettingsKey; anchor: string }[] = [
   { field: 'compareAgainstUpstream', titleKey: 'compareUpstreamTitle', descriptionKey: 'compareUpstreamDescription', anchor: 'git-upstream' },
@@ -34,7 +42,7 @@ const TOGGLES: readonly { field: ToggleField; titleKey: GitSettingsKey; descript
 ]
 
 /** Render durable Git preferences, preserving custom-prefix drafts after a rejected save. */
-export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsSectionProps): ReactNode {
+export function GitSettingsSection({ useSettings, save, reset, budget, t }: GitSettingsSectionProps): ReactNode {
   const snapshot = useSettings(value => value)
   const value = snapshot.value
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -42,6 +50,7 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
   const aiConfig: SourceControlAiSettings = value?.sourceControlAi ?? DEFAULT_SOURCE_CONTROL_AI_SETTINGS
   const [selectedAction, setSelectedAction] = useState<SourceControlAiActionId>('commit-message')
   const [recipeDraft, setRecipeDraft] = useState<string>()
+  const [budgets, setBudgets] = useState<Record<'github' | 'gitlab', BudgetState>>({ github: { phase: 'probing' }, gitlab: { phase: 'probing' } })
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
@@ -53,7 +62,7 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
 
   const currentTemplate = recipeDraft !== undefined
     ? recipeDraft
-    : (aiConfig.recipes[selectedAction]?.template ?? DEFAULT_SOURCE_CONTROL_AI_SETTINGS.recipes[selectedAction].template)
+    : aiConfig.recipes[selectedAction].template
 
   const updateAiConfig = (patch: Partial<SourceControlAiSettings>): Promise<boolean> => {
     return commit(() => save('sourceControlAi', { ...aiConfig, ...patch }))
@@ -80,6 +89,28 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
     const saved = await updateAiConfig({ recipes: nextRecipes })
     if (saved && mounted.current) setRecipeDraft(undefined)
   }
+  // API 预算是集成页同一探测的只读镜像：挂载时探一次，失败就留在错误态，不参与设置保存状态机。
+  // 用局部 alive 标志（同 ui-integrations 的模式）而不是共享 mounted ref：React 18 的挂载期
+  // 重放（StrictMode/并发特性下 effects 会 mount→cleanup→再 mount）会让跨挂载的 ref 判活失真。
+  useEffect(() => {
+    let alive = true
+    const controller = new AbortController()
+    for (const provider of ['github', 'gitlab'] as const) {
+      budget(provider, controller.signal).then((snapshot) => {
+        if (alive && !controller.signal.aborted) {
+          setBudgets(previous => ({ ...previous, [provider]: { phase: 'ready', snapshot } }))
+        }
+      }, (reason: unknown) => {
+        if (alive && !controller.signal.aborted) {
+          setBudgets(previous => ({
+            ...previous,
+            [provider]: { phase: 'error', message: reason instanceof Error ? reason.message : String(reason) },
+          }))
+        }
+      })
+    }
+    return () => { alive = false; controller.abort() }
+  }, [])
   const commit = async (operation: () => Promise<boolean>): Promise<boolean> => {
     if (disabled) return false
     setSaveStatus('saving')
@@ -236,19 +267,32 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
                         <option value="diff-review">{t('recipeDiffReviewTitle')}</option>
                         <option value="pr-description">{t('recipePrDescriptionTitle')}</option>
                       </select>
-                      <Button disabled={disabled} onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{diff}}') }}>
+                      <Switch checked={aiConfig.recipes[selectedAction].enabled} label={t('recipeEnabledLabel')}
+                        disabled={disabled}
+                        onChange={(enabled) => {
+                          const nextRecipes = {
+                            ...aiConfig.recipes,
+                            [selectedAction]: { ...aiConfig.recipes[selectedAction], enabled },
+                          }
+                          void updateAiConfig({ recipes: nextRecipes })
+                        }} />
+                      <Button disabled={disabled || !aiConfig.recipes[selectedAction].enabled}
+                        onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{diff}}') }}>
                         {t('recipeInsertDiff')}
                       </Button>
-                      <Button disabled={disabled} onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{branch}}') }}>
+                      <Button disabled={disabled || !aiConfig.recipes[selectedAction].enabled}
+                        onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{branch}}') }}>
                         {t('recipeInsertBranch')}
                       </Button>
-                      <Button disabled={disabled} onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{stagedFiles}}') }}>
+                      <Button disabled={disabled || !aiConfig.recipes[selectedAction].enabled}
+                        onClick={() => { setRecipeDraft(prev => (prev ?? currentTemplate) + ' {{stagedFiles}}') }}>
                         {t('recipeInsertFiles')}
                       </Button>
                     </div>
 
                     <textarea className={css.recipeTextarea} value={currentTemplate} aria-label={t('recipeTemplateLabel')}
-                      disabled={disabled} rows={3} onChange={(e) => { setRecipeDraft(e.target.value) }} />
+                      disabled={disabled || !aiConfig.recipes[selectedAction].enabled} rows={3}
+                      onChange={(e) => { setRecipeDraft(e.target.value) }} />
 
                     <div className={css.buttonRow}>
                       {recipeDraft !== undefined && (
@@ -270,6 +314,30 @@ export function GitSettingsSection({ useSettings, save, reset, t }: GitSettingsS
               </div>
             </>
           )}
+          {(['github', 'gitlab'] as const).map((provider) => {
+            const state = budgets[provider]
+            const providerTitle = provider === 'github' ? t('budgetGitHubTitle') : t('budgetGitLabTitle')
+            let detail: string
+            if (state.phase === 'probing') detail = t('budgetProbing')
+            else if (state.phase === 'error') detail = t('budgetError').replace('{message}', state.message)
+            else if (state.snapshot.state === 'reported') {
+              detail = t('budgetReported')
+                .replace('{remaining}', String(state.snapshot.remaining))
+                .replace('{limit}', String(state.snapshot.limit))
+                + (state.snapshot.resetsAt === null ? '' : ' ' + t('budgetResets').replace('{time}', state.snapshot.resetsAt))
+            } else if (state.snapshot.state === 'unsupported') detail = t('budgetUnsupported')
+            else if (state.snapshot.state === 'not-reported') detail = t('budgetNotReported')
+            else detail = t('budgetUnavailable').replace('{message}', state.snapshot.reason ?? '')
+            return <div key={provider} className={css.row} data-settings-anchor={`git-budget-${provider}`}>
+              <div className={css.copy}>
+                <h2 className={css.label}>{providerTitle}</h2>
+                <p className={css.help}>{t('budgetDescription')}</p>
+              </div>
+              <div className={css.controls}>
+                <p className={css.help} role="status">{detail}</p>
+              </div>
+            </div>
+          })}
         </div>
         <p className={css.message} role="status" data-state={saveStatus}>
           {saveStatus === 'saving' ? t('settingsSaving') : saveStatus === 'saved' ? t('settingsSaved')

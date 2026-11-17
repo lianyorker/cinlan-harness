@@ -6918,6 +6918,9 @@ importers:
 
   packages/client/ui-git-settings:
     devDependencies:
+      '@cinlan/api-integration-preflight-controller':
+        specifier: workspace:^
+        version: link:../../api/integration-preflight-controller
       '@cinlan/git-settings':
         specifier: workspace:^
         version: link:../../git/git-settings
