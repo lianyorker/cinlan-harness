@@ -53,7 +53,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
   const workspaces = useWorkspaces(snapshot => snapshot.items)
   const archivedSessionIds = useWorkspaces(snapshot => snapshot.archivedSessionIds)
   const settings = props.useSettings(snapshot => snapshot)
-  const providers = ['github', 'gitlab', 'jira', 'linear'] as const
+  const providers = ['github', 'gitlab', 'gitee', 'jira', 'linear'] as const
   const sources = providers.filter(provider => settings.value?.[`${provider}Visible`] !== false)
   const [preferredSource, setSource] = useState<WorkItemSource>('github')
   const source = sources.find(provider => provider === preferredSource) ?? sources[0]
@@ -81,7 +81,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
 
   useEffect(() => {
     const controller = new AbortController()
-    for (const provider of ['github', 'gitlab'] as const) {
+    for (const provider of ['github', 'gitlab', 'gitee'] as const) {
       checkIntegration(provider, controller.signal).then((snapshot) => {
         if (!controller.signal.aborted) setProviderStates(prev => ({ ...prev, [provider]: snapshot }))
       }).catch(() => {
@@ -200,14 +200,13 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
         const connected = snapshot?.status === 'connected'
         const visible = settings.value?.[field] !== false
         const overridden = settings.user !== null && typeof settings.user === 'object' && Object.hasOwn(settings.user, field)
+        const badge = provider === 'linear' || provider === 'jira' ? t('providerOnQuery') : snapshot === undefined || snapshot.status === 'checking' ? t('providerChecking')
+          : connected ? t('providerConnected') : snapshot.status === 'not-installed' ? t('providerNotInstalled')
+            : snapshot.status === 'not-authenticated' ? t('providerNotAuthenticated') : t('providerUnavailable')
         return <div key={provider} className={css.providerRow} data-settings-anchor={'work-items-' + provider + '-visible'}>
           <div className={css.providerCopy}>
             <div className={css.providerHeader}><span>{t('providerVisibility', { provider: t(provider) })}</span>
-              <span className={connected ? css.providerBadgeConnected : css.providerBadgeDisconnected}>
-                {provider === 'linear' || provider === 'jira' ? t('providerOnQuery') : snapshot === undefined || snapshot.status === 'checking' ? t('providerChecking')
-                  : connected ? t('providerConnected') : snapshot.status === 'not-installed' ? t('providerNotInstalled')
-                    : snapshot.status === 'not-authenticated' ? t('providerNotAuthenticated') : t('providerUnavailable')}
-              </span>
+              <span className={connected ? css.providerBadgeConnected : css.providerBadgeDisconnected}>{badge}</span>
             </div>
             <p className={css.help}>{t('visibilityHelp')}</p>
             {connected && snapshot.account !== null ? <p className={css.help}>{t('providerAccount')}: {snapshot.account}</p> : null}
@@ -230,7 +229,7 @@ export function WorkItemsSection(props: WorkItemsSectionProps): ReactNode {
       <label className={css.filter} data-settings-anchor="work-items-source"><span>{t('source')}</span>
         <select aria-label={t('source')} value={source ?? ''} disabled={source === undefined} onChange={(event) => {
           const value = event.currentTarget.value
-          setSource(value === 'linear' ? 'linear' : value === 'gitlab' ? 'gitlab' : value === 'jira' ? 'jira' : 'github')
+          setSource(value === 'linear' ? 'linear' : value === 'gitlab' ? 'gitlab' : value === 'gitee' ? 'gitee' : value === 'jira' ? 'jira' : 'github')
         }}>{source === undefined ? <option value="">{t('noVisibleProviders')}</option> : null}
           {sources.map(provider => <option key={provider} value={provider}>{t(provider)}</option>)}
         </select><span className={css.help}>{t('sourceHelp')}</span>

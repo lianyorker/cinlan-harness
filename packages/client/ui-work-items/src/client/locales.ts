@@ -14,8 +14,8 @@ export const zh = {
   writeStatusPrepared: '待确认', writeStatusRunning: '已发送，结果尚未确认', writeStatusSucceeded: '已成功',
   writeStatusFailed: '未执行或被拒绝', writeStatusUnknown: '结果不确定', writeStatusCanceled: '已取消', writeStatusExpired: '确认已过期',
 
-  nav: '工作项', title: '工作项', description: '查看 GitHub、GitLab、Jira 和 Linear 工单，管理本地关联，并在预览后确认外部修改。',
-  source: '来源', github: 'GitHub', linear: 'Linear', gitlab: 'GitLab', jira: 'Jira', state: '状态', open: '未关闭', closed: '已关闭', all: '全部',
+  nav: '工作项', title: '工作项', description: '查看 GitHub、GitLab、Gitee、Jira 和 Linear 工单，管理本地关联，并在预览后确认外部修改。',
+  source: '来源', github: 'GitHub', linear: 'Linear', gitlab: 'GitLab', gitee: 'Gitee', jira: 'Jira', state: '状态', open: '未关闭', closed: '已关闭', all: '全部',
   sourceHelp: '读取主机配置的仓库、项目或团队。', stateHelp: '按来源平台的未关闭或已关闭状态筛选。',
   search: '搜索标题或描述', queryHelp: '搜索每一页的标题和正文；可继续翻页查看其他匹配项。',
   workspaceContext: '工作区范围', workspaceScopeHelp: '仅限制显示的本地关联，不改变来源平台的工单范围。', allWorkspaceContexts: '所有工作区关联',
@@ -54,8 +54,8 @@ export const en: Record<WorkItemsKey, string> = {
   writeStatusPrepared: 'Awaiting confirmation', writeStatusRunning: 'Sent, result unconfirmed', writeStatusSucceeded: 'Succeeded',
   writeStatusFailed: 'Not executed or rejected', writeStatusUnknown: 'Unknown outcome', writeStatusCanceled: 'Canceled', writeStatusExpired: 'Approval expired',
 
-  nav: 'Work Items', title: 'Work Items', description: 'Read GitHub, GitLab, Jira, and Linear issues, manage local links, and preview external changes before confirmation.',
-  source: 'Source', github: 'GitHub', linear: 'Linear', gitlab: 'GitLab', jira: 'Jira', state: 'State', open: 'Open', closed: 'Closed', all: 'All',
+  nav: 'Work Items', title: 'Work Items', description: 'Read GitHub, GitLab, Gitee, Jira, and Linear issues, manage local links, and preview external changes before confirmation.',
+  source: 'Source', github: 'GitHub', linear: 'Linear', gitlab: 'GitLab', gitee: 'Gitee', jira: 'Jira', state: 'State', open: 'Open', closed: 'Closed', all: 'All',
   sourceHelp: 'Read the repository, project, or team configured on the Host.', stateHelp: 'Filter by the provider’s open or closed states.',
   search: 'Search title or description', queryHelp: 'Search titles and bodies within each page; continue paging for more matches.',
   workspaceContext: 'Workspace scope', workspaceScopeHelp: 'Limit the local links shown; this does not change the provider issue scope.', allWorkspaceContexts: 'All Workspace links',

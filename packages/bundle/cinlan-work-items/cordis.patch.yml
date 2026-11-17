@@ -10,6 +10,8 @@
       name: '@deepseek-ai/dsh-work-items-gitlab'
       config:
         allowWrites: false
+    - id: work-items-gitee
+      name: '@cinlan/work-items-gitee'
     - id: work-items-jira
       name: '@deepseek-ai/dsh-work-items-jira'
       config:

@@ -37,6 +37,7 @@
     "@cinlan/work-items": "workspace:^",
     "@deepseek-ai/dsh-work-items-github": "workspace:^",
     "@deepseek-ai/dsh-work-items-gitlab": "workspace:^",
+    "@cinlan/work-items-gitee": "workspace:^",
     "@deepseek-ai/dsh-work-items-jira": "workspace:^",
     "@deepseek-ai/dsh-work-items-linear": "workspace:^",
     "@deepseek-ai/dsh-tool-work-items": "workspace:^",
