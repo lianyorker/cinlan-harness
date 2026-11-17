@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/terminal/terminal-quick-commands/README.md
+/:
+  en: 311717aa36520f29
+  zh: 88986fbf5410c9c9
+/cinlan-terminal-quick-commands:
+  en: a89b1f6f77239961
+  zh: 7f17d976132295e2
+/cinlan-terminal-quick-commands/summary:
+  en: 84dfebe25d1eea76
+  zh: 2871ffabd8fbb558
+/cinlan-terminal-quick-commands/use-this-package:
+  en: 9bef06ab7c6bf156
+  zh: 5ac1d89cdaed875b
+/cinlan-terminal-quick-commands/model-experience:
+  en: 91b9b4310a268f33
+  zh: b79fb5d67449d69f
+/cinlan-terminal-quick-commands/model-experience/kv-cache-effect:
+  en: a3278bc08e9678b9
+  zh: f65706fac611168b
+/cinlan-terminal-quick-commands/known-limitations-and-deferred-work:
+  en: f95c791f8a01a6ac
+  zh: 7366501f6c5c6571
