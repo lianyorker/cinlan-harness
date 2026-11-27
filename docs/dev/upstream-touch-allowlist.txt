@@ -49,3 +49,43 @@ apps/desktop/src/paths.ts
 #   语义重导向下 stub 名与默认值必须换成 CLH_HOME/.clh，否则这条直接相关的
 #   env 传播门禁会红；子进程键名仍是 DSH_HOME（DSH_* 运行时契约未变）。
 !packages/shell/shell-env/tests/shell-env.spec.ts
+
+# ---- CLH 品牌资产（Stage 1.5：DeepSeek 鲸鱼 -> Cinlan C+节点标识）----
+
+# 三个图标 SVG 源与派生位图（icon/windows/macos 三变体、tray ICO）：
+#   保留官方 tile/filter/def 结构契约（render-app-icons/render-tray-icon
+#   依赖的组 id 不变），仅替换图稿路径为 Cinlan 标识；PNG/ICO 由官方
+#   sharp 管线重渲染。
+apps/desktop/resources/
+
+# 安装器头图（brand*.png 600x196/1200x392 明暗两版）与卸载侧栏
+#   （164x314）：官方位图直换为 Cinlan 标识+字标。
+apps/desktop/installer/assets/
+
+# 欢迎页字标 SVG：鲸鱼+"deepseek"+HARNESS 徽标 -> 小标识+"cinlan"+HARNESS，
+#   明暗主题 CSS 变量结构保留。
+apps/desktop/renderer/assets/
+
+# PWA 公开资产：favicon 双版本、install icons（官方 render-app-icons 管线
+#   重渲染）、manifest 名称/短名 DeepSeek Harness/DSH -> Cinlan Harness/CLH。
+apps/web/public/
+
+# web 入口标题：index.html 的 apple-mobile-web-app-title/title 与
+#   vite.config.ts 的 DSH Local Build 字面量及注入替换目标成对改为 CLH。
+apps/web/index.html
+apps/web/vite.config.ts
+
+# 门禁自身：allowlist 与 verify 脚本均为本仓新增（vs 基线为新增文件），
+#   diff 检查要求登记；二者即该门禁的组成部分。
+docs/dev/upstream-touch-allowlist.txt
+scripts/cinlan/verify-upstream-untouched.mjs
+
+# 桌面端用户可见品牌文案：locale.ts 全语言 "DeepSeek Harness"->Cinlan
+#   Harness、CLI 引用 dsh->clh/DSH->CLH（DeepSeek 模型提供方字样保留）。
+apps/desktop/src/locale.ts
+
+# electron-builder 类型字面量与已改的 protocols 实值（clh/Cinlan Harness）
+#   对齐；.env.*.example 示例 appId 换成 ai.cinlan.harness（变量名保留）。
+apps/desktop/electron-builder.config.d.mts
+apps/desktop/.env.macos.example
+apps/desktop/.env.windows.example
