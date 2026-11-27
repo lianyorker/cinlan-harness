@@ -1,6 +1,6 @@
 {
-  "name": "DeepSeek Harness",
-  "short_name": "DSH",
+  "name": "Cinlan Harness",
+  "short_name": "CLH",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
