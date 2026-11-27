@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Command-line entry for dsh.
+ * Command-line entry for clh.
  * @module @deepseek-ai/dsh/bin
  */
 
 /* v8 ignore file -- built-bin acceptance exercises this self-executing dispatch. */
 
 import { getDshRuntimeVersion, loadLayeredEnv, StartupError } from '@deepseek-ai/dsh-app-boot'
-import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { CLH_HOME_ENV, resolveClhHome } from '@deepseek-ai/dsh-home-paths'
 import { parseDshArgs } from './args.ts'
 import { reportStartupFailure } from './startup-diagnostics.ts'
 import type { RunProfileOptions } from './profile-boot.ts'
@@ -19,7 +19,7 @@ export type RunCliOptions = Pick<RunProfileOptions, 'packageManager'> & {
 }
 
 /**
- * Run the public dsh command-line interface.
+ * Run the public clh command-line interface.
  * @param options - Package runtime and Desktop profile access supplied by the installation.
  * @returns a promise that settles when the selected command mode finishes.
  */
@@ -32,8 +32,13 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
     case 'profile': {
       const { runProfile } = await import('./profile-boot.ts')
       try {
+        // Freeze the resolved home before the layered .env read: loadLayeredEnv
+        // never overrides names already present, so a project `.env` cannot
+        // relocate the Cinlan Harness root mid-boot. `$DSH_HOME` in a file is
+        // refused upstream and `$CLH_HOME`/`$CINLAN_HARNESS_HOME` land here.
+        process.env[CLH_HOME_ENV] ??= resolveClhHome()
         await runProfile({
-          environment: loadLayeredEnv('dsh'),
+          environment: loadLayeredEnv('clh'),
           profile: invocation.profile,
           fromDefaultProfile: invocation.fromDefaultProfile,
           patchFiles: invocation.patches,
@@ -42,7 +47,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
         })
       } catch (error) {
         if (!(error instanceof StartupError)) throw error
-        await reportStartupFailure(error, { home: resolveDshHome(), version, profile: invocation.profile })
+        await reportStartupFailure(error, { home: resolveClhHome(), version, profile: invocation.profile })
         process.exit(1)
       }
       break
@@ -69,7 +74,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
     }
     default:
       invocation satisfies never
-      throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`)
+      throw new Error(`clh: unhandled invocation mode ${JSON.stringify(invocation)}`)
   }
 }
 

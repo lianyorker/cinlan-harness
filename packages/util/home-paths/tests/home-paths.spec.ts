@@ -4,12 +4,21 @@ import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   AGENTS_HOME_DIR_NAME,
+  CINLAN_HARNESS_HOME_ENV,
+  CLH_HOME_DIR_NAME,
+  CLH_HOME_ENV,
   DEFAULT_AGENTS_HOME_DISPLAY,
+  DEFAULT_CLH_HOME_DISPLAY,
   DEFAULT_DSH_HOME_DISPLAY,
   DSH_HOME_DIR_NAME,
+  DSH_HOME_ENV,
   agentsHomeDisplay,
   canonicalizeWatchPath,
+  clhCachePath,
+  clhHomeDisplay,
+  clhHomePath,
   defaultAgentsHome,
+  defaultClhHome,
   defaultDshHome,
   dshCachePath,
   dshHomeDisplay,
@@ -17,6 +26,7 @@ import {
   dshPath,
   expandHomePath,
   resolveAgentsHome,
+  resolveClhHome,
   resolveDshHome,
 } from '@deepseek-ai/dsh-home-paths'
 
@@ -24,43 +34,66 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('dsh path helpers', () => {
-  it('owns the shared default DSH home directory name', () => {
-    expect(DSH_HOME_DIR_NAME).toBe('.dsh')
-    expect(DEFAULT_DSH_HOME_DISPLAY).toBe('~/.dsh')
-    expect(defaultDshHome()).toBe(join(homedir(), '.dsh'))
+describe('clh path helpers', () => {
+  it('owns the Cinlan Harness home directory name and its deprecated aliases', () => {
+    expect(CLH_HOME_DIR_NAME).toBe('.clh')
+    expect(DEFAULT_CLH_HOME_DISPLAY).toBe('~/.clh')
+    expect(defaultClhHome()).toBe(join(homedir(), '.clh'))
+    expect(DSH_HOME_DIR_NAME).toBe(CLH_HOME_DIR_NAME)
+    expect(DEFAULT_DSH_HOME_DISPLAY).toBe(DEFAULT_CLH_HOME_DISPLAY)
+    expect(defaultDshHome()).toBe(defaultClhHome())
+  })
+
+  it('keeps the official DSH_HOME variable readable but never resolves through it', () => {
+    expect(CLH_HOME_ENV).toBe('CLH_HOME')
+    expect(CINLAN_HARNESS_HOME_ENV).toBe('CINLAN_HARNESS_HOME')
+    expect(DSH_HOME_ENV).toBe('DSH_HOME')
+    // A machine that also runs the official harness keeps the two roots apart:
+    // the official override cannot relocate the Cinlan Harness home.
+    expect(resolveClhHome(undefined, { DSH_HOME: '~/official-dsh' })).toBe(defaultClhHome())
   })
 
   it('expands tilde paths without changing non-tilde paths', () => {
     expect(expandHomePath('~')).toBe(homedir())
-    expect(expandHomePath('~/.dsh')).toBe(join(homedir(), '.dsh'))
-    expect(expandHomePath('~\\.dsh')).toBe(join(homedir(), '.dsh'))
-    expect(expandHomePath('/tmp/.dsh')).toBe('/tmp/.dsh')
-    expect(expandHomePath('~other/.dsh')).toBe('~other/.dsh')
+    expect(expandHomePath('~/.clh')).toBe(join(homedir(), '.clh'))
+    expect(expandHomePath('~\\.clh')).toBe(join(homedir(), '.clh'))
+    expect(expandHomePath('/tmp/.clh')).toBe('/tmp/.clh')
+    expect(expandHomePath('~other/.clh')).toBe('~other/.clh')
   })
 
-  it('resolves explicit path before DSH_HOME and the default', () => {
-    const envHome = join(homedir(), 'env-dsh')
+  it('resolves explicit path before CLH_HOME, CINLAN_HARNESS_HOME, and the default', () => {
+    const envHome = join(homedir(), 'env-clh')
+    const cinlanHome = join(homedir(), 'env-cinlan')
 
-    expect(resolveDshHome('/tmp/explicit-dsh', { DSH_HOME: '~/env-dsh' })).toBe(resolve('/tmp/explicit-dsh'))
-    expect(resolveDshHome(undefined, { DSH_HOME: '~/env-dsh' })).toBe(envHome)
-    expect(resolveDshHome(undefined, {})).toBe(defaultDshHome())
+    expect(resolveClhHome('/tmp/explicit-clh', { CLH_HOME: '~/env-clh' })).toBe(resolve('/tmp/explicit-clh'))
+    expect(resolveClhHome(undefined, { CLH_HOME: '~/env-clh' })).toBe(envHome)
+    expect(resolveClhHome(undefined, { CINLAN_HARNESS_HOME: '~/env-cinlan' })).toBe(cinlanHome)
+    expect(resolveClhHome(undefined, { CLH_HOME: '~/env-clh', CINLAN_HARNESS_HOME: '~/env-cinlan' })).toBe(envHome)
+    expect(resolveClhHome(undefined, {})).toBe(defaultClhHome())
+    // The deprecated resolver is the same resolution.
+    expect(resolveDshHome(undefined, { CLH_HOME: '~/env-clh' })).toBe(envHome)
   })
 
-  it('treats an empty or whitespace-only DSH_HOME as unset', () => {
-    expect(resolveDshHome(undefined, { DSH_HOME: '' })).toBe(defaultDshHome())
-    expect(resolveDshHome(undefined, { DSH_HOME: '   ' })).toBe(defaultDshHome())
+  it('treats empty or whitespace-only home variables as unset', () => {
+    expect(resolveClhHome(undefined, { CLH_HOME: '' })).toBe(defaultClhHome())
+    expect(resolveClhHome(undefined, { CLH_HOME: '   ' })).toBe(defaultClhHome())
+    expect(resolveClhHome(undefined, { CINLAN_HARNESS_HOME: '' })).toBe(defaultClhHome())
+    // A blank CLH_HOME falls through to CINLAN_HARNESS_HOME.
+    expect(resolveClhHome(undefined, { CLH_HOME: ' ', CINLAN_HARNESS_HOME: '~/env-cinlan' }))
+      .toBe(join(homedir(), 'env-cinlan'))
   })
 
-  it('joins child segments onto the resolved DSH_HOME', () => {
-    vi.stubEnv('DSH_HOME', '~/env-dsh')
-    expect(dshHomePath()).toBe(join(homedir(), 'env-dsh'))
-    expect(dshHomePath('storages', 'cache')).toBe(join(homedir(), 'env-dsh', 'storages', 'cache'))
+  it('joins child segments onto the resolved CLH_HOME', () => {
+    vi.stubEnv(CLH_HOME_ENV, '~/env-clh')
+    expect(clhHomePath()).toBe(join(homedir(), 'env-clh'))
+    expect(clhHomePath('storages', 'cache')).toBe(join(homedir(), 'env-clh', 'storages', 'cache'))
+    expect(dshHomePath('storages')).toBe(join(homedir(), 'env-clh', 'storages'))
   })
 
   it('labels a resolved home by whether it is the default root', () => {
-    expect(dshHomeDisplay(resolve(defaultDshHome()))).toBe('~/.dsh')
-    expect(dshHomeDisplay('/some/other/root')).toBe('$DSH_HOME')
+    expect(clhHomeDisplay(resolve(defaultClhHome()))).toBe('~/.clh')
+    expect(clhHomeDisplay('/some/other/root')).toBe('$CLH_HOME')
+    expect(dshHomeDisplay('/some/other/root')).toBe('$CLH_HOME')
   })
 
   it('owns the shared default agents home directory name', () => {
@@ -88,40 +121,42 @@ describe('dsh path helpers', () => {
   })
 
   it.each([
-    [undefined, join(homedir(), '.dsh')],
-    ['', join(homedir(), '.dsh')],
-    ['   ', join(homedir(), '.dsh')],
-    ['~/env-dsh', join(homedir(), 'env-dsh')],
-    ['./relative-dsh', resolve('./relative-dsh')],
-  ] as const)('resolves cache paths with DSH_HOME=%j', (home, expectedHome) => {
-    vi.stubEnv('DSH_HOME', home)
+    [undefined, join(homedir(), '.clh')],
+    ['', join(homedir(), '.clh')],
+    ['   ', join(homedir(), '.clh')],
+    ['~/env-clh', join(homedir(), 'env-clh')],
+    ['./relative-clh', resolve('./relative-clh')],
+  ] as const)('resolves cache paths with CLH_HOME=%j', (home, expectedHome) => {
+    vi.stubEnv(CLH_HOME_ENV, home)
     try {
+      expect(clhCachePath()).toBe(join(expectedHome, 'cache'))
+      expect(clhCachePath('models', 'index.json')).toBe(join(expectedHome, 'cache', 'models', 'index.json'))
       expect(dshCachePath()).toBe(join(expectedHome, 'cache'))
-      expect(dshCachePath('models', 'index.json')).toBe(join(expectedHome, 'cache', 'models', 'index.json'))
     } finally {
       vi.unstubAllEnvs()
     }
   })
 
   it('resolves configured cache homes before the environment', () => {
-    vi.stubEnv('DSH_HOME', '~/env-dsh')
+    vi.stubEnv(CLH_HOME_ENV, '~/env-clh')
     try {
-      expect(dshCachePath({ dshHome: '~/explicit-dsh' })).toBe(join(homedir(), 'explicit-dsh', 'cache'))
-      expect(dshCachePath({ dshHome: './explicit-dsh' }, 'attachments', 'request-images'))
-        .toBe(resolve('./explicit-dsh/cache/attachments/request-images'))
-      expect(dshCachePath({}, 'attachments')).toBe(join(homedir(), 'env-dsh', 'cache', 'attachments'))
+      expect(clhCachePath({ clhHome: '~/explicit-clh' })).toBe(join(homedir(), 'explicit-clh', 'cache'))
+      expect(dshCachePath({ clhHome: './explicit-clh' }, 'attachments', 'request-images'))
+        .toBe(resolve('./explicit-clh/cache/attachments/request-images'))
+      expect(dshCachePath({ dshHome: './explicit-legacy' })).toBe(resolve('./explicit-legacy/cache'))
+      expect(clhCachePath({}, 'attachments')).toBe(join(homedir(), 'env-clh', 'cache', 'attachments'))
     } finally {
       vi.unstubAllEnvs()
     }
   })
 
   it.each([
-    [undefined, join(homedir(), '.dsh')],
-    ['', join(homedir(), '.dsh')],
-    ['~/env-dsh', join(homedir(), 'env-dsh')],
-    ['./relative-dsh', resolve('./relative-dsh')],
-  ] as const)('resolves category paths with DSH_HOME=%j', (home, expectedHome) => {
-    vi.stubEnv('DSH_HOME', home)
+    [undefined, join(homedir(), '.clh')],
+    ['', join(homedir(), '.clh')],
+    ['~/env-clh', join(homedir(), 'env-clh')],
+    ['./relative-clh', resolve('./relative-clh')],
+  ] as const)('resolves category paths with CLH_HOME=%j', (home, expectedHome) => {
+    vi.stubEnv(CLH_HOME_ENV, home)
     for (const category of ['config', 'data', 'state', 'cache', 'backup'] as const) {
       expect(dshPath(category)).toBe(join(expectedHome, category))
       expect(dshPath(category, 'owner', 'file.json')).toBe(join(expectedHome, category, 'owner', 'file.json'))
@@ -129,9 +164,10 @@ describe('dsh path helpers', () => {
   })
 
   it('resolves a configured category home before the environment', () => {
-    vi.stubEnv('DSH_HOME', '~/env-dsh')
-    expect(dshPath({ category: 'state', dshHome: '~/explicit-dsh' }, 'logs')).toBe(join(homedir(), 'explicit-dsh', 'state', 'logs'))
-    expect(dshPath({ category: 'data', dshHome: undefined })).toBe(join(homedir(), 'env-dsh', 'data'))
+    vi.stubEnv(CLH_HOME_ENV, '~/env-clh')
+    expect(dshPath({ category: 'state', clhHome: '~/explicit-clh' }, 'logs')).toBe(join(homedir(), 'explicit-clh', 'state', 'logs'))
+    expect(dshPath({ category: 'state', dshHome: '~/explicit-legacy' }, 'logs')).toBe(join(homedir(), 'explicit-legacy', 'state', 'logs'))
+    expect(dshPath({ category: 'data', clhHome: undefined })).toBe(join(homedir(), 'env-clh', 'data'))
   })
 
   it('canonicalizes a watcher ancestor while preserving a missing suffix', async () => {

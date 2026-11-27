@@ -1,0 +1,51 @@
+# 官方文件修改白名单（upstream-touch allowlist）
+#
+# 用途：`scripts/cinlan/verify-upstream-untouched.mjs` 逐行读取本文件，
+# 凡与当前绑定的官方基线（`dsh-v0.2.3-alpha.2`，commit
+# `4b399c39a6d1479cd84ca591b4d7c88e24d38a96`）相比被修改/删除、又不在本
+# 文件登记范围内的官方文件，熔断失败。
+#
+# 格式：
+#   - 每行一条，支持精确路径（仓库根相对、正斜杠）或目录前缀（以 `/` 结尾）。
+#   - `#` 开头为注释；行尾 ` # ...` 为行内注释。
+#   - `!` 前缀 = 超出宪章 §3.3 枚举范围的例外登记，脚本按允许放行但输出
+#     WARNING，等待 YG 确认转正或回退。
+#
+# 维护纪律：新增一行必须附理由；上限 15 个文件（宪章 §3.3）。
+
+# ---- CLH 品牌与隔离壳（Stage 1，本阶段登记）----
+
+# packages/util/home-paths：~/.clh + CLH_HOME/CINLAN_HARNESS_HOME 解析；
+#   dsh 命名导出降级为指向 clh 实现的兼容别名。
+packages/util/home-paths/src/index.ts
+packages/util/home-paths/tests/home-paths.spec.ts
+
+# apps/cli：clh 命令身份（bin 名、帮助文本、诊断前缀、生成的 profile
+#   根配置注释）、CLH_HOME 启动冻结（在 loadLayeredEnv 前把解析好的 home
+#   写入 process.env，等价于上游 DSH_ 前缀的 .env 防护，避免动 app-boot）。
+apps/cli/src/bin.ts
+apps/cli/src/args.ts
+apps/cli/src/profile-boot.ts
+apps/cli/src/plugin.ts
+apps/cli/src/dump-config.ts
+apps/cli/src/dump-config-schema.ts
+apps/cli/package.json
+
+# apps/desktop：独立产品标识（productName、ai.cinlan.harness AppId 默认、
+#   clh:// 协议、cinlan-harness-* 制品名）与 ~/.clh 下 profile/lock 存储。
+apps/desktop/package.json
+apps/desktop/scripts/desktop-release-environment.mjs
+apps/desktop/scripts/electron-builder-config.mjs
+apps/desktop/src/paths.ts
+
+# ---- 例外登记（超出宪章 §3.3 枚举范围，待 YG 确认）----
+
+# 该函数硬编码 `~/.dsh`/`process.env.DSH_HOME`，绕过 home-paths 直接把
+#   owner-shares.json 写进官方产品的 home——不改成 ~/.clh 链就等于 clh
+#   反向污染官方 dsh 目录，与本阶段交付标准互斥；行内回退未引新依赖。
+!packages/experimental/liveshare/src/host/share-host.ts
+
+# 该 spec 断言工具子进程 env 的 home 值解析（stub DSH_HOME -> .dsh）。
+#   语义重导向下 stub 名与默认值必须换成 CLH_HOME/.clh，否则这条直接相关的
+#   env 传播门禁会红；子进程键名仍是 DSH_HOME（DSH_* 运行时契约未变）。
+!packages/shell/shell-env/tests/shell-env.spec.ts

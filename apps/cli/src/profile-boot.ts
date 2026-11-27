@@ -30,13 +30,13 @@ import {
   type RuntimeResolution,
 } from '@deepseek-ai/dsh-app-boot'
 import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
-import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { resolveClhHome } from '@deepseek-ai/dsh-home-paths'
 import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 
-const NAME = 'dsh'
+const NAME = 'clh'
 
 /** Launcher-owned readiness signal committed only after boot and host setup succeed. */
 function createAppReady(): { service: AppReady; commit(): void } {
@@ -63,20 +63,20 @@ function createAppReady(): { service: AppReady; commit(): void } {
 }
 
 /**
- * The home-level user patch layer (`$DSH_HOME/cordis.patch.yml`), applied
+ * The home-level user patch layer (`$CLH_HOME/cordis.patch.yml`), applied
  * over every profile's own layer. Resolved per call, not at module load:
- * `$DSH_HOME` may be set by the test or launcher after import.
+ * `$CLH_HOME` may be set by the test or launcher after import.
  * @returns the absolute patch-file path.
  */
 export function homePatchPath(): string {
-  return join(resolveDshHome(), PROFILE_PATCH_FILENAME)
+  return join(resolveClhHome(), PROFILE_PATCH_FILENAME)
 }
 
 /** Absolute path of this dsh installation's package.json (both anchors: src/ and lib/ sit one level under apps/cli). */
 export const INSTALL_ANCHOR = fileURLToPath(new URL('../package.json', import.meta.url))
 
 /** The empty root entry list every profile tree patches over. */
-const PROFILE_ROOT_CONFIG = `# dsh profile root — an empty entry list. The tree is composed as patches:
+const PROFILE_ROOT_CONFIG = `# clh profile root — an empty entry list. The tree is composed as patches:
 # each bundle in package.json's dsh.profile.bundles, then cordis.patch.yml, then any
 # --patch overlays. Edit cordis.patch.yml, not this file.
 []
@@ -106,7 +106,7 @@ export const PROFILE_ROOT_FILENAME = 'cordis.yml'
 export function initializeProfileFromDefault(
   name: string,
   fromDefaultProfile: string,
-  home: string = resolveDshHome(),
+  home: string = resolveClhHome(),
 ): void {
   const dir = resolveProfileDir(name, home)
   const template = Object.hasOwn(PROFILE_TEMPLATES, fromDefaultProfile)
@@ -210,7 +210,7 @@ interface ComposedProfile {
  * Load `name` and compose its effective patch stack: bundle layers in
  * `dsh.profile.bundles` order (a base-backed profile gets the base bundle's
  * platform-gated shell rows), the profile's user layer, the home-level user
- * layer (`$DSH_HOME/cordis.patch.yml` — machine-local preferences that apply
+ * layer (`$CLH_HOME/cordis.patch.yml` — machine-local preferences that apply
  * to every profile, so it outranks the per-profile layer), `--patch` overlays,
  * then the telemetry switch.
  * @param name - the profile name.
@@ -296,7 +296,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       try { await release() } catch (error) { failures.push(error) }
     }
     if (failures.length === 1) throw failures[0]
-    if (failures.length > 1) throw new AggregateError(failures, 'dsh: profile cleanup failed')
+    if (failures.length > 1) throw new AggregateError(failures, 'clh: profile cleanup failed')
   })()
   try {
     const composed = await composeProfile(
@@ -327,7 +327,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       dir: composed.profile.dir, patchPath: composed.profile.patchPath,
       installAnchor: options.resolvedProfile?.installAnchor ?? INSTALL_ANCHOR,
       startedBundles: composed.profile.layers.map(layer => layer.packageName),
-      cwd: process.cwd(), home: resolveDshHome(),
+      cwd: process.cwd(), home: resolveClhHome(),
       overlayPaths: composed.overlayPaths, telemetryDisabledEnv: process.env.DSH_TELEMETRY_DISABLED,
     }
     const ctx = await boot(NAME, rootConfig, readProfilePatches(NAME, profileContext, composed.profile), async (hostCtx) => {
@@ -356,7 +356,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     return { ctx, shutdown }
   } catch (error) {
     try { await dispose() } catch (cleanupError) {
-      throw new AggregateError([error, cleanupError], 'dsh: profile startup and cleanup failed')
+      throw new AggregateError([error, cleanupError], 'clh: profile startup and cleanup failed')
     }
     throw error
   }

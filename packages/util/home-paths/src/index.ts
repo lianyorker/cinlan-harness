@@ -1,5 +1,11 @@
 /**
- * Shared filesystem path helpers for DeepSeek Harness user data.
+ * Shared filesystem path helpers for Cinlan Harness user data.
+ *
+ * Cinlan Harness (`clh`) is a distinct product from the official DeepSeek
+ * Harness (`dsh`) and keeps its own root, environment variables and
+ * identifiers. Nothing here reads or falls back to the official harness root.
+ * The `dsh`-named exports remain as deprecated aliases so upstream-shaped call
+ * sites keep compiling while every lookup lands on the Cinlan Harness home.
  *
  * @module @deepseek-ai/dsh-home-paths
  */
@@ -8,13 +14,34 @@ import { opendir, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
-/** Directory name for the default DeepSeek Harness home under the OS home. */
-export const DSH_HOME_DIR_NAME = '.dsh'
+/** Directory name for the default Cinlan Harness home under the OS home. */
+export const CLH_HOME_DIR_NAME = '.clh'
 
-/** Stable user-facing display form for the default DeepSeek Harness home. */
-export const DEFAULT_DSH_HOME_DISPLAY = `~/${DSH_HOME_DIR_NAME}`
+/** @deprecated Cinlan Harness home uses `.clh`; kept for upstream-shaped call sites. */
+export const DSH_HOME_DIR_NAME = CLH_HOME_DIR_NAME
 
-/** Environment variable that overrides the default DeepSeek Harness home. */
+/** Stable user-facing display form for the default Cinlan Harness home. */
+export const DEFAULT_CLH_HOME_DISPLAY = `~/${CLH_HOME_DIR_NAME}`
+
+/** @deprecated Use {@link DEFAULT_CLH_HOME_DISPLAY}. */
+export const DEFAULT_DSH_HOME_DISPLAY = DEFAULT_CLH_HOME_DISPLAY
+
+/** Primary environment variable that overrides the default Cinlan Harness home. */
+export const CLH_HOME_ENV = 'CLH_HOME'
+
+/** Secondary environment variable that overrides the default Cinlan Harness home. */
+export const CINLAN_HARNESS_HOME_ENV = 'CINLAN_HARNESS_HOME'
+
+/**
+ * The official DeepSeek Harness home variable.
+ *
+ * Exported so consumers keep the official product's name clear of the managed
+ * namespace; {@link resolveClhHome} never reads it. The same literal still
+ * keys the harness home inside tool child-process environments — the `DSH_*`
+ * managed-facts contract shared with upstream — so tools spawned by Cinlan
+ * Harness see this product's resolved root there, and an official `dsh`
+ * process launched under one stays consistent with its own contract.
+ */
 export const DSH_HOME_ENV = 'DSH_HOME'
 
 /** Directory name for the default shared agent configuration root under the OS home. */
@@ -64,12 +91,15 @@ export async function canonicalizeWatchPath(path: string): Promise<string> {
 }
 
 /**
- * Resolve the default DeepSeek Harness home using Node's platform path rules.
+ * Resolve the default Cinlan Harness home using Node's platform path rules.
  * @returns the absolute default harness home path.
  */
-export function defaultDshHome(): string {
-  return join(homedir(), DSH_HOME_DIR_NAME)
+export function defaultClhHome(): string {
+  return join(homedir(), CLH_HOME_DIR_NAME)
 }
+
+/** @deprecated Use {@link defaultClhHome}. */
+export const defaultDshHome = defaultClhHome
 
 /**
  * Resolve the default shared agent configuration root using Node's platform path rules.
@@ -122,19 +152,30 @@ function rootDisplay(resolvedRoot: string, defaultRoot: string, defaultLabel: st
 }
 
 /**
- * Resolve the single-root DeepSeek Harness home.
+ * Resolve the single-root Cinlan Harness home.
  *
- * Precedence, highest first: an explicit configured path, `$DSH_HOME`, then
- * `~/.dsh`. The harness keeps all user data under one root. An empty or
- * whitespace-only `$DSH_HOME` is treated as unset, so a blank override never
- * resolves the home to the current working directory.
+ * Precedence, highest first: an explicit configured path, `$CLH_HOME`,
+ * `$CINLAN_HARNESS_HOME`, then `~/.clh`. The harness keeps all user data under
+ * one root. Empty or whitespace-only variables are treated as unset, so a
+ * blank override never resolves the home to the current working directory.
+ *
+ * `$DSH_HOME` is deliberately not consulted. A machine that also runs the
+ * official DeepSeek Harness keeps `~/.dsh` and its own `DSH_HOME`; sharing
+ * them would let either product read or clean the other's sessions,
+ * credentials and caches, so Cinlan Harness never inherits that root.
  * @param configured - explicit harness-home override, which has highest precedence.
- * @param env - environment mapping used to read `DSH_HOME`.
+ * @param env - environment mapping used to read the home variables.
  * @returns the normalized absolute harness home path.
  */
-export function resolveDshHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
-  return resolveRoot(configured, env, DSH_HOME_ENV, defaultDshHome)
+export function resolveClhHome(configured?: string, env: Record<string, string | undefined> = process.env): string {
+  const override = [CLH_HOME_ENV, CINLAN_HARNESS_HOME_ENV]
+    .map(name => env[name]?.trim())
+    .find(value => value !== undefined && value.length > 0)
+  return resolve(expandHomePath(configured ?? override ?? defaultClhHome()))
 }
+
+/** @deprecated Use {@link resolveClhHome}. */
+export const resolveDshHome = resolveClhHome
 
 /**
  * Resolve the shared agent configuration root.
@@ -153,14 +194,17 @@ export function resolveAgentsHome(configured?: string, env: Record<string, strin
 }
 
 /**
- * Join path segments onto the resolved DeepSeek Harness home. It addresses the
+ * Join path segments onto the resolved Cinlan Harness home. It addresses the
  * existing top-level entries; a new path uses {@link dshPath} with its category.
  * @param segments - path segments appended to the Harness home; an empty list returns the home itself.
  * @returns the normalized absolute joined path.
  */
-export function dshHomePath(...segments: string[]): string {
-  return join(resolveDshHome(), ...segments)
+export function clhHomePath(...segments: string[]): string {
+  return join(resolveClhHome(), ...segments)
 }
+
+/** @deprecated Use {@link clhHomePath}. */
+export const dshHomePath = clhHomePath
 
 /**
  * Join path segments onto the resolved Harness home's `cache` directory without creating it; no arguments returns the directory itself.
@@ -168,9 +212,18 @@ export function dshHomePath(...segments: string[]): string {
  * @param segments - additional path segments after the first child, if any.
  * @returns the normalized absolute cache path.
  */
-export function dshCachePath(optionsOrSegment: { dshHome?: string } | string = {}, ...segments: string[]): string {
+export function clhCachePath(optionsOrSegment: { clhHome?: string } | string = {}, ...segments: string[]): string {
   if (typeof optionsOrSegment === 'string') return dshPath('cache', optionsOrSegment, ...segments)
-  return dshPath({ category: 'cache', dshHome: optionsOrSegment.dshHome }, ...segments)
+  return dshPath({ category: 'cache', clhHome: optionsOrSegment.clhHome }, ...segments)
+}
+
+/**
+ * @deprecated Use {@link clhCachePath}.
+ * `dshHome` remains accepted so upstream-shaped call sites keep compiling.
+ */
+export function dshCachePath(optionsOrSegment: { clhHome?: string; dshHome?: string } | string = {}, ...segments: string[]): string {
+  if (typeof optionsOrSegment === 'string') return dshPath('cache', optionsOrSegment, ...segments)
+  return dshPath({ category: 'cache', clhHome: optionsOrSegment.clhHome ?? optionsOrSegment.dshHome }, ...segments)
 }
 
 /**
@@ -196,7 +249,9 @@ export type DshHomeCategory = 'config' | 'data' | 'state' | 'cache' | 'backup'
 export interface DshPathLocation {
   /** Category directory to join under. */
   category: DshHomeCategory
-  /** Explicit harness-home override, resolved by {@link resolveDshHome}; omission uses `$DSH_HOME`, then `~/.dsh`. */
+  /** Explicit harness-home override, resolved by {@link resolveClhHome}; omission uses `$CLH_HOME`, then `~/.clh`. */
+  clhHome?: string | undefined
+  /** @deprecated Use {@link DshPathLocation.clhHome}; kept for upstream-shaped call sites. */
   dshHome?: string | undefined
 }
 
@@ -209,21 +264,24 @@ export interface DshPathLocation {
  * @returns the normalized absolute path.
  */
 export function dshPath(location: DshHomeCategory | DshPathLocation, ...segments: string[]): string {
-  const { category, dshHome } = typeof location === 'string' ? { category: location, dshHome: undefined } : location
-  return join(resolveDshHome(dshHome), category, ...segments)
+  const { category, clhHome, dshHome } = typeof location === 'string' ? { category: location, clhHome: undefined, dshHome: undefined } : location
+  return join(resolveClhHome(clhHome ?? dshHome), category, ...segments)
 }
 
 /**
  * Describe a resolved harness home symbolically for user-facing display.
  *
  * It never returns an absolute machine path: the default home is labelled
- * `~/.dsh`, and any configured home is labelled `$DSH_HOME`.
- * @param resolvedHome - the absolute path returned by {@link resolveDshHome}.
- * @returns `~/.dsh` for the default home, otherwise `$DSH_HOME`.
+ * `~/.clh`, and any configured home is labelled `$CLH_HOME`.
+ * @param resolvedHome - the absolute path returned by {@link resolveClhHome}.
+ * @returns `~/.clh` for the default home, otherwise `$CLH_HOME`.
  */
-export function dshHomeDisplay(resolvedHome: string): string {
-  return rootDisplay(resolvedHome, defaultDshHome(), DEFAULT_DSH_HOME_DISPLAY, DSH_HOME_ENV)
+export function clhHomeDisplay(resolvedHome: string): string {
+  return rootDisplay(resolvedHome, defaultClhHome(), DEFAULT_CLH_HOME_DISPLAY, CLH_HOME_ENV)
 }
+
+/** @deprecated Use {@link clhHomeDisplay}. */
+export const dshHomeDisplay = clhHomeDisplay
 
 /**
  * Describe a resolved shared agent configuration root symbolically for user-facing display.

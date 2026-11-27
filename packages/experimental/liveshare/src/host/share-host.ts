@@ -668,14 +668,14 @@ function takeOwnerStateClaim(dir: string): OwnerHostClaim | undefined {
     return claimOwnerHost(dir)
   } catch (error: unknown) {
     if (!(error instanceof OwnerHostClaimHeldError)) throw error
-    console.warn(`[liveshare] the owner state is held by dsh pid ${String(error.holderPid)}; this instance reads the shares without registering them`)
+    console.warn(`[liveshare] the owner state is held by clh pid ${String(error.holderPid)}; this instance reads the shares without registering them`)
     return undefined
   }
 }
 
 function defaultOwnerStateFile(): string {
-  const dshHome = nonEmpty(process.env.DSH_HOME) ?? join(homedir(), '.dsh')
-  return join(dshHome, 'liveshare', 'owner-shares.json')
+  const clhHome = nonEmpty(process.env.CLH_HOME) ?? nonEmpty(process.env.CINLAN_HARNESS_HOME) ?? join(homedir(), '.clh')
+  return join(clhHome, 'liveshare', 'owner-shares.json')
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
