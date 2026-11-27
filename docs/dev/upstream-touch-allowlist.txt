@@ -89,3 +89,31 @@ apps/desktop/src/locale.ts
 apps/desktop/electron-builder.config.d.mts
 apps/desktop/.env.macos.example
 apps/desktop/.env.windows.example
+
+# ---- CLH 客户端品牌（Stage 1.5 续：UI 内嵌标识与文案）----
+
+# ui-primitives 品牌组件：FishLogo 鲸鱼 -> C+节点标（viewBox 契约不变）；
+#   BrandWordmark "deepseek" 矢量字母 -> <text>cinlan</text> + C 标 clip +
+#   HARNESS 徽标左移。
+packages/client/ui-primitives/src/FishLogo.tsx
+packages/client/ui-primitives/src/BrandWordmark.tsx
+
+# 英雄图鱼标：SMIL 鲸鱼尾摆路径 -> C 标节点浮动变体（命令结构一致）。
+packages/client/ui-conversation/src/client/skeleton/EmptyHero.tsx
+
+# 8 语种 brand.localBuild 值 DSH->CLH（仅该键，其余文案不动）。
+packages/client/locale/src/locales/de.ts
+packages/client/locale/src/locales/en.ts
+packages/client/locale/src/locales/es.ts
+packages/client/locale/src/locales/fr.ts
+packages/client/locale/src/locales/ja.ts
+packages/client/locale/src/locales/pt.ts
+packages/client/locale/src/locales/ru.ts
+packages/client/locale/src/locales/zh.ts
+
+# 官方构建注入的 DSH_CLIENT_TITLE DeepSeek Harness -> Cinlan Harness。
+scripts/client-build-environment.ts
+
+# 首页像素鲸装饰图集：鲸鱼剪影 -> C 标径向扩散（帧数/尺寸/R-G 通道
+#   编码契约不变，breach-atlas.webp 程序化重渲染）。
+packages/client/ui-brand-official/src/client/assets/breach-atlas.webp
