@@ -117,3 +117,15 @@ scripts/client-build-environment.ts
 # 首页像素鲸装饰图集：鲸鱼剪影 -> C 标径向扩散（帧数/尺寸/R-G 通道
 #   编码契约不变，breach-atlas.webp 程序化重渲染）。
 packages/client/ui-brand-official/src/client/assets/breach-atlas.webp
+
+# ---- CLH 打包链路适配（env 改名连锁修复）----
+
+# 打包冒烟 host env：官方只设 DSH_HOME，但本 fork 的 resolveClhHome
+#   刻意不读 DSH_HOME（防与官方 ~/.dsh 互污染），导致 smoke 装的插件落到
+#   错误 profile 根。补 CLH_HOME=<smoke-home> 与本产品 env 契约对齐；
+#   DSH_HOME 保留（工具子进程 managed-facts 契约仍用它）。
+apps/desktop/scripts/smoke-runtime.ts
+
+# 打包后冒烟的可执行路径：productName 已改 Cinlan Harness，官方硬编码的
+#   DeepSeek Harness.exe/.app/MacOS 二进制名随之替换（同 fork 改名连锁）。
+apps/desktop/scripts/smoke-packaged-runtime.ts

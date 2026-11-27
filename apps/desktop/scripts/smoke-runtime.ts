@@ -1,10 +1,10 @@
 /** Boot the materialized target runtime without access to a user's Harness profile. */
 
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
+import { lstat, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { readPrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
@@ -13,6 +13,35 @@ import { createPluginProfile } from '../src/project-manager.ts'
 import type { DesktopRuntimeDescriptor } from '../src/runtime-tree.ts'
 
 const OFFICE_SKILLS = ['office']
+
+/**
+ * Remove the smoke home within a hard deadline. Windows recursive deletion traverses
+ * junction targets and can block in the kernel when a pnpm-installed link dangles, so
+ * junction entries are unlinked non-recursively first; residue under tmp is harmless.
+ * @param home - Temporary smoke home.
+ */
+async function removeSmokeHome(home: string): Promise<void> {
+  await Promise.race([(async () => {
+    if (process.platform === 'win32') {
+      const pending = [home]
+      let directory: string | undefined
+      while ((directory = pending.pop()) !== undefined) {
+        let entries
+        try { entries = await readdir(directory, { withFileTypes: true }) } catch { continue }
+        for (const entry of entries) {
+          if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+          const path = join(directory, entry.name)
+          try { await readlink(path) } catch { pending.push(path); continue }
+          try { execFileSync('cmd', ['/c', 'rmdir', `"${path}"`], { timeout: 10_000, stdio: 'ignore', windowsHide: true }) } catch { /* residue tolerated */ }
+        }
+      }
+    }
+    await rm(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
+  })(), new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, 120_000)
+    timer.unref()
+  })])
+}
 
 /**
  * Require the bundled `office` skill to be listed and loaded with a nonempty body.
@@ -42,7 +71,7 @@ export async function smokeDesktopRuntime(
   const profile = join(home, 'profiles', 'desktop')
   const hostEnvironment = {
     ...Object.fromEntries(Object.entries(environment).filter(([name]) => !/^(?:npm|pnpm|corepack)_/iu.test(name))),
-    DSH_HOME: home, HOME: home, USERPROFILE: home,
+    DSH_HOME: home, CLH_HOME: home, HOME: home, USERPROFILE: home,
     XDG_CONFIG_HOME: home, XDG_CACHE_HOME: home, XDG_STATE_HOME: home,
     APPDATA: home, LOCALAPPDATA: home,
     npm_config_userconfig: join(home, 'npmrc'), npm_config_globalconfig: join(home, 'npmrc'),
@@ -232,7 +261,7 @@ export function apply(ctx) {
   } finally {
     clearTimeout(timer)
     try { await host.stop() } finally {
-      await rm(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
+      await removeSmokeHome(home)
     }
   }
 }
