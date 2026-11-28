@@ -16,8 +16,9 @@ const OFFICE_SKILLS = ['office']
 
 /**
  * Remove the smoke home within a hard deadline. Windows recursive deletion traverses
- * junction targets and can block in the kernel when a pnpm-installed link dangles, so
- * junction entries are unlinked non-recursively first; residue under tmp is harmless.
+ * junction targets and can block in the kernel once a pnpm link wedges (lstat ENOENT,
+ * readlink EINVAL). Non-recursive rmdir deletes junction entries instantly even in that
+ * state and fails harmlessly on non-empty real directories; residue under tmp is harmless.
  * @param home - Temporary smoke home.
  */
 async function removeSmokeHome(home: string): Promise<void> {
@@ -31,8 +32,11 @@ async function removeSmokeHome(home: string): Promise<void> {
         for (const entry of entries) {
           if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
           const path = join(directory, entry.name)
-          try { await readlink(path) } catch { pending.push(path); continue }
-          try { execFileSync('cmd', ['/c', 'rmdir', `"${path}"`], { timeout: 10_000, stdio: 'ignore', windowsHide: true }) } catch { /* residue tolerated */ }
+          try { execFileSync('cmd', ['/c', 'rmdir', `"${path}"`], { timeout: 10_000, stdio: 'ignore', windowsHide: true }) } catch { /* junction unlinked or non-empty dir left for rm */ }
+          try {
+            const stat = await lstat(path)
+            if (stat.isDirectory() && !stat.isSymbolicLink()) pending.push(path)
+          } catch { /* removed or un-stat-able: either way not a traversal target */ }
         }
       }
     }
