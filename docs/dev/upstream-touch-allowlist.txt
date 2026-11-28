@@ -50,13 +50,16 @@ apps/desktop/src/paths.ts
 #   env 传播门禁会红；子进程键名仍是 DSH_HOME（DSH_* 运行时契约未变）。
 !packages/shell/shell-env/tests/shell-env.spec.ts
 
-# ---- CLH 品牌资产（Stage 1.5：DeepSeek 鲸鱼 -> Cinlan C+节点标识）----
+# ---- CLH 品牌资产（Stage 1.5：DeepSeek 鲸鱼 -> Cinlan 星澜标识，v1 回迁）----
 
-# 三个图标 SVG 源与派生位图（icon/windows/macos 三变体、tray ICO）：
-#   保留官方 tile/filter/def 结构契约（render-app-icons/render-tray-icon
-#   依赖的组 id 不变），仅替换图稿路径为 Cinlan 标识；PNG/ICO 由官方
-#   sharp 管线重渲染。
+# 图标 SVG 源与派生位图（icon/windows/macos 三变体、tray ICO）：
+#   图稿为 cinlan-harness-v1 星澜标（蓝绸带 C-swoosh + 银刀锋 + 金芒）；
+#   官方 tile/filter/def 结构契约保留，PNG/ICO 与 SVG 从 v1 封存库直拷。
 apps/desktop/resources/
+
+# electron-builder 窗口/安装器 .ico 源（apps/desktop 根部、resources/ 前缀外）：
+#   同系列 v1 星澜标。
+apps/desktop/icon.ico
 
 # 安装器头图（brand*.png 600x196/1200x392 明暗两版）与卸载侧栏
 #   （164x314）：官方位图直换为 Cinlan 标识+字标。
@@ -92,13 +95,16 @@ apps/desktop/.env.windows.example
 
 # ---- CLH 客户端品牌（Stage 1.5 续：UI 内嵌标识与文案）----
 
-# ui-primitives 品牌组件：FishLogo 鲸鱼 -> C+节点标（viewBox 契约不变）；
-#   BrandWordmark "deepseek" 矢量字母 -> <text>cinlan</text> + C 标 clip +
-#   HARNESS 徽标左移。
+# ui-primitives 品牌组件：v1 版整体回迁——FishLogo 改渲染内嵌 PNG
+#   data-URL（CINLAN_LOGO_DATA_URL 星澜标，FISH_LOGO_PATH 置空保留导出）；
+#   BrandWordmark 用 v1 词标；index.ts 补 CinlanLogo/CINLAN_LOGO_*
+#   导出与 v1 公共面对齐。
 packages/client/ui-primitives/src/FishLogo.tsx
 packages/client/ui-primitives/src/BrandWordmark.tsx
+packages/client/ui-primitives/src/index.ts
 
-# 英雄图鱼标：SMIL 鲸鱼尾摆路径 -> C 标节点浮动变体（命令结构一致）。
+# 英雄图鱼标：v1 版整体回迁（hero.brand.mark slot 走栅格渲染，
+#   鲸鱼尾摆 morph 保留为 dead fallback）。
 packages/client/ui-conversation/src/client/skeleton/EmptyHero.tsx
 
 # 8 语种 brand.localBuild 值 DSH->CLH（仅该键，其余文案不动）。
@@ -114,8 +120,8 @@ packages/client/locale/src/locales/zh.ts
 # 官方构建注入的 DSH_CLIENT_TITLE DeepSeek Harness -> Cinlan Harness。
 scripts/client-build-environment.ts
 
-# 首页像素鲸装饰图集：鲸鱼剪影 -> C 标径向扩散（帧数/尺寸/R-G 通道
-#   编码契约不变，breach-atlas.webp 程序化重渲染）。
+# 首页像素鲸装饰图集：v1 星澜版整体回迁（137 帧 2304x1296 布局与
+#   R-G 通道编码契约不变，渲染器未动）。
 packages/client/ui-brand-official/src/client/assets/breach-atlas.webp
 
 # ---- CLH 打包链路适配（env 改名连锁修复）----
